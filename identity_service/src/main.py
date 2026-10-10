@@ -8,7 +8,7 @@ from src.core.config import settings
 from src.core.database import Base, engine
 from src.core.telemetry import setup_telemetry
 from src.infrastructure.persistence import models  # noqa: F401
-from src.presentation.routers import health
+from src.presentation.routers import clientes, health
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +38,7 @@ app = FastAPI(
 setup_telemetry(app)
 
 app.include_router(health.router, prefix=settings.API_PREFIX)
+app.include_router(clientes.router, prefix=settings.API_PREFIX)
 
 
 @app.get("/")

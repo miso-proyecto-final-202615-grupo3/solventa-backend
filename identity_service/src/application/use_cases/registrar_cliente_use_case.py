@@ -1,6 +1,9 @@
 import logging
 
-from src.application.ports.identity_provider import IdentityProvider
+from src.application.ports.identity_provider import (
+    IdentityProvider,
+    IdentityProviderError,
+)
 from src.domain.clientes.entities import Cliente, ClienteId
 from src.domain.clientes.repositories import ClienteRepository
 from src.domain.clientes.value_objects import EstadoKYC
@@ -13,10 +16,6 @@ class DuplicateClienteError(Exception):
     def __init__(self, detalle: str) -> None:
         self.detalle = detalle
         super().__init__(detalle)
-
-
-class IdentityProviderError(Exception):
-    pass
 
 
 class RegistrarClienteUseCase:

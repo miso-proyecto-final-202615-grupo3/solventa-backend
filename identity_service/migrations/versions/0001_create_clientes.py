@@ -31,7 +31,6 @@ def upgrade() -> None:
         ),
         sa.Column("numero_identificacion", sa.String(length=30), nullable=False),
         sa.Column("correo", sa.String(length=255), nullable=False),
-        sa.Column("password_hash", sa.String(length=255), nullable=False),
         sa.Column("fecha_nacimiento", sa.Date(), nullable=False),
         sa.Column("pais_residencia", sa.String(length=60), nullable=False),
         sa.Column("telefono", sa.String(length=20), nullable=False),

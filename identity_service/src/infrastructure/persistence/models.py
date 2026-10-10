@@ -31,7 +31,6 @@ class ClienteModel(Base):
         String(30), nullable=False, index=True
     )
     correo: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     fecha_nacimiento: Mapped[date] = mapped_column(Date, nullable=False)
     pais_residencia: Mapped[str] = mapped_column(String(60), nullable=False)
     telefono: Mapped[str] = mapped_column(String(20), nullable=False)

@@ -5,6 +5,11 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
+from src.application.ports.identity_provider import (
+    AutenticarResult,
+    IdentityProviderError,
+    InvalidCredentialsError,
+)
 from src.core.database import Base
 from src.infrastructure.persistence import models  # noqa: F401
 from src.main import app
@@ -18,11 +23,25 @@ class FakeIdentityProvider:
         self.registrados: list[tuple[str, str]] = []
         self.eliminados: list[str] = []
         self.fallar_registro: bool = False
+        self.fallar_autenticacion: bool = False
+        self.credenciales_invalidas: bool = False
 
     async def registrar_usuario(self, correo: str, password: str) -> None:
         if self.fallar_registro:
             raise RuntimeError("Cognito no disponible")
         self.registrados.append((correo, password))
+
+    async def autenticar_usuario(self, correo: str, password: str) -> AutenticarResult:
+        if self.fallar_autenticacion:
+            raise IdentityProviderError("Cognito no disponible")
+        if self.credenciales_invalidas:
+            raise InvalidCredentialsError("credenciales inválidas")
+        return AutenticarResult(
+            access_token="access-123",
+            id_token="id-123",
+            refresh_token="refresh-123",
+            expires_in=3600,
+        )
 
     async def eliminar_usuario(self, correo: str) -> None:
         self.eliminados.append(correo)

@@ -3,14 +3,16 @@ from datetime import date, datetime
 import pytest
 from fastapi import HTTPException
 
-from src.application.use_cases.registrar_cliente_use_case import (
-    DuplicateClienteError,
+from src.application.ports.identity_provider import (
+    AutenticarResult,
     IdentityProviderError,
+    InvalidCredentialsError,
 )
+from src.application.use_cases.registrar_cliente_use_case import DuplicateClienteError
 from src.domain.clientes.entities import Cliente, ClienteId
 from src.domain.clientes.value_objects import EstadoKYC
-from src.presentation.routers.clientes import registrar_cliente
-from src.presentation.schemas import ClienteCreate
+from src.presentation.routers.clientes import autenticar_cliente, registrar_cliente
+from src.presentation.schemas import ClienteCreate, PasswordVerify
 
 PAYLOAD = ClienteCreate(
     nombres="Ana",
@@ -22,6 +24,10 @@ PAYLOAD = ClienteCreate(
     fecha_nacimiento=date(1990, 5, 15),
     pais_residencia="Colombia",
     telefono="+573001234567",
+)
+
+CREDENCIALES = PasswordVerify(
+    correo="ana.perez@example.com", password="Secreta123"
 )
 
 
@@ -53,6 +59,26 @@ class UseCaseIdentidad:
         raise IdentityProviderError("cognito falló")
 
 
+class AuthUseCaseOK:
+    async def ejecutar(self, payload):
+        return AutenticarResult(
+            access_token="access-123",
+            id_token="id-123",
+            refresh_token="refresh-123",
+            expires_in=3600,
+        )
+
+
+class AuthUseCaseInvalidas:
+    async def ejecutar(self, payload):
+        raise InvalidCredentialsError("credenciales inválidas")
+
+
+class AuthUseCaseFallo:
+    async def ejecutar(self, payload):
+        raise IdentityProviderError("cognito inaccesible")
+
+
 async def test_registrar_devuelve_respuesta():
     response = await registrar_cliente(PAYLOAD, UseCaseOK())
 
@@ -72,5 +98,26 @@ async def test_registrar_mapea_duplicado_como_409():
 async def test_registrar_mapea_error_de_identidad_como_503():
     with pytest.raises(HTTPException) as exc:
         await registrar_cliente(PAYLOAD, UseCaseIdentidad())
+
+    assert exc.value.status_code == 503
+
+
+async def test_autenticar_devuelve_tokens():
+    response = await autenticar_cliente(CREDENCIALES, AuthUseCaseOK())
+
+    assert response.access_token == "access-123"
+    assert response.token_type == "Bearer"
+
+
+async def test_autenticar_mapea_credenciales_invalidas_como_401():
+    with pytest.raises(HTTPException) as exc:
+        await autenticar_cliente(CREDENCIALES, AuthUseCaseInvalidas())
+
+    assert exc.value.status_code == 401
+
+
+async def test_autenticar_mapea_error_de_proveedor_como_503():
+    with pytest.raises(HTTPException) as exc:
+        await autenticar_cliente(CREDENCIALES, AuthUseCaseFallo())
 
     assert exc.value.status_code == 503

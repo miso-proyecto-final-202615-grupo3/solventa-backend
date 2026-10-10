@@ -3,10 +3,12 @@ from datetime import date
 
 import pytest
 
-from src.application.ports.identity_provider import IdentityProvider
+from src.application.ports.identity_provider import (
+    IdentityProvider,
+    IdentityProviderError,
+)
 from src.application.use_cases.registrar_cliente_use_case import (
     DuplicateClienteError,
-    IdentityProviderError,
     RegistrarClienteUseCase,
 )
 from src.domain.clientes.entities import Cliente, ClienteId
@@ -120,6 +122,9 @@ async def test_elimina_identidad_si_falla_la_persistencia(fake_identity_provider
 
 class FailingIdentityProvider(IdentityProvider):
     async def registrar_usuario(self, correo: str, password: str) -> None:
+        raise IdentityProviderError("cognito falló")
+
+    async def autenticar_usuario(self, correo: str, password: str):
         raise IdentityProviderError("cognito falló")
 
     async def eliminar_usuario(self, correo: str) -> None:

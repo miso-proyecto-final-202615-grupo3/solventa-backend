@@ -8,8 +8,29 @@ from sqlalchemy.pool import StaticPool
 from src.core.database import Base
 from src.infrastructure.persistence import models  # noqa: F401
 from src.main import app
+from src.presentation.dependencies import get_db, get_identity_provider
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+
+
+class FakeIdentityProvider:
+    def __init__(self):
+        self.registrados: list[tuple[str, str]] = []
+        self.eliminados: list[str] = []
+        self.fallar_registro: bool = False
+
+    async def registrar_usuario(self, correo: str, password: str) -> None:
+        if self.fallar_registro:
+            raise RuntimeError("Cognito no disponible")
+        self.registrados.append((correo, password))
+
+    async def eliminar_usuario(self, correo: str) -> None:
+        self.eliminados.append(correo)
+
+
+@pytest.fixture
+def fake_identity_provider() -> FakeIdentityProvider:
+    return FakeIdentityProvider()
 
 
 @pytest.fixture

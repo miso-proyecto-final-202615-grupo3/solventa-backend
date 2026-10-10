@@ -4,6 +4,9 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.ports.identity_provider import IdentityProvider
+from src.application.use_cases.autenticar_cliente_use_case import (
+    AutenticarClienteUseCase,
+)
 from src.application.use_cases.registrar_cliente_use_case import RegistrarClienteUseCase
 from src.core.database import SessionLocal
 from src.domain.clientes.repositories import ClienteRepository
@@ -33,3 +36,9 @@ def get_registrar_cliente_use_case(
     identity_provider: IdentityProvider = Depends(get_identity_provider),
 ) -> RegistrarClienteUseCase:
     return RegistrarClienteUseCase(repository, identity_provider)
+
+
+def get_autenticar_cliente_use_case(
+    identity_provider: IdentityProvider = Depends(get_identity_provider),
+) -> AutenticarClienteUseCase:
+    return AutenticarClienteUseCase(identity_provider)

@@ -1,12 +1,26 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from src.application.ports.identity_provider import (
+    IdentityProviderError,
+    InvalidCredentialsError,
+)
+from src.application.use_cases.autenticar_cliente_use_case import (
+    AutenticarClienteUseCase,
+)
 from src.application.use_cases.registrar_cliente_use_case import (
     DuplicateClienteError,
-    IdentityProviderError,
     RegistrarClienteUseCase,
 )
-from src.presentation.dependencies import get_registrar_cliente_use_case
-from src.presentation.schemas import ClienteCreate, ClienteResponse
+from src.presentation.dependencies import (
+    get_autenticar_cliente_use_case,
+    get_registrar_cliente_use_case,
+)
+from src.presentation.schemas import (
+    AutenticarResponse,
+    ClienteCreate,
+    ClienteResponse,
+    PasswordVerify,
+)
 
 router = APIRouter(prefix="/clientes", tags=["Clientes"])
 
@@ -46,4 +60,35 @@ async def registrar_cliente(
         estado_kyc=cliente.estado_kyc,
         fecha_creacion=cliente.fecha_creacion,
         fecha_actualizacion=cliente.fecha_actualizacion,
+    )
+
+
+@router.post(
+    "/autenticar",
+    response_model=AutenticarResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def autenticar_cliente(
+    payload: PasswordVerify,
+    use_case: AutenticarClienteUseCase = Depends(get_autenticar_cliente_use_case),
+) -> AutenticarResponse:
+    try:
+        resultado = await use_case.ejecutar(payload)
+    except InvalidCredentialsError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Credenciales inválidas.",
+        ) from exc
+    except IdentityProviderError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="No se pudo autenticar en este momento.",
+        ) from exc
+
+    return AutenticarResponse(
+        access_token=resultado.access_token,
+        id_token=resultado.id_token,
+        refresh_token=resultado.refresh_token,
+        expires_in=resultado.expires_in,
+        token_type=resultado.token_type,
     )

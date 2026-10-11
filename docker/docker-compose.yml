@@ -13,6 +13,7 @@ services:
       AWS_REGION: ${AWS_REGION:-us-east-1}
       COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
       COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
+      COGNITO_ENABLED: ${COGNITO_ENABLED:-false}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
       KYC_SERVICE_URL: http://mock_kyc:8000
     depends_on:

@@ -66,6 +66,18 @@ class InMemoryClienteRepository(ClienteRepository):
     async def guardar(self, cliente: Cliente) -> None:
         self.clientes.append(cliente)
 
+    async def obtener_por_id(self, cliente_id: ClienteId) -> Cliente | None:
+        return next(
+            (c for c in self.clientes if c.id == cliente_id), None
+        )
+
+    async def actualizar_estado_kyc(
+        self, cliente_id: ClienteId, estado_kyc: EstadoKYC
+    ) -> None:
+        cliente = await self.obtener_por_id(cliente_id)
+        if cliente:
+            cliente.estado_kyc = estado_kyc
+
 
 class FailingClienteRepository(InMemoryClienteRepository):
     async def guardar(self, cliente: Cliente) -> None:

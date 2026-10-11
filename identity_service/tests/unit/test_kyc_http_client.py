@@ -52,10 +52,10 @@ async def test_mapea_pending_a_pendiente():
 
 
 async def test_degrada_a_pendiente_si_el_proveedor_falla():
-    async def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("sin conexión")
 
-    client = _client(httpx.MockTransport(handler))
+    client = _client(handler)
     try:
         assert (
             await client.verificar("CC", "1020304050") == EstadoKYC.PENDIENTE
@@ -68,7 +68,20 @@ async def test_degrada_a_pendiente_si_responde_error_http():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(503, json={"detail": "no disponible"})
 
-    client = _client(httpx.MockTransport(handler))
+    client = _client(handler)
+    try:
+        assert (
+            await client.verificar("CC", "1020304050") == EstadoKYC.PENDIENTE
+        )
+    finally:
+        await client.aclose()
+
+
+async def test_degrada_a_pendiente_si_respuesta_no_es_json():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text="boom")
+
+    client = _client(handler)
     try:
         assert (
             await client.verificar("CC", "1020304050") == EstadoKYC.PENDIENTE

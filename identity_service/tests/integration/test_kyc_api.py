@@ -1,4 +1,5 @@
 import uuid
+from datetime import date
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -66,7 +67,7 @@ async def _insertar_cliente(
             tipo_documento="CC",
             numero_identificacion="1020304050",
             correo="ana.perez@example.com",
-            fecha_nacimiento="1990-05-15",
+            fecha_nacimiento=date(1990, 5, 15),
             pais_residencia="Colombia",
             telefono="+573001234567",
             estado_kyc=EstadoKYC.PENDIENTE,

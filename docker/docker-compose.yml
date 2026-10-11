@@ -1,0 +1,78 @@
+services:
+  identity_service:
+    build:
+      context: ..
+      dockerfile: docker/services/Dockerfile.identity_service
+    container_name: solventa-identity-service
+    ports:
+      - "8000:8000"
+    environment:
+      PROJECT_NAME: Solventa Identity Service
+      ENVIRONMENT: development
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/identity_db
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
+      COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+    depends_on:
+      db:
+        condition: service_healthy
+      lgtm:
+        condition: service_started
+
+  bff_web:
+    build:
+      context: ..
+      dockerfile: docker/services/Dockerfile.bff_web
+    container_name: solventa-bff-web
+    ports:
+      - "8001:8000"
+    environment:
+      PROJECT_NAME: Solventa BFF Web
+      ENVIRONMENT: development
+      IDENTITY_SERVICE_URL: ${IDENTITY_SERVICE_URL:-http://identity_service:8000}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+    depends_on:
+      identity_service:
+        condition: service_started
+      lgtm:
+        condition: service_started
+
+  db:
+    image: postgres:16-alpine
+    container_name: solventa-db
+    environment:
+      POSTGRES_DB: identity_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d identity_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  lgtm:
+    image: grafana/otel-lgtm:latest
+    container_name: solventa-lgtm
+    ports:
+      - "3000:3000"
+      - "4317:4317"
+      - "4318:4318"
+      - "9090:9090"
+      - "3200:3200"
+      - "3100:3100"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - lgtm_data:/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  lgtm_data:

@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from sqlalchemy import text
 
 from src.core.config import settings
 from src.core.database import Base, engine
@@ -17,11 +18,13 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         async with engine.begin() as conn:
+            await conn.execute(
+                text("CREATE SCHEMA IF NOT EXISTS identity")
+            )
             await conn.run_sync(Base.metadata.create_all)
     except Exception:
         logger.warning(
-            "No se pudo crear el esquema en el arranque; "
-            "las migraciones Alembic son la fuente de verdad.",
+            "No se pudo crear el esquema en el arranque.",
             exc_info=True,
         )
     yield

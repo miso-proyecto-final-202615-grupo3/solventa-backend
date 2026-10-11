@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     AWS_REGION: str = "us-east-1"
     COGNITO_USER_POOL_ID: str = ""
     COGNITO_CLIENT_ID: str = ""
+    COGNITO_ENABLED: bool = False
 
     model_config = SettingsConfigDict(
         env_file=".env",

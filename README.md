@@ -51,3 +51,23 @@ La imagen solo instala las dependencias de runtime (`requirements.txt`), no las 
 ```bash
 docker build -f docker/services/Dockerfile.identity_service -t solventa/identity-service .
 ```
+
+## CI/CD
+
+- **CI (`ci.yml`):** corre `pytest` por servicio (`identity_service`, `bff_web`) y build de
+  las imágenes en cada push/PR a `dev` y `main`.
+- **Despliegue:** portado del template de referencia (`template-solventa-backend-services`):
+  - Workflows manuales de ECR/EKS: `backend-publish-ecr`, `backend-deploy-eks`,
+    `service-publish-ecr`, `service-deploy-eks`, `eks-setup-init`.
+  - Helm: chart genérico en `deployment/helm/charts/backend-service` con `values` por servicio
+    y ambiente (`deployment/helm/config/<service>/values.<env>.yaml`).
+  - Kustomize: SecretStore + ExternalSecrets + ServiceAccount + Ingress ALB en
+    `deployment/kuztomize`.
+- Requiere (igual que el template): GitHub Environments (`dev`/`qa`/`prod`) con
+  `AWS_REGION`, `AWS_ROLE_ARN` y `DATABASE_URL`, y los repos ECR configurados en los `values`.
+
+## Stack local (Docker Compose)
+
+```bash
+docker compose -f docker/docker-compose.yml up --build
+```

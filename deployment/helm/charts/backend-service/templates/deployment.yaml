@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "backend-service.fullname" . }}
+  labels:
+    {{- include "backend-service.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "backend-service.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "backend-service.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccountName }}
+      containers:
+        - name: {{ .Values.containerName }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: {{ .Values.network.portName }}
+              containerPort: {{ .Values.network.containerPort }}
+              protocol: {{ .Values.network.protocol }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "backend-service.fullname" . }}
+{{ if or .Values.database.enabled .Values.bucket.enabled .Values.cognito.enabled .Values.kmsKey.enabled }}
+          env:
+{{ if .Values.database.enabled }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.existingSecret }}
+                  key: {{ .Values.database.secretKey }}
+{{ end }}
+{{ if .Values.bucket.enabled }}
+            - name: S3_BUCKET_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.bucket.existingSecret }}
+                  key: {{ .Values.bucket.secretKey }}
+{{ end }}
+{{ if .Values.cognito.enabled }}
+            - name: COGNITO_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.cognito.existingSecret }}
+                  key: {{ .Values.cognito.secretKey }}
+{{ end }}
+{{ if .Values.kmsKey.enabled }}
+            - name: KMS_KEY_ARN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.kmsKey.existingSecret }}
+                  key: {{ .Values.kmsKey.secretKey }}
+{{- end }}
+{{ end }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.probes.readiness.path }}
+              port: {{ .Values.probes.readiness.port }}
+            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.probes.liveness.path }}
+              port: {{ .Values.probes.liveness.port }}
+            initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

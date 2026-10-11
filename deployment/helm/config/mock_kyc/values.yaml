@@ -1,0 +1,66 @@
+replicaCount: 1
+fullnameOverride: mock-kyc
+
+containerName: backend-service
+serviceAccountName: solventa-app-sa
+
+image:
+  repository: REPLACE_WITH_mock-kyc
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+network:
+  portName: http
+  containerPort: 8000
+  protocol: TCP
+
+probes:
+  readiness:
+    path: /docs
+    port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  liveness:
+    path: /docs
+    port: http
+    initialDelaySeconds: 20
+    periodSeconds: 20
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+database:
+  enabled: false
+  existingSecret: secret-name
+  secretKey: DATABASE_URL
+
+bucket:
+  enabled: false
+  existingSecret: secret-name
+  secretKey: S3_BUCKET_NAME
+
+cognito:
+  enabled: false
+  existingSecret: secret-name
+  secretKey: COGNITO_CLIENT_ID
+
+kmsKey:
+  enabled: false
+  existingSecret: secret-name
+  secretKey: KMS_KEY_ARN
+
+config:
+  PROJECT_NAME: Solventa Mock KYC
+  VERSION: "0.1.0"
+  ENVIRONMENT: dev
+  MOCK_KYC_STATUS: PASSED
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

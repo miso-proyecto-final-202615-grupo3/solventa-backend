@@ -1,0 +1,71 @@
+replicaCount: 1
+fullnameOverride: identity-service
+
+containerName: backend-service
+serviceAccountName: solventa-app-sa
+
+image:
+  repository: REPLACE_WITH_identity-service
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+network:
+  portName: http
+  containerPort: 8000
+  protocol: TCP
+
+probes:
+  readiness:
+    path: /api/v1/identity-service/health
+    port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  liveness:
+    path: /api/v1/identity-service/health
+    port: http
+    initialDelaySeconds: 20
+    periodSeconds: 20
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+database:
+  enabled: true
+  existingSecret: secret-name
+  secretKey: DATABASE_URL
+
+bucket:
+  enabled: false
+  existingSecret: secret-name
+  secretKey: S3_BUCKET_NAME
+
+cognito:
+  enabled: true
+  existingSecret: secret-name
+  secretKey: COGNITO_CLIENT_ID
+
+kmsKey:
+  enabled: false
+  existingSecret: secret-name
+  secretKey: KMS_KEY_ARN
+
+config:
+  PROJECT_NAME: Solventa Identity Service
+  VERSION: "0.1.0"
+  ENVIRONMENT: dev
+  API_PREFIX: /api/v1/identity-service
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://localhost:4317
+  AWS_REGION: us-east-1
+  COGNITO_ENABLED: "false"
+  COGNITO_USER_POOL_ID: ""
+  KYC_SERVICE_URL: http://mock-kyc:8000
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

@@ -9,6 +9,7 @@ ambiente y su imagen Docker. Cada servicio se despliega como un pod independient
 | Servicio | Descripción | Prefijo de API |
 | --- | --- | --- |
 | `identity_service` | Identidad y registro de clientes | `/api/v1/identity-service` |
+| `bff_web` | Backend For Frontend del cliente web | `/api/v1/bff-web` |
 
 ## Requisitos
 

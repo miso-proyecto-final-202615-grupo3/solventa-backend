@@ -48,6 +48,45 @@ async def registro_client(fake_identity_provider):
     await engine.dispose()
 
 
+@pytest.fixture
+async def registro_local_client():
+    """Usa la BD local y deja el proveedor de identidad por defecto (Noop)."""
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+        future=True,
+    )
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+    async def override_get_db():
+        async with factory() as session:
+            yield session
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        yield client
+
+    app.dependency_overrides.clear()
+    await engine.dispose()
+
+
+async def test_registro_local_devuelve_201_sin_cognito(registro_local_client):
+    response = await registro_local_client.post(
+        "/api/v1/identity-service/clientes/registro", json=PAYLOAD
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["correo"] == PAYLOAD["correo"]
+    assert data["estado_kyc"] == "PENDIENTE"
+
+
 async def test_registro_exitoso(registro_client):
     client, fake = registro_client
 

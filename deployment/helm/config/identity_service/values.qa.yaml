@@ -1,8 +1,17 @@
 image:
-  repository: 179201404385.dkr.ecr.us-east-1.amazonaws.com/solventa-identity-service
+  repository: identity-service
 
 database:
-  existingSecret: solventa-qa-app-secrets
+  existingSecret: solventa-dev-app-secrets
+
+bucket:
+  existingSecret: solventa-dev-app-secrets
 
 cognito:
-  existingSecret: solventa-qa-app-secrets
+  existingSecret: solventa-dev-app-secrets
+
+redis:
+  existingSecret: solventa-dev-app-secrets
+
+kmsKey:
+  existingSecret: solventa-dev-app-secrets

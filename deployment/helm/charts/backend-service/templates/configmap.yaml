@@ -5,6 +5,7 @@ metadata:
   labels:
     {{- include "backend-service.labels" . | nindent 4 }}
 data:
-  {{- range $key, $value := .Values.config }}
-  {{ $key }}: {{ $value | quote }}
-  {{- end }}
+  PROJECT_NAME: {{ .Values.config.PROJECT_NAME | quote }}
+  VERSION: {{ .Values.config.VERSION | quote }}
+  ENVIRONMENT: {{ .Values.config.ENVIRONMENT | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.OTEL_EXPORTER_OTLP_ENDPOINT | quote }}

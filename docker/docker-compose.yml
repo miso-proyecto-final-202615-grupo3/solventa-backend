@@ -14,7 +14,7 @@ services:
       COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
       COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
-      KYC_SERVICE_URL: http://mock_kyc:8202
+      KYC_SERVICE_URL: http://mock_kyc:8000
     depends_on:
       db:
         condition: service_healthy

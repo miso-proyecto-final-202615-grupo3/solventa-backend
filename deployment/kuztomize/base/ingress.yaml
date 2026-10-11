@@ -1,0 +1,46 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: solventa-ingress-alb
+  annotations:
+    # Specifies the use of the AWS Load Balancer Controller
+    kubernetes.io/ingress.class: alb
+
+    # 1. ALB ARN and Group Name
+    alb.ingress.kubernetes.io/group.name: solventa-shared-alb-group
+
+    # 2. Scheme & Target Type
+    # Defines the routing mode: 'ip' (directly to pods) or 'instance' (to NodePort)
+    alb.ingress.kubernetes.io/target-type: ip
+    # Set to 'internet-facing' or 'internal' based on your existing ALB layout
+    alb.ingress.kubernetes.io/scheme: internet-facing
+
+    # 3. Rules order: Defines where this rule sits in the listener list (1-50000)
+    # Lower number = Higher priority evaluated first by AWS
+    # Optional: Manage rule priority inside the shared ALB (lower numbers evaluate first)
+    alb.ingress.kubernetes.io/group.order: "10"
+
+    # Optional: Customize the Target Group settings that K8s will create
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+    alb.ingress.kubernetes.io/healthcheck-port: "8000"
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /api/v1/identity-service
+            pathType: Prefix
+            backend:
+              service:
+                name: identity-service
+                port:
+                  number: 80
+          - path: /api/v1/bff-web
+            pathType: Prefix
+            backend:
+              service:
+                name: bff-web
+                port:
+                  number: 80

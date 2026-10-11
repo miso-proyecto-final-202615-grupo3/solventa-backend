@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     COGNITO_USER_POOL_ID: str = ""
     COGNITO_CLIENT_ID: str = ""
     COGNITO_ENABLED: bool = False
+    KYC_SERVICE_URL: str = "http://localhost:8202"
+    KYC_TIMEOUT_SECONDS: float = 0.7
 
     model_config = SettingsConfigDict(
         env_file=".env",

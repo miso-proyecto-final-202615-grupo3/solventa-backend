@@ -1,0 +1,79 @@
+name: "Service - Publish to ECR"
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_env:
+        description: Select the environment repository set
+        required: true
+        type: choice
+        options:
+          - dev
+          - qa
+          - prod
+        default: dev
+      service_name:
+        description: Select the service to publish
+        required: true
+        type: choice
+        options:
+          - identity_service
+          - bff_web
+          - mock_kyc
+        default: greeting_service
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish-ecr:
+    name: Publish ${{ inputs.service_name }} to ${{ inputs.target_env }} ECR
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.target_env }}
+    timeout-minutes: 30
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      SERVICE_NAME: ${{ inputs.service_name }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install YAML parser
+        run: python -m pip install --disable-pip-version-check PyYAML==6.0.2
+
+      - name: Resolve service repository
+        id: service
+        env:
+          VALUES_FILE: deployment/helm/config/${{ inputs.service_name }}/values.${{ inputs.target_env }}.yaml
+        run: |
+          set -euo pipefail
+          repository="$(python -c 'import pathlib, sys, yaml; print(yaml.safe_load(pathlib.Path(sys.argv[1]).read_text())["image"]["repository"])' "$VALUES_FILE")"
+          if [[ "$repository" == REPLACE_WITH_* ]]; then
+            echo "::error::Set image.repository in $VALUES_FILE to its ECR repository URI."
+            exit 1
+          fi
+          echo "repository=$repository" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image
+        env:
+          ECR_REPO_URL: ${{ steps.service.outputs.repository }}
+        run: |
+          docker buildx build \
+            --file "docker/services/Dockerfile.${SERVICE_NAME}" \
+            --tag "$ECR_REPO_URL:$GITHUB_SHA" \
+            --tag "$ECR_REPO_URL:latest" \
+            --push .

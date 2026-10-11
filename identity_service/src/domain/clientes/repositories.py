@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
+from typing import Optional
 
-from src.domain.clientes.entities import Cliente
+from src.domain.clientes.entities import Cliente, ClienteId
+from src.domain.clientes.value_objects import EstadoKYC
 
 
 class ClienteRepository(ABC):
@@ -16,4 +18,14 @@ class ClienteRepository(ABC):
 
     @abstractmethod
     async def guardar(self, cliente: Cliente) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def obtener_por_id(self, cliente_id: ClienteId) -> Optional[Cliente]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def actualizar_estado_kyc(
+        self, cliente_id: ClienteId, estado_kyc: EstadoKYC
+    ) -> None:
         raise NotImplementedError

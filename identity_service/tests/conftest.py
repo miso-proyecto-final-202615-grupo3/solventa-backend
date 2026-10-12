@@ -1,3 +1,8 @@
+import os
+
+# Tests deterministas: sin Cognito (Noop) aunque exista un .env local
+os.environ["COGNITO_ENABLED"] = "false"
+
 from collections.abc import AsyncGenerator
 
 import pytest
@@ -11,6 +16,10 @@ from src.application.ports.identity_provider import (
     InvalidCredentialsError,
 )
 from src.core.database import Base
+
+# sqlite en memoria no soporta schemas: compilar las tablas sin esquema
+Base.metadata.schema = None
+
 from src.infrastructure.persistence import models  # noqa: F401
 from src.main import app
 from src.presentation.dependencies import get_db, get_identity_provider

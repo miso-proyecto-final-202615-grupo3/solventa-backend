@@ -71,3 +71,12 @@ docker build -f docker/services/Dockerfile.identity_service -t solventa/identity
 ```bash
 docker compose -f docker/docker-compose.yml up --build
 ```
+
+## Cognito en local vs. EKS
+
+- **Docker (compose):** el contenedor usa `NoopIdentityProvider` (`COGNITO_ENABLED=false`),
+  porque no tiene credenciales AWS. El registro funciona contra la BD local sin depender de AWS.
+- **Local uvicorn (fuera de Docker):** para probar Cognito real, crea un `.env` (gitignored)
+  con `COGNITO_ENABLED=true`, `COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID` y `AWS_REGION`, y
+  corre el servicio con tus credenciales AWS del host (`aws sso login` / access keys válidas).
+- **EKS:** la autenticación es automática con **Pod Identity** (no se pasan credenciales al pod).

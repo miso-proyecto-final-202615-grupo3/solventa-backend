@@ -26,7 +26,7 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "backend-service.fullname" . }}
-{{ if or .Values.database.enabled .Values.bucket.enabled .Values.cognito.enabled .Values.kmsKey.enabled }}
+{{ if or .Values.database.enabled .Values.bucket.enabled .Values.cognito.enabled .Values.redis.enabled .Values.kmsKey.enabled }}
           env:
 {{ if .Values.database.enabled }}
             - name: DATABASE_URL
@@ -43,11 +43,28 @@ spec:
                   key: {{ .Values.bucket.secretKey }}
 {{ end }}
 {{ if .Values.cognito.enabled }}
-            - name: COGNITO_CLIENT_ID
+            - name: COGNITO_USER_POOL_ID
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.cognito.existingSecret }}
                   key: {{ .Values.cognito.secretKey }}
+            - name: COGNITO_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.cognito.existingSecret }}
+                  key: {{ .Values.cognito.secretKey2 }}
+{{ end }}
+{{ if .Values.redis.enabled }}
+            - name: REDIS_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.redis.existingSecret }}
+                  key: {{ .Values.redis.secretKey }}
+            - name: REDIS_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.redis.existingSecret }}
+                  key: {{ .Values.redis.secretKey2 }}
 {{ end }}
 {{ if .Values.kmsKey.enabled }}
             - name: KMS_KEY_ARN

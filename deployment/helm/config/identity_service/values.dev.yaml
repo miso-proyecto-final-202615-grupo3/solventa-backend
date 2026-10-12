@@ -4,5 +4,14 @@ image:
 database:
   existingSecret: solventa-dev-app-secrets
 
+bucket:
+  existingSecret: solventa-dev-app-secrets
+
 cognito:
+  existingSecret: solventa-dev-app-secrets
+
+redis:
+  existingSecret: solventa-dev-app-secrets
+
+kmsKey:
   existingSecret: solventa-dev-app-secrets

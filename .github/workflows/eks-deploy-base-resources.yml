@@ -1,0 +1,81 @@
+name: "EKS Cluster - Deploy Base Resources"
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_env:
+        description: "Select the environment"
+        required: true
+        type: choice
+        options:
+          - dev
+          - qa
+          - prod
+        default: dev
+      action:
+        description: "Select the resource action"
+        required: true
+        type: choice
+        options:
+          - create_namespace
+          - create_shared_resources
+          - delete_ingress
+          - delete_external_secret
+          - set_prefix_delegation_on_nodes
+        default: create_shared_resources
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: eks-deploy-base-resources-${{ inputs.target_env }}
+  cancel-in-progress: false
+
+jobs:
+  eks-deploy-base-resources:
+    name: Deploy base resources in EKS for ${{ inputs.target_env }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.target_env }}
+    timeout-minutes: 15
+    env:
+      DEPLOYMENT_ENV: ${{ inputs.target_env }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      CLUSTER_NAME: solventa-${{ inputs.target_env }}-eks
+      K8S_NAMESPACE: solventa-${{ inputs.target_env }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure EKS access
+        run: aws eks update-kubeconfig --name "$CLUSTER_NAME" --region "$AWS_REGION"
+
+      - name: Create namespace
+        if: ${{ inputs.action == 'create_namespace' }}
+        run: kubectl create namespace "$K8S_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create shared resources with Kustomize
+        if: ${{ inputs.action == 'create_shared_resources' }}
+        run: kubectl apply -k "deployment/kuztomize/overlays/$DEPLOYMENT_ENV" --namespace "$K8S_NAMESPACE"
+
+      - name: Delete ingress
+        if: ${{ inputs.action == 'delete_ingress' }}
+        run: kubectl delete ingress solventa-ingress-alb --namespace "$K8S_NAMESPACE"
+
+      - name: Delete ExternalSecret
+        if: ${{ inputs.action == 'delete_external_secret' }}
+        run: kubectl delete externalsecret "solventa-$DEPLOYMENT_ENV-app-externalsecret" --namespace "$K8S_NAMESPACE"
+
+      - name: Set ENABLE_PREFIX_DELEGATION on cluster nodes
+        if: ${{ inputs.action == 'set_prefix_delegation_on_nodes' }}
+        run: kubectl set env daemonset aws-node -n kube-system ENABLE_PREFIX_DELEGATION=true

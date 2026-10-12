@@ -5,7 +5,7 @@ containerName: backend-service
 serviceAccountName: solventa-app-sa
 
 image:
-  repository: REPLACE_WITH_bff-web
+  repository: bff-web
   pullPolicy: IfNotPresent
   tag: "latest"
 
@@ -16,12 +16,12 @@ network:
 
 probes:
   readiness:
-    path: /api/v1/bff-web/health
+    path: /health
     port: http
     initialDelaySeconds: 10
     periodSeconds: 10
   liveness:
-    path: /api/v1/bff-web/health
+    path: /
     port: http
     initialDelaySeconds: 20
     periodSeconds: 20
@@ -33,23 +33,18 @@ service:
 
 database:
   enabled: false
-  existingSecret: secret-name
-  secretKey: DATABASE_URL
 
 bucket:
   enabled: false
-  existingSecret: secret-name
-  secretKey: S3_BUCKET_NAME
+
+redis:
+  enabled: true
 
 cognito:
   enabled: false
-  existingSecret: secret-name
-  secretKey: COGNITO_CLIENT_ID
 
 kmsKey:
   enabled: false
-  existingSecret: secret-name
-  secretKey: KMS_KEY_ARN
 
 config:
   PROJECT_NAME: Solventa BFF Web

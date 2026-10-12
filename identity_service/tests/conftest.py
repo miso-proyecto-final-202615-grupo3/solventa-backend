@@ -1,3 +1,8 @@
+import os
+
+# Tests deterministas: sin Cognito (Noop) aunque exista un .env local
+os.environ["COGNITO_ENABLED"] = "false"
+
 from collections.abc import AsyncGenerator
 
 import pytest

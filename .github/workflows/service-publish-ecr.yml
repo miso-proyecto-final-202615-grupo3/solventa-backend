@@ -27,7 +27,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: service-publish-ecr-${{ inputs.target_env }}
+  group: service-publish-ecr-${{ inputs.target_env }}-${{ inputs.service_name }}
   cancel-in-progress: false
 
 jobs:

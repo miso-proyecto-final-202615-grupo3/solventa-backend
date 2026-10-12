@@ -2,16 +2,16 @@ image:
   repository: identity-service
 
 database:
-  existingSecret: solventa-dev-app-secrets
+  existingSecret: solventa-qa-app-secrets
 
 bucket:
-  existingSecret: solventa-dev-app-secrets
+  existingSecret: solventa-qa-app-secrets
 
 cognito:
-  existingSecret: solventa-dev-app-secrets
+  existingSecret: solventa-qa-app-secrets
 
 redis:
-  existingSecret: solventa-dev-app-secrets
+  existingSecret: solventa-qa-app-secrets
 
 kmsKey:
-  existingSecret: solventa-dev-app-secrets
+  existingSecret: solventa-qa-app-secrets

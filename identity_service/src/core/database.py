@@ -1,3 +1,4 @@
+from sqlalchemy import MetaData
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -5,7 +6,9 @@ from src.core.config import settings
 
 
 class Base(DeclarativeBase):
-    pass
+    """Todos los modelos que usen esta Base se crean bajo el esquema "identity"."""
+
+    metadata = MetaData(schema="identity")
 
 
 engine = create_async_engine(settings.DATABASE_URL, echo=False, future=True)

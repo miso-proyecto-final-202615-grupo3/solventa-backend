@@ -5,9 +5,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY identity_service/requirements.txt ./
-COPY README.md ./
-COPY identity_service/src ./src
+COPY requirements.txt ./
+COPY src ./src
 
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt

@@ -1,11 +1,13 @@
 services:
   identity_service:
     build:
-      context: ..
-      dockerfile: docker/services/Dockerfile.identity_service
+      context: ./identity_service
+      dockerfile: ../docker/services/Dockerfile.identity_service
     container_name: solventa-identity-service
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
       PROJECT_NAME: Solventa Identity Service
       ENVIRONMENT: development
@@ -23,21 +25,25 @@ services:
 
   mock_kyc:
     build:
-      context: ..
-      dockerfile: docker/services/Dockerfile.mock_kyc
+      context: ./mock_kyc
+      dockerfile: ../docker/services/Dockerfile.mock_kyc
     container_name: solventa-mock-kyc
     ports:
       - "8202:8000"
+    env_file:
+      - .env
     environment:
       MOCK_KYC_STATUS: ${MOCK_KYC_STATUS:-PASSED}
 
   bff_web:
     build:
-      context: ..
-      dockerfile: docker/services/Dockerfile.bff_web
+      context: ./bff_web
+      dockerfile: ../docker/services/Dockerfile.bff_web
     container_name: solventa-bff-web
     ports:
       - "8001:8000"
+    env_file:
+      - .env
     environment:
       PROJECT_NAME: Solventa BFF Web
       ENVIRONMENT: development

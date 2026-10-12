@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       target_env:
-        description: Select the environment repository set
+        description: "Select the environment"
         required: true
         type: choice
         options:
@@ -13,7 +13,7 @@ on:
           - prod
         default: dev
       service_name:
-        description: Select the service to publish
+        description: "Select the service to publish"
         required: true
         type: choice
         options:
@@ -26,8 +26,12 @@ permissions:
   contents: read
   id-token: write
 
+concurrency:
+  group: service-publish-ecr-${{ inputs.target_env }}
+  cancel-in-progress: false
+
 jobs:
-  publish-ecr:
+  service-publish-ecr:
     name: Publish ${{ inputs.service_name }} to ${{ inputs.target_env }} ECR
     runs-on: ubuntu-latest
     environment: ${{ inputs.target_env }}

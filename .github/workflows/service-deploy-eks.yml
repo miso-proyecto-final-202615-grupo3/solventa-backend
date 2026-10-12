@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       target_env:
-        description: "Select the environment to deploy to"
+        description: "Select the environment"
         required: true
         type: choice
         options:
@@ -25,6 +25,10 @@ on:
 permissions:
   contents: read
   id-token: write
+
+concurrency:
+  group: service-deploy-eks-${{ inputs.target_env }}
+  cancel-in-progress: false
 
 jobs:
   service-deploy-eks:

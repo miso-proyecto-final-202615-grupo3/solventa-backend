@@ -1,8 +1,8 @@
 services:
   identity_service:
     build:
-      context: ./identity_service
-      dockerfile: ../docker/services/Dockerfile.identity_service
+      context: .
+      dockerfile: docker/services/Dockerfile.identity_service
     container_name: solventa-identity-service
     ports:
       - "8000:8000"
@@ -16,8 +16,15 @@ services:
       COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
       COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
       COGNITO_ENABLED: ${COGNITO_ENABLED:-false}
+      AWS_PROFILE: ${AWS_PROFILE:-default}
+      AWS_SDK_LOAD_CONFIG: "1"
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
       KYC_SERVICE_URL: http://mock_kyc:8000
+    volumes:
+      - type: bind
+        source: ${USERPROFILE}/.aws
+        target: /root/.aws
+        read_only: true
     depends_on:
       db:
         condition: service_healthy
@@ -26,8 +33,8 @@ services:
 
   mock_kyc:
     build:
-      context: ./mock_kyc
-      dockerfile: ../docker/services/Dockerfile.mock_kyc
+      context: .
+      dockerfile: docker/services/Dockerfile.mock_kyc
     container_name: solventa-mock-kyc
     ports:
       - "8202:8000"
@@ -38,8 +45,8 @@ services:
 
   bff_web:
     build:
-      context: ./bff_web
-      dockerfile: ../docker/services/Dockerfile.bff_web
+      context: .
+      dockerfile: docker/services/Dockerfile.bff_web
     container_name: solventa-bff-web
     ports:
       - "8001:8000"

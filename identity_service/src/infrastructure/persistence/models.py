@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Enum, String, Uuid, UniqueConstraint, func
+from sqlalchemy import Date, DateTime, Enum, ForeignKey, String, Uuid, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.core.database import Base
@@ -49,3 +49,45 @@ class ClienteModel(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+
+
+class ConsentimientoModel(Base):
+    __tablename__ = "consentimientos"
+    __table_args__ = (
+        UniqueConstraint(
+            "cliente_id",
+            "fuente_datos",
+            "proposito",
+            name="uq_consentimiento_cliente_fuente_proposito",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    cliente_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("clientes.id"), nullable=False, index=True
+    )
+    fuente_datos: Mapped[str] = mapped_column(String(60), nullable=False)
+    proposito: Mapped[str] = mapped_column(String(120), nullable=False)
+    estado: Mapped[str] = mapped_column(String(20), nullable=False)
+    otorgado_en: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    revocado_en: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    vence_en: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
+class AuditoriaConsentimientoModel(Base):
+    __tablename__ = "auditoria_consentimientos"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    cliente_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("clientes.id"), nullable=False, index=True
+    )
+    tipo_accion: Mapped[str] = mapped_column(String(20), nullable=False)
+    fecha: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    version_terminos: Mapped[str] = mapped_column(String(40), nullable=False)
+    canal: Mapped[str] = mapped_column(String(20), nullable=False)

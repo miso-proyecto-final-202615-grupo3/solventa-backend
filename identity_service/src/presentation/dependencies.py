@@ -1,12 +1,17 @@
 from collections.abc import AsyncGenerator
 
 from fastapi import Depends
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.ports.identity_provider import IdentityProvider
 from src.application.ports.kyc import KycVerifier
 from src.application.use_cases.autenticar_cliente_use_case import (
     AutenticarClienteUseCase,
+)
+from src.application.ports.consentimiento_cache import ConsentimientoCachePort
+from src.application.use_cases.gestionar_consentimiento_use_case import (
+    GestionarConsentimientoUseCase,
 )
 from src.application.use_cases.registrar_cliente_use_case import RegistrarClienteUseCase
 from src.application.use_cases.verificar_kyc_use_case import VerificarKycUseCase
@@ -16,8 +21,21 @@ from src.domain.clientes.repositories import ClienteRepository
 from src.infrastructure.gateways.cognito_identity_provider import CognitoIdentityProvider
 from src.infrastructure.gateways.kyc_http_client import KycHttpClient
 from src.infrastructure.gateways.noop_identity_provider import NoopIdentityProvider
+from src.infrastructure.cache.consentimiento_cache import ConsentimientoCache
 from src.infrastructure.persistence.cliente_repository_impl import (
     SqlAlchemyClienteRepository,
+)
+from src.infrastructure.persistence.consentimiento_repository_impl import (
+    SqlAlchemyConsentimientoRepository,
+)
+
+_redis_client = Redis.from_url(
+    settings.REDIS_ENDPOINT,
+    password=settings.REDIS_AUTH_TOKEN or None,
+    decode_responses=True,
+)
+_consentimiento_cache = ConsentimientoCache(
+    _redis_client, settings.CONSENT_CACHE_TTL_SECONDS
 )
 
 
@@ -32,6 +50,35 @@ def get_cliente_repository(
     return SqlAlchemyClienteRepository(db)
 
 
+def get_consentimiento_repository(
+    db: AsyncSession = Depends(get_db),
+) -> SqlAlchemyConsentimientoRepository:
+    return SqlAlchemyConsentimientoRepository(db)
+
+
+def get_consentimiento_cache() -> ConsentimientoCachePort:
+    return _consentimiento_cache
+
+
+async def cerrar_consentimiento_cache() -> None:
+    await _consentimiento_cache.cerrar()
+
+
+def get_gestionar_consentimiento_use_case(
+    repository: SqlAlchemyConsentimientoRepository = Depends(
+        get_consentimiento_repository
+    ),
+    cliente_repository: ClienteRepository = Depends(get_cliente_repository),
+    cache: ConsentimientoCachePort = Depends(get_consentimiento_cache),
+) -> GestionarConsentimientoUseCase:
+    return GestionarConsentimientoUseCase(
+        repository,
+        cliente_repository,
+        cache,
+        settings.CONSENT_TERMS_VERSION,
+    )
+
+
 def get_identity_provider() -> IdentityProvider:
     if settings.COGNITO_ENABLED:
         return CognitoIdentityProvider()
@@ -41,8 +88,9 @@ def get_identity_provider() -> IdentityProvider:
 def get_registrar_cliente_use_case(
     repository: ClienteRepository = Depends(get_cliente_repository),
     identity_provider: IdentityProvider = Depends(get_identity_provider),
+    cache: ConsentimientoCachePort = Depends(get_consentimiento_cache),
 ) -> RegistrarClienteUseCase:
-    return RegistrarClienteUseCase(repository, identity_provider)
+    return RegistrarClienteUseCase(repository, identity_provider, cache)
 
 
 def get_autenticar_cliente_use_case(

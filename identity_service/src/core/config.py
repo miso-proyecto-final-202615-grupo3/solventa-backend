@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     COGNITO_USER_POOL_ID: str = ""
     COGNITO_CLIENT_ID: str = ""
     COGNITO_ENABLED: bool = False
+    CONSENT_TERMS_VERSION: str = "1.0"
+    CONSENT_CACHE_TTL_SECONDS: int = 300
+    REDIS_ENDPOINT: str = "redis://localhost:6379/0"
+    REDIS_AUTH_TOKEN: str = ""
     KYC_SERVICE_URL: str = "http://localhost:8202"
     KYC_TIMEOUT_SECONDS: float = 0.7
 

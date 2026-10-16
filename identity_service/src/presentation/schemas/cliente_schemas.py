@@ -20,6 +20,7 @@ class ClienteCreate(BaseModel):
     numero_identificacion: str = Field(min_length=5, max_length=30)
     correo: EmailStr
     password: str = Field(min_length=8, max_length=128)
+    consentimiento_datos: bool = False
     fecha_nacimiento: date
     pais_residencia: str = Field(min_length=2, max_length=60)
     telefono: str = Field(min_length=7, max_length=20)

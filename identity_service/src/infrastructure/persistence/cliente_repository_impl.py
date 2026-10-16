@@ -4,7 +4,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.domain.clientes.entities import Cliente, ClienteId
 from src.domain.clientes.repositories import ClienteRepository
 from src.domain.clientes.value_objects import EstadoKYC
-from src.infrastructure.persistence.models import ClienteModel
+from src.domain.consentimiento.entities import ConsentimientoInicial
+from src.infrastructure.persistence.models import (
+    AuditoriaConsentimientoModel,
+    ClienteModel,
+    ConsentimientoModel,
+)
 
 
 class SqlAlchemyClienteRepository(ClienteRepository):
@@ -30,7 +35,9 @@ class SqlAlchemyClienteRepository(ClienteRepository):
         )
         return result.scalar_one_or_none() is not None
 
-    async def guardar(self, cliente: Cliente) -> None:
+    async def guardar(
+        self, cliente: Cliente, consentimiento: ConsentimientoInicial
+    ) -> None:
         db_obj = ClienteModel(
             id=cliente.id.value,
             nombres=cliente.nombres,
@@ -44,6 +51,29 @@ class SqlAlchemyClienteRepository(ClienteRepository):
             estado_kyc=cliente.estado_kyc,
         )
         self.session.add(db_obj)
+        await self.session.flush()
+        self.session.add(
+            ConsentimientoModel(
+                cliente_id=cliente.id.value,
+                fuente_datos="OPEN_FINANCE",
+                proposito="TRATAMIENTO_DATOS_PERSONALES_Y_FINANCIEROS",
+                estado=consentimiento.estado.value,
+                otorgado_en=(
+                    consentimiento.fecha
+                    if consentimiento.estado.value == "ACEPTADO"
+                    else None
+                ),
+            )
+        )
+        self.session.add(
+            AuditoriaConsentimientoModel(
+                cliente_id=cliente.id.value,
+                tipo_accion=consentimiento.tipo_accion.value,
+                fecha=consentimiento.fecha,
+                version_terminos=consentimiento.version_terminos,
+                canal=consentimiento.canal,
+            )
+        )
         await self.session.commit()
         await self.session.refresh(db_obj)
 

@@ -9,6 +9,7 @@ from src.application.use_cases.verificar_kyc_use_case import (
     VerificarKycUseCase,
 )
 from src.domain.clientes.entities import Cliente, ClienteId
+from src.domain.consentimiento.entities import ConsentimientoInicial
 from src.domain.clientes.repositories import ClienteRepository
 from src.domain.clientes.value_objects import EstadoKYC
 
@@ -45,7 +46,9 @@ class InMemoryKycRepository(ClienteRepository):
             for c in self.clientes
         )
 
-    async def guardar(self, cliente: Cliente) -> None:
+    async def guardar(
+        self, cliente: Cliente, consentimiento: ConsentimientoInicial
+    ) -> None:
         self.clientes.append(cliente)
 
     async def obtener_por_id(self, cliente_id: ClienteId) -> Cliente | None:

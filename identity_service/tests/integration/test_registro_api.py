@@ -1,11 +1,16 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from src.core.database import Base
 from src.main import app
-from src.presentation.dependencies import get_db, get_identity_provider
+from src.presentation.dependencies import (
+    get_consentimiento_cache,
+    get_db,
+    get_identity_provider,
+)
 
 PAYLOAD = {
     "nombres": "Ana",
@@ -21,7 +26,7 @@ PAYLOAD = {
 
 
 @pytest.fixture
-async def registro_client(fake_identity_provider):
+async def registro_client(fake_identity_provider, fake_consentimiento_cache):
     engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -29,6 +34,7 @@ async def registro_client(fake_identity_provider):
         future=True,
     )
     async with engine.begin() as conn:
+        await conn.execute(text("PRAGMA foreign_keys=ON"))
         await conn.run_sync(Base.metadata.create_all)
     factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
@@ -38,6 +44,9 @@ async def registro_client(fake_identity_provider):
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_identity_provider] = lambda: fake_identity_provider
+    app.dependency_overrides[get_consentimiento_cache] = (
+        lambda: fake_consentimiento_cache
+    )
 
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
@@ -49,7 +58,7 @@ async def registro_client(fake_identity_provider):
 
 
 @pytest.fixture
-async def registro_local_client():
+async def registro_local_client(fake_consentimiento_cache):
     """Usa la BD local y deja el proveedor de identidad por defecto (Noop)."""
     engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:",
@@ -58,6 +67,7 @@ async def registro_local_client():
         future=True,
     )
     async with engine.begin() as conn:
+        await conn.execute(text("PRAGMA foreign_keys=ON"))
         await conn.run_sync(Base.metadata.create_all)
     factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
@@ -66,6 +76,9 @@ async def registro_local_client():
             yield session
 
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_consentimiento_cache] = (
+        lambda: fake_consentimiento_cache
+    )
 
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"

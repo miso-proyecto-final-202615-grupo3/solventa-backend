@@ -4,11 +4,35 @@ import uuid
 
 import requests
 
-USE_BFF_WEB = True
-if USE_BFF_WEB:
-    IDENTITY_SERVICE_URL = f"http://localhost:8001/api/v1/bff-web"
-else:
-    IDENTITY_SERVICE_URL = f"http://localhost:8000/api/v1/identity-service"
+if len(sys.argv) < 3:
+    print("Usage: python myscript.py <param1> <param2>")
+    sys.exit(1)
+
+param1 = sys.argv[1]
+param2 = sys.argv[2]
+
+SERVICE_URL_MAP = {
+    "bff-web": {
+        "local": "http://localhost:8001/api/v1/bff-web",
+        "dev": "http://k8s-solventasharedalb-062704d759-1248618214.us-east-1.elb.amazonaws.com/api/v1/bff-web",
+        "prod": "http://k8s-solventasharedalb-9252f1d65d-1778110791.us-east-1.elb.amazonaws.com/api/v1/bff-web",
+    },
+    "identity-service": {
+        "local": "http://localhost:8000/api/v1/identity-service",
+        "dev": "http://k8s-solventasharedalb-062704d759-1248618214.us-east-1.elb.amazonaws.com/api/v1/identity-service",
+        "prod": "http://k8s-solventasharedalb-9252f1d65d-1778110791.us-east-1.elb.amazonaws.com/api/v1/identity-service",
+    },
+}
+
+DEFAULT_SERVICE = "identity-service"
+DEFAULT_ENV = "local"
+
+input_service = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_SERVICE
+input_env = sys.argv[2] if len(sys.argv) > 2 else DEFAULT_ENV
+
+service_dict = SERVICE_URL_MAP.get(input_service, SERVICE_URL_MAP[DEFAULT_SERVICE])
+IDENTITY_SERVICE_URL = service_dict.get(input_env, service_dict[DEFAULT_ENV])
+
 URL_REGISTRO = f"{IDENTITY_SERVICE_URL}/clientes/registro"
 URL_AUTENTICAR = f"{IDENTITY_SERVICE_URL}/clientes/autenticar"
 URL_PERFIL = f"{IDENTITY_SERVICE_URL}/clientes/{{cliente_id}}/perfil"

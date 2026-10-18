@@ -52,7 +52,7 @@ config:
   ENVIRONMENT: dev
   API_PREFIX: /api/v1/bff-web
   OTEL_EXPORTER_OTLP_ENDPOINT: http://solventa-otel-collector:4317
-  OTEL_TRACES_EXPORTER: none
+  OTEL_TRACES_EXPORTER: otlp
   IDENTITY_SERVICE_URL: http://identity-service:80
 
 resources:

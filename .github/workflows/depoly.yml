@@ -92,6 +92,7 @@ jobs:
       SERVICE_NAME: ${{ matrix.service_name }}
       CLUSTER_NAME: solventa-${{ github.ref_name == 'main' && 'prod' || 'dev' }}-eks
       K8S_NAMESPACE: solventa-${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+      DEPLOYMENT_ENV: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
 
     steps:
       - name: Check out repository

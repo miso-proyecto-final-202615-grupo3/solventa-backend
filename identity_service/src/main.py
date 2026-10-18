@@ -23,12 +23,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 text("CREATE SCHEMA IF NOT EXISTS identity")
             )
             await conn.run_sync(Base.metadata.create_all)
-            await conn.execute(
-                text(
-                    "UPDATE identity.consentimientos "
-                    "SET estado = 'REVOCADO' WHERE estado = 'DENEGADO'"
-                )
-            )
     except Exception:
         logger.warning(
             "No se pudo crear el esquema en el arranque.",

@@ -6,7 +6,7 @@ serviceAccountName: solventa-app-sa
 
 image:
   repository: identity-service
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
   tag: "latest"
 
 network:

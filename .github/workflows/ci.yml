@@ -9,6 +9,7 @@ on:
 
 jobs:
   test:
+    name: Test ${{ matrix.service }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -31,16 +32,15 @@ jobs:
         run: python -m pytest ${{ matrix.service }}/tests
 
   build:
+    name: Docker Build ${{ matrix.service }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [identity_service, bff_web, mock_kyc]
     needs: test
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build identity_service image
-        run: docker build -f docker/services/Dockerfile.identity_service -t solventa/identity-service .
-
-      - name: Build bff_web image
-        run: docker build -f docker/services/Dockerfile.bff_web -t solventa/bff-web .
-
-      - name: Build mock_kyc image
-        run: docker build -f docker/services/Dockerfile.mock_kyc -t solventa/mock-kyc .
+      - name: Build container image
+        run: docker build -f docker/services/Dockerfile.${{ matrix.service }} -t solventa/${{ matrix.service }} .

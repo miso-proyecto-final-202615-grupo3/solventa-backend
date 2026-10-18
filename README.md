@@ -32,7 +32,7 @@ uvicorn src.main:app --reload --app-dir identity_service
 ```
 
 La API queda en `http://localhost:8000` y el health check en
-`http://localhost:8000/api/v1/identity-service/health`.
+`http://localhost:8000/health`.
 
 ## Pruebas (por servicio)
 

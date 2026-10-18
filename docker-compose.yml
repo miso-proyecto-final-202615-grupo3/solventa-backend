@@ -10,23 +10,22 @@ services:
       - .env
     environment:
       PROJECT_NAME: Solventa Identity Service
-      ENVIRONMENT: development
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/identity_db
-      AWS_REGION: ${AWS_REGION:-us-east-1}
+      ENVIRONMENT: dev
+      DATABASE_URL: ${DATABASE_URL:-}
+      AWS_REGION: ${AWS_REGION:-}
       COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
       COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
-      COGNITO_ENABLED: ${COGNITO_ENABLED:-false}
+      COGNITO_ENABLED: ${COGNITO_ENABLED:-}
+      REDIS_ENDPOINT: ${REDIS_ENDPOINT:-}
+      REDIS_AUTH_TOKEN: ${REDIS_AUTH_TOKEN:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+      KYC_SERVICE_URL: ${KYC_SERVICE_URL:-http://mock_kyc:8000}
       AWS_PROFILE: ${AWS_PROFILE:-default}
       AWS_SDK_LOAD_CONFIG: "1"
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
-      KYC_SERVICE_URL: http://mock_kyc:8000
-    volumes:
-      - type: bind
-        source: ${USERPROFILE}/.aws
-        target: /root/.aws
-        read_only: true
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       lgtm:
         condition: service_started
@@ -67,19 +66,36 @@ services:
     image: postgres:16-alpine
     container_name: solventa-db
     environment:
-      POSTGRES_DB: identity_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-appdata}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_USER:-postgres}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d identity_db"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d appdata"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
+
+  redis:
+    image: redis:8-alpine
+    container_name: solventa-redis
+    environment:
+      REDIS_AUTH_TOKEN: ${REDIS_AUTH_TOKEN:-}
+    command:
+      - sh
+      - -c
+      - 'if [ -n "$${REDIS_AUTH_TOKEN}" ]; then exec redis-server --requirepass "$${REDIS_AUTH_TOKEN}"; else exec redis-server; fi'
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'if [ -n "$${REDIS_AUTH_TOKEN}" ]; then redis-cli -a "$${REDIS_AUTH_TOKEN}" ping; else redis-cli ping; fi'
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   lgtm:
     image: grafana/otel-lgtm:latest

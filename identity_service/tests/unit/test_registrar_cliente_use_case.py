@@ -14,6 +14,10 @@ from src.application.use_cases.registrar_cliente_use_case import (
 from src.domain.clientes.entities import Cliente, ClienteId
 from src.domain.clientes.repositories import ClienteRepository
 from src.domain.clientes.value_objects import EstadoKYC
+from src.domain.consentimiento.entities import (
+    EstadoConsentimiento,
+    TipoAccionConsentimiento,
+)
 from src.presentation.schemas import ClienteCreate
 
 PAYLOAD = ClienteCreate(
@@ -50,6 +54,7 @@ def _cliente(
 class InMemoryClienteRepository(ClienteRepository):
     def __init__(self):
         self.clientes: list[Cliente] = []
+        self.consentimientos = []
 
     async def existe_por_correo(self, correo: str) -> bool:
         return any(c.correo == correo for c in self.clientes)
@@ -63,8 +68,10 @@ class InMemoryClienteRepository(ClienteRepository):
             for c in self.clientes
         )
 
-    async def guardar(self, cliente: Cliente) -> None:
+    async def guardar(self, cliente: Cliente, consentimiento=None) -> None:
         self.clientes.append(cliente)
+        if consentimiento is not None:
+            self.consentimientos.append(consentimiento)
 
     async def obtener_por_id(self, cliente_id: ClienteId) -> Cliente | None:
         return next(
@@ -80,7 +87,7 @@ class InMemoryClienteRepository(ClienteRepository):
 
 
 class FailingClienteRepository(InMemoryClienteRepository):
-    async def guardar(self, cliente: Cliente) -> None:
+    async def guardar(self, cliente: Cliente, consentimiento=None) -> None:
         raise RuntimeError("base de datos no disponible")
 
 
@@ -98,6 +105,23 @@ async def test_registra_cliente_y_crea_credenciales(fake_identity_provider):
         (PAYLOAD.correo, PAYLOAD.password)
     ]
     assert len(repo.clientes) == 1
+    assert repo.consentimientos[0].estado == EstadoConsentimiento.REVOCADO
+    assert repo.consentimientos[0].tipo_accion == TipoAccionConsentimiento.DENEGACION
+
+
+async def test_registra_consentimiento_explicito(fake_identity_provider):
+    repo = InMemoryClienteRepository()
+    use_case = RegistrarClienteUseCase(repo, fake_identity_provider)
+    command = PAYLOAD.model_copy(update={"consentimiento_datos": True})
+
+    await use_case.ejecutar(command)
+
+    consentimiento = repo.consentimientos[0]
+    assert consentimiento.estado == EstadoConsentimiento.ACEPTADO
+    assert consentimiento.tipo_accion == TipoAccionConsentimiento.ACEPTACION
+    assert consentimiento.canal == "web"
+    assert consentimiento.version_terminos
+    assert consentimiento.fecha.utcoffset().total_seconds() == 0
 
 
 async def test_rechaza_correo_duplicado(fake_identity_provider):

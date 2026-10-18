@@ -100,12 +100,14 @@ async def test_registra_usuario_crea_credencial(provider):
     assert client.passwords[0]["Permanent"] is True
 
 
-async def test_registra_usuario_envuelve_error_de_cognito(provider):
+async def test_registra_usuario_envuelve_error_de_cognito(provider, caplog):
     identity, client = provider
     client.fail_crear = True
 
     with pytest.raises(IdentityProviderError):
         await identity.registrar_usuario("ana@example.com", "Secreta123")
+
+    assert "No se pudo registrar el usuario en Cognito." in caplog.text
 
 
 async def test_elimina_usuario_de_cognito(provider):

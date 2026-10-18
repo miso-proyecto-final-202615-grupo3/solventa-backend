@@ -1,12 +1,28 @@
+import logging
 import os
 import uuid
 
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title="Solventa Mock KYC", version="0.1.0")
 
 _VALID_STATUSES = {"PASSED", "FAILED", "PENDING"}
+
+
+@app.middleware("http")
+async def log_internal_errors(request, call_next):
+    try:
+        return await call_next(request)
+    except Exception:
+        logger.exception(
+            "Error interno al procesar %s %s",
+            request.method,
+            request.url.path,
+        )
+        raise
 
 
 class VerifyRequest(BaseModel):

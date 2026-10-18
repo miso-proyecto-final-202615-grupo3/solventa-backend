@@ -9,6 +9,12 @@ from src.application.ports.identity_provider import (
 from src.application.use_cases.autenticar_cliente_use_case import (
     AutenticarClienteUseCase,
 )
+from src.application.use_cases.gestionar_consentimiento_use_case import (
+    ConsentimientoNoEncontradoError,
+    ConsentimientoNoOtorgadoError,
+    GestionarConsentimientoUseCase,
+    PerfilClienteNoEncontradoError,
+)
 from src.application.use_cases.registrar_cliente_use_case import (
     DuplicateClienteError,
     RegistrarClienteUseCase,
@@ -20,13 +26,16 @@ from src.application.use_cases.verificar_kyc_use_case import (
 from src.domain.clientes.entities import Cliente
 from src.presentation.dependencies import (
     get_autenticar_cliente_use_case,
+    get_gestionar_consentimiento_use_case,
     get_registrar_cliente_use_case,
     get_verificar_kyc_use_case,
 )
 from src.presentation.schemas import (
     AutenticarResponse,
+    ActualizarConsentimientoRequest,
     ClienteCreate,
     ClienteResponse,
+    ConsentimientoResponse,
     PasswordVerify,
 )
 
@@ -104,6 +113,62 @@ async def autenticar_cliente(
         expires_in=resultado.expires_in,
         token_type=resultado.token_type,
     )
+
+
+@router.put(
+    "/{cliente_id}/consentimiento",
+    response_model=ConsentimientoResponse,
+    status_code=status.HTTP_200_OK,
+)
+@router.post(
+    "/{cliente_id}/consentimiento/revocar",
+    response_model=ConsentimientoResponse,
+    status_code=status.HTTP_200_OK,
+    deprecated=True,
+)
+async def actualizar_consentimiento(
+    cliente_id: uuid.UUID,
+    payload: ActualizarConsentimientoRequest,
+    use_case: GestionarConsentimientoUseCase = Depends(
+        get_gestionar_consentimiento_use_case
+    ),
+) -> ConsentimientoResponse:
+    try:
+        consentimiento = await use_case.actualizar_consentimiento(
+            cliente_id, payload.estado
+        )
+    except ConsentimientoNoEncontradoError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="El cliente no tiene un consentimiento registrado.",
+        ) from exc
+    return ConsentimientoResponse.model_validate(consentimiento)
+
+
+@router.get(
+    "/{cliente_id}/perfil",
+    response_model=ClienteResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def obtener_perfil_cliente(
+    cliente_id: uuid.UUID,
+    use_case: GestionarConsentimientoUseCase = Depends(
+        get_gestionar_consentimiento_use_case
+    ),
+) -> ClienteResponse:
+    try:
+        perfil = await use_case.obtener_perfil_cliente(cliente_id)
+    except ConsentimientoNoOtorgadoError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="El cliente no ha autorizado la consulta de su perfil financiero.",
+        ) from exc
+    except PerfilClienteNoEncontradoError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="El cliente indicado no existe.",
+        ) from exc
+    return ClienteResponse.model_validate(perfil)
 
 
 @router.post(

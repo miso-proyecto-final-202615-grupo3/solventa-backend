@@ -1,4 +1,5 @@
 import os
+import uuid
 
 # Tests deterministas: sin Cognito (Noop) aunque exista un .env local
 os.environ["COGNITO_ENABLED"] = "false"
@@ -15,14 +16,20 @@ from src.application.ports.identity_provider import (
     IdentityProviderError,
     InvalidCredentialsError,
 )
+from src.application.ports.consentimiento_cache import ConsentimientoCacheEntry
 from src.core.database import Base
+from src.domain.consentimiento.entities import EstadoConsentimiento
 
 # sqlite en memoria no soporta schemas: compilar las tablas sin esquema
 Base.metadata.schema = None
 
 from src.infrastructure.persistence import models  # noqa: F401
 from src.main import app
-from src.presentation.dependencies import get_db, get_identity_provider
+from src.presentation.dependencies import (
+    get_consentimiento_cache,
+    get_db,
+    get_identity_provider,
+)
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -56,9 +63,33 @@ class FakeIdentityProvider:
         self.eliminados.append(correo)
 
 
+class FakeConsentimientoCache:
+    def __init__(self):
+        self.entries: dict[uuid.UUID, ConsentimientoCacheEntry] = {}
+
+    async def obtener(self, cliente_id: uuid.UUID):
+        return self.entries.get(cliente_id)
+
+    async def guardar(
+        self,
+        cliente_id: uuid.UUID,
+        estado: EstadoConsentimiento,
+        perfil: dict | None,
+    ) -> None:
+        self.entries[cliente_id] = ConsentimientoCacheEntry(estado, perfil)
+
+    async def invalidar(self, cliente_id: uuid.UUID) -> None:
+        self.entries.pop(cliente_id, None)
+
+
 @pytest.fixture
 def fake_identity_provider() -> FakeIdentityProvider:
     return FakeIdentityProvider()
+
+
+@pytest.fixture
+def fake_consentimiento_cache() -> FakeConsentimientoCache:
+    return FakeConsentimientoCache()
 
 
 @pytest.fixture

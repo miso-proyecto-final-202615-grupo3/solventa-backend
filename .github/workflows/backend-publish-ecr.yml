@@ -78,4 +78,4 @@ jobs:
             --file "docker/services/Dockerfile.${SERVICE_NAME}" \
             --tag "$ECR_REPO_URL:$GITHUB_SHA" \
             --tag "$ECR_REPO_URL:latest" \
-            --push
+            --push .

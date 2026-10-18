@@ -51,8 +51,9 @@ config:
   VERSION: "0.1.0"
   ENVIRONMENT: dev
   API_PREFIX: /api/v1/bff-web
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://localhost:4317
-  IDENTITY_SERVICE_URL: http://identity-service:8000
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://solventa-otel-collector:4317
+  OTEL_TRACES_EXPORTER: none
+  IDENTITY_SERVICE_URL: http://identity-service:80
 
 resources:
   requests:

@@ -33,6 +33,7 @@ jobs:
         service_name:
           - identity_service
           - bff_web
+          - bff_mobile
           - mock_kyc
     env:
       DEPLOYMENT_ENV: ${{ inputs.target_env }}

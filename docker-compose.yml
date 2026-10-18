@@ -3,8 +3,6 @@ services:
     build:
       context: .
       dockerfile: docker/services/Dockerfile.identity_service
-      context: .
-      dockerfile: docker/services/Dockerfile.identity_service
     container_name: solventa-identity-service
     ports:
       - "8000:8000"
@@ -36,8 +34,6 @@ services:
     build:
       context: .
       dockerfile: docker/services/Dockerfile.mock_kyc
-      context: .
-      dockerfile: docker/services/Dockerfile.mock_kyc
     container_name: solventa-mock-kyc
     ports:
       - "8202:8000"
@@ -48,8 +44,6 @@ services:
 
   bff_web:
     build:
-      context: .
-      dockerfile: docker/services/Dockerfile.bff_web
       context: .
       dockerfile: docker/services/Dockerfile.bff_web
     container_name: solventa-bff-web

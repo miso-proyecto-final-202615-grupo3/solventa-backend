@@ -62,6 +62,26 @@ services:
       lgtm:
         condition: service_started
 
+  bff_mobile:
+    build:
+      context: .
+      dockerfile: docker/services/Dockerfile.bff_mobile
+    container_name: solventa-bff-mobile
+    ports:
+      - "8002:8000"
+    env_file:
+      - .env
+    environment:
+      PROJECT_NAME: Solventa BFF Mobile
+      ENVIRONMENT: development
+      IDENTITY_SERVICE_URL: ${IDENTITY_SERVICE_URL:-http://identity_service:8000}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+    depends_on:
+      identity_service:
+        condition: service_started
+      lgtm:
+        condition: service_started
+
   db:
     image: postgres:16-alpine
     container_name: solventa-db

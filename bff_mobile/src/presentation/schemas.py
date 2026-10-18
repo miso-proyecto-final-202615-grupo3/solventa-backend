@@ -1,0 +1,25 @@
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
+
+
+class LoginRequest(BaseModel):
+    """Credenciales de la cuenta creada en el canal web."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    correo: EmailStr
+    password: str = Field(min_length=1, max_length=128)
+
+
+class LoginResponse(BaseModel):
+    """Sesión del cliente para la app móvil.
+
+    `correo` sale del id_token emitido por Cognito. Los datos del cliente
+    (id, nombre, estado KYC, dispositivo vinculado) se agregarán cuando el MS
+    Identidad exponga una consulta del cliente autenticado.
+    """
+
+    access_token: str
+    refresh_token: str | None = None
+    expires_in: int | None = None
+    token_type: str = "Bearer"
+    correo: EmailStr | None = None

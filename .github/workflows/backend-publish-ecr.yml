@@ -33,6 +33,7 @@ jobs:
         service_name:
           - identity_service
           - bff_web
+          - bff_mobile
           - mock_kyc
     env:
       AWS_REGION: ${{ secrets.AWS_REGION }}

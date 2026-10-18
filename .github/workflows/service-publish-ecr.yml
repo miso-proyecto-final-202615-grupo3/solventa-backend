@@ -19,6 +19,7 @@ on:
         options:
           - identity_service
           - bff_web
+          - bff_mobile
           - mock_kyc
         default: greeting_service
 

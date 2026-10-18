@@ -1,0 +1,65 @@
+replicaCount: 1
+fullnameOverride: bff-mobile
+
+containerName: backend-service
+serviceAccountName: solventa-app-sa
+
+image:
+  repository: bff-mobile
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+network:
+  portName: http
+  containerPort: 8000
+  protocol: TCP
+
+# El health check del servicio vive bajo el prefijo de la API.
+probes:
+  readiness:
+    path: /api/v1/bff-mobile/health
+    port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  liveness:
+    path: /
+    port: http
+    initialDelaySeconds: 20
+    periodSeconds: 20
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+database:
+  enabled: false
+
+bucket:
+  enabled: false
+
+redis:
+  enabled: false
+
+cognito:
+  enabled: false
+
+kmsKey:
+  enabled: false
+
+config:
+  PROJECT_NAME: Solventa BFF Mobile
+  VERSION: "0.1.0"
+  ENVIRONMENT: dev
+  API_PREFIX: /api/v1/bff-mobile
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://solventa-otel-collector:4317
+  OTEL_TRACES_EXPORTER: none
+  IDENTITY_SERVICE_URL: http://identity-service:80
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

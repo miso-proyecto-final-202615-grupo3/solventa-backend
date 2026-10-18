@@ -10,6 +10,7 @@ ambiente y su imagen Docker. Cada servicio se despliega como un pod independient
 | --- | --- | --- |
 | `identity_service` | Identidad y registro de clientes | `/api/v1/identity-service` |
 | `bff_web` | Backend For Frontend del cliente web | `/api/v1/bff-web` |
+| `bff_mobile` | Backend For Frontend de la app móvil Android | `/api/v1/bff-mobile` |
 
 ## Requisitos
 
@@ -54,7 +55,7 @@ docker build -f docker/services/Dockerfile.identity_service -t solventa/identity
 
 ## CI/CD
 
-- **CI (`ci.yml`):** corre `pytest` por servicio (`identity_service`, `bff_web`) y build de
+- **CI (`ci.yml`):** corre `pytest` por servicio (`identity_service`, `bff_web`, `bff_mobile`) y build de
   las imágenes en cada push/PR a `dev` y `main`.
 - **Despliegue:** portado del template de referencia (`template-solventa-backend-services`):
   - Workflows manuales de ECR/EKS: `backend-publish-ecr`, `backend-deploy-eks`,
@@ -69,8 +70,21 @@ docker build -f docker/services/Dockerfile.identity_service -t solventa/identity
 ## Stack local (Docker Compose)
 
 ```bash
-docker compose -f docker/docker-compose.yml up --build
+docker compose up --build
 ```
+
+| Servicio | URL local |
+| --- | --- |
+| `identity_service` | `http://localhost:8000` |
+| `bff_web` | `http://localhost:8001` |
+| `bff_mobile` | `http://localhost:8002` (desde el emulador Android: `http://10.0.2.2:8002`) |
+| `mock_kyc` | `http://localhost:8202` |
+
+### BFF Mobile
+
+`POST /api/v1/bff-mobile/auth/login` con `{"correo", "password"}` devuelve
+`access_token`, `refresh_token`, `expires_in`, `token_type` y el `correo` del cliente.
+Credenciales inválidas → `401`; MS Identidad caído → `503`.
 
 ## Cognito en local vs. EKS
 

@@ -7,6 +7,8 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from src.domain.clientes.value_objects import EstadoKYC, TipoDocumento
 
 _PHONE_PATTERN = re.compile(r"^\+?[0-9][0-9\s\-()]{6,19}$")
+_CEDULA_PATTERN = re.compile(r"^\d{5,10}$")
+EDAD_MINIMA = 18
 
 
 class ClienteCreate(BaseModel):
@@ -31,6 +33,28 @@ class ClienteCreate(BaseModel):
         if value >= date.today():
             raise ValueError(
                 "La fecha de nacimiento debe ser anterior a la fecha actual."
+            )
+        return value
+
+    @field_validator("fecha_nacimiento")
+    @classmethod
+    def _mayor_de_edad(cls, value: date) -> date:
+        hoy = date.today()
+        edad = hoy.year - value.year - (
+            (hoy.month, hoy.day) < (value.month, value.day)
+        )
+        if edad < EDAD_MINIMA:
+            raise ValueError(
+                f"Debes ser mayor de {EDAD_MINIMA} años para crear una cuenta."
+            )
+        return value
+
+    @field_validator("numero_identificacion")
+    @classmethod
+    def _cedula_numerica(cls, value: str) -> str:
+        if not _CEDULA_PATTERN.match(value):
+            raise ValueError(
+                "El número de identificación debe tener solo dígitos, entre 5 y 10."
             )
         return value
 

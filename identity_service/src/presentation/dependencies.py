@@ -13,6 +13,9 @@ from src.application.ports.consentimiento_cache import ConsentimientoCachePort
 from src.application.use_cases.gestionar_consentimiento_use_case import (
     GestionarConsentimientoUseCase,
 )
+from src.application.use_cases.consultar_auditoria_consentimiento_use_case import (
+    ConsultarAuditoriaConsentimientoUseCase,
+)
 from src.application.use_cases.registrar_cliente_use_case import RegistrarClienteUseCase
 from src.application.use_cases.verificar_kyc_use_case import VerificarKycUseCase
 from src.core.config import settings
@@ -22,6 +25,9 @@ from src.infrastructure.gateways.cognito_identity_provider import CognitoIdentit
 from src.infrastructure.gateways.kyc_http_client import KycHttpClient
 from src.infrastructure.gateways.noop_identity_provider import NoopIdentityProvider
 from src.infrastructure.cache.consentimiento_cache import ConsentimientoCache
+from src.infrastructure.persistence.auditoria_consentimiento_repository_impl import (
+    SqlAlchemyAuditoriaConsentimientoRepository,
+)
 from src.infrastructure.persistence.cliente_repository_impl import (
     SqlAlchemyClienteRepository,
 )
@@ -76,6 +82,14 @@ def get_gestionar_consentimiento_use_case(
         cliente_repository,
         cache,
         settings.CONSENT_TERMS_VERSION,
+    )
+
+
+def get_consultar_auditoria_consentimiento_use_case(
+    db: AsyncSession = Depends(get_db),
+) -> ConsultarAuditoriaConsentimientoUseCase:
+    return ConsultarAuditoriaConsentimientoUseCase(
+        SqlAlchemyAuditoriaConsentimientoRepository(db)
     )
 
 

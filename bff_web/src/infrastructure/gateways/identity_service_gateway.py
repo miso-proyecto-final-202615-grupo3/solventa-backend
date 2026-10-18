@@ -56,6 +56,15 @@ class IdentityServiceGateway:
             f"/api/v1/identity-service/clientes/{cliente_id}/perfil",
         )
 
+    async def consultar_auditoria_consentimiento(
+        self, params: dict[str, str]
+    ) -> dict:
+        return await self._request(
+            "GET",
+            "/api/v1/identity-service/consentimientos",
+            params=params,
+        )
+
     async def aclose(self) -> None:
         await self._client.aclose()
 
@@ -68,6 +77,7 @@ class IdentityServiceGateway:
         path: str,
         payload: bytes | None = None,
         content_type: str = "application/json",
+        params: dict[str, str] | None = None,
     ) -> dict:
         try:
             kwargs = (
@@ -78,7 +88,9 @@ class IdentityServiceGateway:
                 if payload is not None
                 else {}
             )
-            response = await self._client.request(method, path, **kwargs)
+            response = await self._client.request(
+                method, path, params=params, **kwargs
+            )
         except httpx.HTTPError as exc:
             raise IdentityGatewayError(
                 status_code=503,

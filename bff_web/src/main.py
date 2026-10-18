@@ -29,7 +29,7 @@ async def log_internal_errors(request, call_next):
         )
         raise
 
-app.include_router(health.router, prefix=settings.API_PREFIX)
+app.include_router(health.router)
 app.include_router(clientes.router, prefix=settings.API_PREFIX)
 
 

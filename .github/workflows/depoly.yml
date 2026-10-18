@@ -42,7 +42,7 @@ jobs:
       - name: Resolve service repository
         id: service
         env:
-          VALUES_FILE: deployment/helm/config/${{ matrix.service_name }}/values.$TARGET_ENV.yaml
+          VALUES_FILE: deployment/helm/config/${{ matrix.service_name }}/values.${TARGET_ENV}.yaml
         run: |
           set -euo pipefail
           repository="$(python -c 'import pathlib, sys, yaml; print(yaml.safe_load(pathlib.Path(sys.argv[1]).read_text())["image"]["repository"])' "$VALUES_FILE")"
@@ -75,10 +75,10 @@ jobs:
             --push .
 
   backend-deploy-eks:
-    name: Deploy ${{ matrix.service_name }} to ${{ github.ref_name == 'refs/heads/main' && 'prod' || 'dev' }}
+    name: Deploy ${{ matrix.service_name }} to ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
     needs: backend-publish-ecr
     runs-on: ubuntu-latest
-    environment: ${{ github.ref_name == 'refs/heads/main' && 'prod' || 'dev' }}
+    environment: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
     timeout-minutes: 30
     strategy:
       fail-fast: false

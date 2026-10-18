@@ -38,7 +38,7 @@ bucket:
   enabled: false
 
 redis:
-  enabled: true
+  enabled: false
 
 cognito:
   enabled: false

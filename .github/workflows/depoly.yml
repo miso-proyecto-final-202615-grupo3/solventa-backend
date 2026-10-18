@@ -42,7 +42,7 @@ jobs:
       - name: Resolve service repository
         id: service
         env:
-          VALUES_FILE: deployment/helm/config/${{ matrix.service_name }}/values.${TARGET_ENV}.yaml
+          VALUES_FILE: deployment/helm/config/${{ matrix.service_name }}/values.${{ github.ref_name == 'main' && 'prod' || 'dev' }}.yaml
         run: |
           set -euo pipefail
           repository="$(python -c 'import pathlib, sys, yaml; print(yaml.safe_load(pathlib.Path(sys.argv[1]).read_text())["image"]["repository"])' "$VALUES_FILE")"

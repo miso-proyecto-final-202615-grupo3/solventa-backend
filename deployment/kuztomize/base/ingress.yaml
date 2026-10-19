@@ -44,3 +44,10 @@ spec:
                 name: bff-web
                 port:
                   number: 80
+          - path: /api/v1/bff-mobile
+            pathType: Prefix
+            backend:
+              service:
+                name: bff-mobile
+                port:
+                  number: 80

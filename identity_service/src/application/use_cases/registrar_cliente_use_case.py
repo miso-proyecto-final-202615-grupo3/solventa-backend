@@ -1,12 +1,20 @@
 import logging
+from datetime import UTC, datetime
 
 from src.application.ports.identity_provider import (
     IdentityProvider,
     IdentityProviderError,
 )
+from src.application.ports.consentimiento_cache import ConsentimientoCachePort
 from src.domain.clientes.entities import Cliente, ClienteId
 from src.domain.clientes.repositories import ClienteRepository
 from src.domain.clientes.value_objects import EstadoKYC
+from src.domain.consentimiento.entities import (
+    ConsentimientoInicial,
+    EstadoConsentimiento,
+    TipoAccionConsentimiento,
+)
+from src.core.config import settings
 from src.presentation.schemas import ClienteCreate
 
 logger = logging.getLogger(__name__)
@@ -23,9 +31,11 @@ class RegistrarClienteUseCase:
         self,
         repository: ClienteRepository,
         identity_provider: IdentityProvider,
+        cache: ConsentimientoCachePort | None = None,
     ) -> None:
         self.repository = repository
         self.identity_provider = identity_provider
+        self.cache = cache
 
     async def ejecutar(self, command: ClienteCreate) -> Cliente:
         if await self.repository.existe_por_correo(command.correo):
@@ -64,12 +74,40 @@ class RegistrarClienteUseCase:
             ) from exc
 
         try:
-            await self.repository.guardar(cliente)
+            aceptado = command.consentimiento_datos
+            estado_consentimiento = (
+                EstadoConsentimiento.ACEPTADO
+                if aceptado
+                else EstadoConsentimiento.REVOCADO
+            )
+            await self.repository.guardar(
+                cliente,
+                ConsentimientoInicial(
+                    estado=estado_consentimiento,
+                    tipo_accion=(
+                        TipoAccionConsentimiento.ACEPTACION
+                        if aceptado
+                        else TipoAccionConsentimiento.DENEGACION
+                    ),
+                    fecha=datetime.now(UTC),
+                    version_terminos=settings.CONSENT_TERMS_VERSION,
+                    canal="web",
+                ),
+            )
         except Exception:
             logger.exception(
                 "Persistencia falló; revirtiendo la identidad creada."
             )
             await self.identity_provider.eliminar_usuario(str(command.correo))
             raise
+
+        if self.cache is not None:
+            try:
+                await self.cache.guardar(cliente.id.value, estado_consentimiento, None)
+            except Exception:
+                logger.warning(
+                    "No se pudo precargar el consentimiento en Redis.",
+                    exc_info=True,
+                )
 
         return cliente

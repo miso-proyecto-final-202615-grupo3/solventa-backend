@@ -6,7 +6,7 @@ serviceAccountName: solventa-app-sa
 
 image:
   repository: mock-kyc
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
   tag: "latest"
 
 network:
@@ -38,7 +38,7 @@ bucket:
   enabled: false
 
 redis:
-  enabled: true
+  enabled: false
 
 cognito:
   enabled: false

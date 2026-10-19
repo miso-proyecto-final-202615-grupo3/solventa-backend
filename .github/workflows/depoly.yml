@@ -1,0 +1,132 @@
+name: Deploy
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  backend-publish-ecr:
+    name: Publish ${{ matrix.service_name }} to ${{ github.ref_name == 'main' && 'prod' || 'dev' }} ECR
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        service_name:
+          - identity_service
+          - bff_web
+          - mock_kyc
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      SERVICE_NAME: ${{ matrix.service_name }}
+      TARGET_ENV: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install YAML parser
+        run: python -m pip install --disable-pip-version-check PyYAML==6.0.2
+
+      - name: Resolve service repository
+        id: service
+        env:
+          VALUES_FILE: deployment/helm/config/${{ matrix.service_name }}/values.${{ github.ref_name == 'main' && 'prod' || 'dev' }}.yaml
+        run: |
+          set -euo pipefail
+          repository="$(python -c 'import pathlib, sys, yaml; print(yaml.safe_load(pathlib.Path(sys.argv[1]).read_text())["image"]["repository"])' "$VALUES_FILE")"
+          if [[ "$repository" == REPLACE_WITH_* ]]; then
+            echo "::error::Set image.repository in $VALUES_FILE to its ECR repository URI."
+            exit 1
+          fi
+          echo "repository=$repository" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image
+        env:
+          ECR_REPO_URL: ${{ steps.service.outputs.repository }}
+        run: |
+          docker buildx build \
+            --file "docker/services/Dockerfile.${SERVICE_NAME}" \
+            --tag "$ECR_REPO_URL:$GITHUB_SHA" \
+            --tag "$ECR_REPO_URL:latest" \
+            --push .
+
+  backend-deploy-eks:
+    name: Deploy ${{ matrix.service_name }} to ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+    needs: backend-publish-ecr
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        service_name:
+          - identity_service
+          - bff_web
+          - mock_kyc
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      SERVICE_NAME: ${{ matrix.service_name }}
+      CLUSTER_NAME: solventa-${{ github.ref_name == 'main' && 'prod' || 'dev' }}-eks
+      K8S_NAMESPACE: solventa-${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+      DEPLOYMENT_ENV: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Configure EKS access
+        run: aws eks update-kubeconfig --name "$CLUSTER_NAME" --region "$AWS_REGION"
+
+      - name: Deploy backend chart
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          service_release="${SERVICE_NAME//_/-}"
+          helm uninstall "$service_release" --namespace "$K8S_NAMESPACE" || true
+          helm upgrade --install "$service_release" deployment/helm/charts/backend-service \
+            --namespace "$K8S_NAMESPACE" \
+            --values "deployment/helm/config/$SERVICE_NAME/values.yaml" \
+            --values "deployment/helm/config/$SERVICE_NAME/values.$DEPLOYMENT_ENV.yaml" \
+            --set-string image.tag="latest" \
+            --set-string config.ENVIRONMENT="$DEPLOYMENT_ENV"
+
+      - name: Wait for deployment rollout
+        run: |
+          service_slug="${SERVICE_NAME//_/-}"
+          kubectl rollout status "deployment/$service_slug" --namespace "$K8S_NAMESPACE" --timeout=180s

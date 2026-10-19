@@ -3,6 +3,7 @@ from typing import Optional
 
 from src.domain.clientes.entities import Cliente, ClienteId
 from src.domain.clientes.value_objects import EstadoKYC
+from src.domain.consentimiento.entities import ConsentimientoInicial
 
 
 class ClienteRepository(ABC):
@@ -17,7 +18,9 @@ class ClienteRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def guardar(self, cliente: Cliente) -> None:
+    async def guardar(
+        self, cliente: Cliente, consentimiento: ConsentimientoInicial
+    ) -> None:
         raise NotImplementedError
 
     @abstractmethod

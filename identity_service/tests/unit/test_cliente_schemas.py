@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 import pytest
 from pydantic import ValidationError
 
@@ -90,3 +92,30 @@ def test_password_verify_valido():
 def test_password_verify_rechaza_correo_invalido():
     with pytest.raises(ValidationError):
         PasswordVerify(correo="invalido", password="Secreta123")
+
+
+def _hace_anios(anios: int, dias: int = 0) -> str:
+    hoy = date.today()
+    return (date(hoy.year - anios, hoy.month, 1) + timedelta(days=hoy.day - 1 + dias)).isoformat()
+
+
+def test_cliente_create_acepta_a_quien_cumple_18_hoy():
+    payload = {**VALID_PAYLOAD, "fecha_nacimiento": _hace_anios(18)}
+
+    assert ClienteCreate(**payload).fecha_nacimiento.isoformat() == _hace_anios(18)
+
+
+@pytest.mark.parametrize("fecha", [_hace_anios(18, 1), _hace_anios(10)])
+def test_cliente_create_rechaza_menores_de_edad(fecha):
+    payload = {**VALID_PAYLOAD, "fecha_nacimiento": fecha}
+
+    with pytest.raises(ValidationError, match="mayor de 18"):
+        ClienteCreate(**payload)
+
+
+@pytest.mark.parametrize("cedula", ["1234", "12345678901", "12a45", "123 45"])
+def test_cliente_create_rechaza_cedula_no_numerica_o_fuera_de_rango(cedula):
+    payload = {**VALID_PAYLOAD, "numero_identificacion": cedula}
+
+    with pytest.raises(ValidationError):
+        ClienteCreate(**payload)

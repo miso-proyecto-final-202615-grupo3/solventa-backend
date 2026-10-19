@@ -23,22 +23,74 @@ class IdentityServiceGateway:
             base_url=self.base_url, timeout=5.0, transport=transport
         )
 
-    async def registrar_cliente(self, payload: dict) -> dict:
+    async def registrar_cliente(
+        self, payload: bytes, content_type: str = "application/json"
+    ) -> dict:
         return await self._post(
-            "/api/v1/identity-service/clientes/registro", payload
+            "/api/v1/identity-service/clientes/registro", payload, content_type
         )
 
-    async def autenticar_cliente(self, payload: dict) -> dict:
+    async def autenticar_cliente(
+        self, payload: bytes, content_type: str = "application/json"
+    ) -> dict:
         return await self._post(
-            "/api/v1/identity-service/clientes/autenticar", payload
+            "/api/v1/identity-service/clientes/autenticar", payload, content_type
+        )
+
+    async def actualizar_consentimiento(
+        self,
+        cliente_id: str,
+        payload: bytes,
+        content_type: str = "application/json",
+    ) -> dict:
+        return await self._request(
+            "PUT",
+            f"/api/v1/identity-service/clientes/{cliente_id}/consentimiento",
+            payload,
+            content_type,
+        )
+
+    async def obtener_perfil_cliente(self, cliente_id: str) -> dict:
+        return await self._request(
+            "GET",
+            f"/api/v1/identity-service/clientes/{cliente_id}/perfil",
+        )
+
+    async def consultar_auditoria_consentimiento(
+        self, params: dict[str, str]
+    ) -> dict:
+        return await self._request(
+            "GET",
+            "/api/v1/identity-service/consentimientos",
+            params=params,
         )
 
     async def aclose(self) -> None:
         await self._client.aclose()
 
-    async def _post(self, path: str, payload: dict) -> dict:
+    async def _post(self, path: str, payload: bytes, content_type: str) -> dict:
+        return await self._request("POST", path, payload, content_type)
+
+    async def _request(
+        self,
+        method: str,
+        path: str,
+        payload: bytes | None = None,
+        content_type: str = "application/json",
+        params: dict[str, str] | None = None,
+    ) -> dict:
         try:
-            response = await self._client.post(path, json=payload)
+            kwargs = (
+                {
+                    "content": payload,
+                    "headers": {"content-type": content_type},
+                }
+                if payload is not None
+                else {}
+            )
+            response = await self._client.request(
+                method, path, params=params, **kwargs
+            )
         except httpx.HTTPError as exc:
             raise IdentityGatewayError(
                 status_code=503,

@@ -3,10 +3,3 @@ kind: Kustomization
 resources:
   - ../../base
   - external-secret.yaml
-patches:
-  - path: ingress-patch.yaml
-    target:
-      group: networking.k8s.io
-      version: v1
-      kind: Ingress
-      name: solventa-ingress-alb

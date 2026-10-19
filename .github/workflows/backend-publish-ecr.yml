@@ -33,6 +33,7 @@ jobs:
         service_name:
           - identity_service
           - bff_web
+          - bff_mobile
           - mock_kyc
     env:
       AWS_REGION: ${{ secrets.AWS_REGION }}
@@ -78,4 +79,4 @@ jobs:
             --file "docker/services/Dockerfile.${SERVICE_NAME}" \
             --tag "$ECR_REPO_URL:$GITHUB_SHA" \
             --tag "$ECR_REPO_URL:latest" \
-            --push "$SERVICE_NAME"
+            --push .

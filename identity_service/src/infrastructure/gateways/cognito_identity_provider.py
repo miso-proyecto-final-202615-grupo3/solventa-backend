@@ -1,3 +1,5 @@
+import logging
+
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 from starlette.concurrency import run_in_threadpool
@@ -9,6 +11,8 @@ from src.application.ports.identity_provider import (
     InvalidCredentialsError,
 )
 from src.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class CognitoIdentityProvider(IdentityProvider):
@@ -50,6 +54,7 @@ class CognitoIdentityProvider(IdentityProvider):
                 Permanent=True,
             )
         except (ClientError, BotoCoreError) as exc:
+            logger.exception("No se pudo registrar el usuario en Cognito.")
             raise IdentityProviderError(str(exc)) from exc
 
     async def autenticar_usuario(
@@ -66,11 +71,14 @@ class CognitoIdentityProvider(IdentityProvider):
         except ClientError as exc:
             codigo = exc.response.get("Error", {}).get("Code", "")
             if codigo in ("NotAuthorizedException", "UserNotFoundException"):
+                logger.exception("Credenciales inválidas al autenticar en Cognito.")
                 raise InvalidCredentialsError(
                     "Credenciales inválidas."
                 ) from exc
+            logger.exception("No se pudo autenticar el usuario en Cognito.")
             raise IdentityProviderError(str(exc)) from exc
         except BotoCoreError as exc:
+            logger.exception("Error de AWS al autenticar el usuario en Cognito.")
             raise IdentityProviderError(str(exc)) from exc
 
         if response.get("ChallengeName") == "NEW_PASSWORD_REQUIRED":
@@ -87,6 +95,9 @@ class CognitoIdentityProvider(IdentityProvider):
                     Session=response.get("Session"),
                 )
             except ClientError as exc:
+                logger.exception(
+                    "No se pudo completar el cambio de contraseña en Cognito."
+                )
                 raise InvalidCredentialsError(
                     "No se pudo completar la autenticación."
                 ) from exc
@@ -113,4 +124,5 @@ class CognitoIdentityProvider(IdentityProvider):
                 Username=correo,
             )
         except (ClientError, BotoCoreError):
+            logger.exception("No se pudo eliminar el usuario de Cognito.")
             pass

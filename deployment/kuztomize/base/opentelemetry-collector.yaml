@@ -1,0 +1,94 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: solventa-otel-collector-sa
+---
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: solventa-otel-collector
+spec:
+  # Explicitly set the service account name
+  serviceAccount: solventa-otel-collector-sa
+  # Centralized collector deployment (ideal for traces)
+  mode: deployment
+  # Scaled for high availability
+  replicas: 2
+
+  # Resource requests & limits (Crucial to prevent OOM kills under trace spikes)
+  resources:
+    requests:
+      cpu: 200m
+      memory: 400Mi
+    limits:
+      cpu: 1000m
+      memory: 1500Mi
+
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    processors:
+      # 1. Memory Limiter prevents OOM crashes by dropping/rejecting spans if memory spikes
+      memory_limiter:
+        check_interval: 1s
+        limit_percentage: 80
+        spike_limit_percentage: 20
+
+      # 2. Automatically injects Kubernetes metadata (Pod name, namespace, container name, node) into traces
+      k8sattributes:
+        auth_type: "kubeConfig"
+        passthrough: false
+        extract:
+          metadata:
+            - k8s.pod.name
+            - k8s.pod.uid
+            - k8s.namespace.name
+            - k8s.node.name
+            - k8s.deployment.name
+        pod_association:
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.ip
+          - sources:
+              - from: connection
+
+      # 3. Batch processor optimizes network calls to your backend storage/APM
+      batch:
+        send_batch_size: 8192
+        timeout: 5s
+        send_batch_max_size: 10240
+
+    exporters:
+      # Option A: Exporting to AWS X-Ray (Standard for AWS/ADOT environments)
+      awsxray:
+        # Change to your cluster's AWS region
+        region: us-east-1
+
+      # Option B: Alternative OTLP Exporter (Uncomment if sending to Grafana Tempo, Datadog, Honeycomb, etc.)
+      # otlp:
+      #   endpoint: "tempo-distributor.monitoring.svc.cluster.local:4317"
+      #   tls:
+      #     insecure: true
+
+      # Debug exporter (useful for initial troubleshooting; remove or lower verbosity in production)
+      debug:
+        verbosity: basic
+
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+
+    service:
+      extensions: [health_check]
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, k8sattributes, batch]
+          # Swap or add your target exporter here
+          exporters: [awsxray, debug]

@@ -13,6 +13,12 @@ on:
           - prod
         default: "dev"
 
+  workflow_call:
+    inputs:
+      target_env:
+        required: true
+        type: string
+
 permissions:
   contents: read
   id-token: write
@@ -78,3 +84,11 @@ jobs:
         run: |
           service_slug="${SERVICE_NAME//_/-}"
           kubectl rollout status "deployment/$service_slug" --namespace "$K8S_NAMESPACE" --timeout=180s
+
+      - name: Dump pod diagnostics on failure
+        if: ${{ failure() }}
+        run: |
+          service_slug="${SERVICE_NAME//_/-}"
+          kubectl get pods --namespace "$K8S_NAMESPACE" -l app.kubernetes.io/instance="$service_slug" -o wide || true
+          kubectl describe pods --namespace "$K8S_NAMESPACE" -l app.kubernetes.io/instance="$service_slug" | tail -60 || true
+          kubectl logs --namespace "$K8S_NAMESPACE" -l app.kubernetes.io/instance="$service_slug" --all-containers --tail=80 --previous ||             kubectl logs --namespace "$K8S_NAMESPACE" -l app.kubernetes.io/instance="$service_slug" --all-containers --tail=80 || true

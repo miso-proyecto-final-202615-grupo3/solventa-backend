@@ -24,6 +24,15 @@ on:
           - set_prefix_delegation_on_nodes
         default: create_shared_resources
 
+  workflow_call:
+    inputs:
+      target_env:
+        required: true
+        type: string
+      action:
+        required: true
+        type: string
+
 permissions:
   contents: read
   id-token: write

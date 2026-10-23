@@ -4,3 +4,4 @@ resources:
   - ingress.yaml
   - shared-app-service-account.yaml
   - opentelemetry-collector.yaml
+  - aws-secretsmanager-store.yaml

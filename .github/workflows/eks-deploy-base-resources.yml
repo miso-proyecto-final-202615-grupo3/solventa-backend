@@ -22,6 +22,7 @@ on:
           - delete_ingress
           - delete_external_secret
           - set_prefix_delegation_on_nodes
+          - diagnose_external_secrets
         default: create_shared_resources
 
   workflow_call:
@@ -88,3 +89,12 @@ jobs:
       - name: Set ENABLE_PREFIX_DELEGATION on cluster nodes
         if: ${{ inputs.action == 'set_prefix_delegation_on_nodes' }}
         run: kubectl set env daemonset aws-node -n kube-system ENABLE_PREFIX_DELEGATION=true
+
+      - name: Diagnose External Secrets
+        if: ${{ inputs.action == 'diagnose_external_secrets' }}
+        run: |
+          kubectl get secretstore,externalsecret --namespace "$K8S_NAMESPACE" -o wide || true
+          kubectl describe externalsecret "solventa-$DEPLOYMENT_ENV-app-externalsecret" --namespace "$K8S_NAMESPACE" | tail -30 || true
+          kubectl describe secretstore aws-secretsmanager-store --namespace "$K8S_NAMESPACE" | tail -20 || true
+          kubectl get pods --namespace external-secrets || true
+          kubectl logs --namespace external-secrets -l app.kubernetes.io/name=external-secrets --tail=30 || true

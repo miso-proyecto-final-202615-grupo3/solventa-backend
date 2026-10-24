@@ -29,7 +29,27 @@ jobs:
         run: pip install -r ${{ matrix.service }}/requirements-dev.txt
 
       - name: Run tests (${{ matrix.service }})
-        run: python -m pytest ${{ matrix.service }}/tests
+        run: >
+          python -m pytest ${{ matrix.service }}/tests
+          --html=${{ matrix.service }}/test-results.html --self-contained-html
+          --cov=${{ matrix.service }}/src
+          --cov-report=html:${{ matrix.service }}/coverage-results
+
+      - name: Upload test execution report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-execution-report-${{ matrix.service }}
+          path: ${{ matrix.service }}/test-results.html
+          if-no-files-found: warn
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-${{ matrix.service }}
+          path: ${{ matrix.service }}/coverage-results/
+          if-no-files-found: warn
 
   build:
     name: Docker Build ${{ matrix.service }}

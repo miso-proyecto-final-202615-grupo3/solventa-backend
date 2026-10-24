@@ -14,6 +14,17 @@ network:
   containerPort: 8000
   protocol: TCP
 
+extraContainerPorts:
+  - name: grpc
+    containerPort: 50051
+    protocol: TCP
+
+extraServicePorts:
+  - name: grpc
+    port: 50051
+    targetPort: grpc
+    protocol: TCP
+
 probes:
   readiness:
     path: /health
@@ -69,6 +80,8 @@ config:
   COGNITO_ENABLED: "true"
   CONSENT_TERMS_VERSION: "1.0"
   CONSENT_CACHE_TTL_SECONDS: 300
+  OPEN_FINANCE_TIMEOUT_SECONDS: 0.25
+  IDENTITY_GRPC_PORT: 50051
   KYC_SERVICE_URL: http://mock-kyc:80
   KYC_TIMEOUT_SECONDS: 0.7
 

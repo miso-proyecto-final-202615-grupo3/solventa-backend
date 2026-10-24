@@ -14,5 +14,7 @@ prometheus-fastapi-instrumentator>=8.1.0
 boto3>=1.35.0
 httpx>=0.28.1
 redis>=8.1.0
+grpcio>=1.84.1
+protobuf>=7.35.1
 boto3>=1.43.114
 botocore[crt]>=1.43.114

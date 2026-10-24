@@ -1,13 +1,32 @@
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+import uuid
 
+import grpc
 from fastapi import FastAPI
+import httpx
 from sqlalchemy import text
 
+from src.application.use_cases.obtener_perfil_financiero_use_case import (
+    ObtenerPerfilFinancieroUseCase,
+)
 from src.core.config import settings
 from src.core.database import Base, engine
 from src.core.telemetry import setup_telemetry
+from src.infrastructure.gateways.open_finance_http_client import (
+    OpenFinanceHttpClient,
+)
+from src.infrastructure.grpc import perfilamiento_pb2_grpc
+from src.infrastructure.grpc.perfilamiento_server import (
+    PerfilamientoGrpcService,
+)
+from src.infrastructure.persistence.cliente_repository_impl import (
+    SqlAlchemyClienteRepository,
+)
+from src.infrastructure.persistence.consentimiento_repository_impl import (
+    SqlAlchemyConsentimientoRepository,
+)
 from src.infrastructure.persistence import models  # noqa: F401
 from src.presentation.dependencies import cerrar_consentimiento_cache
 from src.presentation.routers import clientes, consentimientos, health
@@ -28,10 +47,35 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             "No se pudo crear el esquema en el arranque.",
             exc_info=True,
         )
-    try:
-        yield
-    finally:
-        await cerrar_consentimiento_cache()
+    async with httpx.AsyncClient(
+        timeout=settings.OPEN_FINANCE_TIMEOUT_SECONDS
+    ) as open_finance_http:
+        open_finance_client = OpenFinanceHttpClient(open_finance_http)
+
+        async def obtener_perfil_financiero(cliente_id: uuid.UUID):
+            async with SessionLocal() as session:
+                use_case = ObtenerPerfilFinancieroUseCase(
+                    SqlAlchemyClienteRepository(session),
+                    SqlAlchemyConsentimientoRepository(session),
+                    open_finance_client,
+                )
+                return await use_case.ejecutar(cliente_id)
+
+        grpc_server = grpc.aio.server()
+        perfilamiento_pb2_grpc.add_PerfilamientoServicer_to_server(
+            PerfilamientoGrpcService(obtener_perfil_financiero), grpc_server
+        )
+        bound_port = grpc_server.add_insecure_port(
+            f"[::]:{settings.IDENTITY_GRPC_PORT}"
+        )
+        if bound_port == 0:
+            raise RuntimeError("No se pudo abrir el puerto gRPC de perfilamiento.")
+        await grpc_server.start()
+        try:
+            yield
+        finally:
+            await grpc_server.stop(grace=1)
+            await cerrar_consentimiento_cache()
 
 
 app = FastAPI(

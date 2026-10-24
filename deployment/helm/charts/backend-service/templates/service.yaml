@@ -11,5 +11,8 @@ spec:
       targetPort: {{ .Values.service.targetPort }}
       protocol: TCP
       name: http
+{{ with .Values.extraServicePorts }}
+{{ toYaml . | indent 4 }}
+{{ end }}
   selector:
     {{- include "backend-service.selectorLabels" . | nindent 4 }}

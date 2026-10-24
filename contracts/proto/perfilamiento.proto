@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package solventa.perfilamiento.v1;
+
+service Perfilamiento {
+  rpc ObtenerPerfilFinanciero(SolicitudPerfilFinanciero)
+      returns (RespuestaPerfilFinanciero);
+}
+
+message SolicitudPerfilFinanciero {
+  string cliente_id = 1;
+}
+
+message RespuestaPerfilFinanciero {
+  bool proveedor_disponible = 1;
+  string ingreso_mensual = 2;
+  string ahorros_liquidos = 3;
+  string dti_pct = 4;
+  uint32 sobregiros_12_meses = 5;
+  uint32 score = 6;
+}

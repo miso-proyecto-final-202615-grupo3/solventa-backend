@@ -23,6 +23,9 @@ spec:
             - name: {{ .Values.network.portName }}
               containerPort: {{ .Values.network.containerPort }}
               protocol: {{ .Values.network.protocol }}
+{{ with .Values.extraContainerPorts }}
+{{ toYaml . | indent 12 }}
+{{ end }}
           envFrom:
             - configMapRef:
                 name: {{ include "backend-service.fullname" . }}

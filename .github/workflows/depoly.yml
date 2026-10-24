@@ -25,6 +25,7 @@ jobs:
       matrix:
         service_name:
           - identity_service
+          - quotingengine_service
           - bff_web
           - mock_kyc
     env:
@@ -85,6 +86,7 @@ jobs:
       matrix:
         service_name:
           - identity_service
+          - quotingengine_service
           - bff_web
           - mock_kyc
     env:

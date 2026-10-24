@@ -8,9 +8,10 @@ ambiente y su imagen Docker. Cada servicio se despliega como un pod independient
 
 | Servicio | Descripción | Prefijo de API |
 | --- | --- | --- |
-| `identity_service` | Identidad y registro de clientes | `/api/v1/identity-service` |
 | `bff_web` | Backend For Frontend del cliente web | `/api/v1/bff-web` |
 | `bff_mobile` | Backend For Frontend de la app móvil Android | `/api/v1/bff-mobile` |
+| `identity_service` | Identidad y registro de clientes | `/api/v1/identity-service` |
+| `quotingengine_service` | Motor de cotización y suscripción | `/api/v1/quotingengine-service` |
 
 ## Requisitos
 
@@ -75,9 +76,11 @@ docker compose up --build
 
 | Servicio | URL local |
 | --- | --- |
-| `identity_service` | `http://localhost:8000` |
-| `bff_web` | `http://localhost:8001` |
-| `bff_mobile` | `http://localhost:8002` (desde el emulador Android: `http://10.0.2.2:8002`) |
+| `bff_web` | `http://localhost:8000` |
+| `bff_mobile` | `http://localhost:8001` (desde el emulador Android: `http://10.0.2.2:8001`) |
+| `identity_service` | `http://localhost:8002` |
+| `quotingengine_service` | `http://localhost:8003` |
+
 | `mock_kyc` | `http://localhost:8202` |
 
 ### BFF Mobile

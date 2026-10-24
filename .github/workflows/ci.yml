@@ -14,7 +14,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [identity_service, bff_web, bff_mobile]
+        service:
+          - identity_service
+          - quotingengine_service
+          - bff_web
+          - bff_mobile
 
     steps:
       - uses: actions/checkout@v4
@@ -57,7 +61,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [identity_service, bff_web, bff_mobile, mock_kyc]
+        service:
+          - identity_service
+          - quotingengine_service
+          - bff_web
+          - bff_mobile
+          - mock_kyc
     needs: test
     steps:
       - uses: actions/checkout@v4

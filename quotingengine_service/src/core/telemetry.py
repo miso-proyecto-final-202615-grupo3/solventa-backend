@@ -1,0 +1,25 @@
+from fastapi import FastAPI
+from opentelemetry import trace
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from prometheus_fastapi_instrumentator import Instrumentator
+
+from src.core.config import settings
+
+
+def setup_telemetry(app: FastAPI) -> None:
+    resource = Resource.create(attributes={"service.name": settings.PROJECT_NAME})
+    provider = TracerProvider(resource=resource)
+
+    otlp_exporter = OTLPSpanExporter(
+        endpoint=settings.OTEL_EXPORTER_OTLP_ENDPOINT,
+        insecure=True,
+    )
+    provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
+    trace.set_tracer_provider(provider)
+
+    FastAPIInstrumentor.instrument_app(app)
+    Instrumentator().instrument(app).expose(app, endpoint="/metrics")

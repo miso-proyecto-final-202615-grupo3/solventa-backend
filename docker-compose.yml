@@ -5,7 +5,7 @@ services:
       dockerfile: docker/services/Dockerfile.identity_service
     container_name: solventa-identity-service
     ports:
-      - "8000:8000"
+      - "8002:8000"
     env_file:
       - .env
     environment:
@@ -30,6 +30,26 @@ services:
       lgtm:
         condition: service_started
 
+  quotingengine_service:
+    build:
+      context: .
+      dockerfile: docker/services/Dockerfile.quotingengine_service
+    container_name: solventa-quotingengine-service
+    ports:
+      - "8003:8000"
+    env_file:
+      - .env
+    environment:
+      PROJECT_NAME: Solventa Quoting Engine Service
+      ENVIRONMENT: dev
+      DATABASE_URL: ${DATABASE_URL:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+    depends_on:
+      db:
+        condition: service_healthy
+      lgtm:
+        condition: service_started
+
   mock_kyc:
     build:
       context: .
@@ -48,7 +68,7 @@ services:
       dockerfile: docker/services/Dockerfile.bff_web
     container_name: solventa-bff-web
     ports:
-      - "8001:8000"
+      - "8000:8000"
     env_file:
       - .env
     environment:
@@ -68,7 +88,7 @@ services:
       dockerfile: docker/services/Dockerfile.bff_mobile
     container_name: solventa-bff-mobile
     ports:
-      - "8002:8000"
+      - "8001:8000"
     env_file:
       - .env
     environment:

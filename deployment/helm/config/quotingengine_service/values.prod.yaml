@@ -1,0 +1,11 @@
+image:
+  repository: 839553328585.dkr.ecr.us-east-1.amazonaws.com/solventa-quotingengine-service
+
+database:
+  existingSecret: solventa-prod-app-secrets
+
+redis:
+  existingSecret: solventa-prod-app-secrets
+
+config:
+  ENVIRONMENT: prod

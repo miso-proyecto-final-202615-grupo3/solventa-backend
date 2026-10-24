@@ -1,2 +1,5 @@
 image:
   repository: 839553328585.dkr.ecr.us-east-1.amazonaws.com/solventa-mock-kyc
+
+config:
+  ENVIRONMENT: prod

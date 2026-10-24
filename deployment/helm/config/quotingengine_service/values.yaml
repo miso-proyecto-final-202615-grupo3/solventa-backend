@@ -1,0 +1,68 @@
+replicaCount: 1
+fullnameOverride: quotingengine-service
+
+containerName: backend-service
+serviceAccountName: solventa-app-sa
+
+image:
+  repository: quotingengine-service
+  pullPolicy: Always
+  tag: "latest"
+
+network:
+  portName: http
+  containerPort: 8000
+  protocol: TCP
+
+probes:
+  readiness:
+    path: /health
+    port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  liveness:
+    path: /
+    port: http
+    initialDelaySeconds: 20
+    periodSeconds: 20
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+database:
+  enabled: true
+  existingSecret: secret-name
+  secretKey: DATABASE_URL
+
+bucket:
+  enabled: false
+
+cognito:
+  enabled: false
+
+redis:
+  enabled: true
+  existingSecret: secret-name
+  secretKey: REDIS_ENDPOINT
+  secretKey2: REDIS_AUTH_TOKEN
+
+kmsKey:
+  enabled: false
+
+config:
+  PROJECT_NAME: Solventa Quoting Engine Service
+  VERSION: "0.1.0"
+  ENVIRONMENT: dev
+  API_PREFIX: /api/v1/quotingengine-service
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://solventa-otel-collector-collector:4317
+  OTEL_TRACES_EXPORTER: otlp
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

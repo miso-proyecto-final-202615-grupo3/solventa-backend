@@ -1,2 +1,5 @@
 image:
   repository: mock-kyc
+
+config:
+  ENVIRONMENT: qa

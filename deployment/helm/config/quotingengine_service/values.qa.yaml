@@ -1,0 +1,11 @@
+image:
+  repository: quotingengine-service
+
+database:
+  existingSecret: solventa-qa-app-secrets
+
+redis:
+  existingSecret: solventa-qa-app-secrets
+
+config:
+  ENVIRONMENT: qa

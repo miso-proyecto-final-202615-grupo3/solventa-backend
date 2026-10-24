@@ -1,6 +1,6 @@
-apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ingress.yaml
-  - shared-app-service-account.yaml
+  - aws-secretsmanager-store.yaml
   - opentelemetry-collector.yaml
+  - shared-app-service-account.yaml

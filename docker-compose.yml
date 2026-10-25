@@ -28,8 +28,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      lgtm:
-        condition: service_started
       liveness_adapter:
         condition: service_started
 
@@ -71,8 +69,6 @@ services:
     depends_on:
       identity_service:
         condition: service_started
-      lgtm:
-        condition: service_started
 
   bff_mobile:
     build:
@@ -90,8 +86,6 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
     depends_on:
       identity_service:
-        condition: service_started
-      lgtm:
         condition: service_started
 
   db:
@@ -145,6 +139,8 @@ services:
     volumes:
       - lgtm_data:/data
     restart: unless-stopped
+    profiles:
+      - observability
 
 volumes:
   postgres_data:

@@ -74,6 +74,13 @@ docker build -f docker/services/Dockerfile.identity_service -t solventa/identity
 docker compose up --build
 ```
 
+El servicio de observabilidad `lgtm` es opcional para el flujo funcional local.
+Para incluirlo (su imagen es considerablemente más grande), usa:
+
+```bash
+docker compose --profile observability up --build
+```
+
 | Servicio | URL local |
 | --- | --- |
 | `identity_service` | `http://localhost:8000` |

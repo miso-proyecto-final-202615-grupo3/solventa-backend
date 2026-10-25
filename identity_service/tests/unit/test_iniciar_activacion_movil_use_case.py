@@ -57,12 +57,19 @@ class ActivacionesFake:
         self.anterior = anterior
         self.canceladas = []
         self.sesiones = []
+        self.recuperaciones = []
 
     async def dispositivo_esta_vinculado(self, cliente_id, installation_id):
         return self.vinculado
 
     async def contar_intentos_consumidos(self, cliente_id, desde):
         return self.consumidos
+
+    async def anular_intentos_en_curso_vencidos(
+        self, cliente_id, expira_antes_de, resuelto_en
+    ):
+        self.recuperaciones.append((cliente_id, expira_antes_de, resuelto_en))
+        return 0
 
     async def obtener_sesion_creada(self, installation_id):
         return self.anterior
@@ -169,3 +176,15 @@ async def test_rechaza_cliente_no_registrado():
 
     with pytest.raises(ClienteNoRegistradoError):
         await use_case.ejecutar("ana@example.com", _dispositivo(), "corr-1")
+
+
+async def test_recupera_intentos_colgados_antes_de_contar():
+    cliente = _cliente()
+    activaciones = ActivacionesFake()
+    use_case, _ = _use_case(cliente=cliente, activaciones=activaciones)
+
+    await use_case.ejecutar("ana@example.com", _dispositivo(), "corr-1")
+
+    assert activaciones.recuperaciones == [
+        (cliente.id.value, AHORA - timedelta(seconds=15), AHORA)
+    ]

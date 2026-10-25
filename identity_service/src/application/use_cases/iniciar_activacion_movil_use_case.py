@@ -1,7 +1,7 @@
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from src.application.ports.consentimiento_biometrico import ConsentimientoBiometricoPort
 from src.application.ports.liveness import (
@@ -52,6 +52,7 @@ class IniciarActivacionMovilUseCase:
         commit: Callable[[], Awaitable[None]],
         politica: PoliticaIntentos | None = None,
         ahora: Callable[[], datetime] | None = None,
+        margen_verificacion: timedelta = timedelta(seconds=15),
     ) -> None:
         self._clientes = clientes
         self._activaciones = activaciones
@@ -60,6 +61,7 @@ class IniciarActivacionMovilUseCase:
         self._commit = commit
         self._politica = politica or PoliticaIntentos()
         self._ahora = ahora or (lambda: datetime.now(UTC))
+        self._margen_verificacion = margen_verificacion
 
     async def ejecutar(
         self,
@@ -84,6 +86,11 @@ class IniciarActivacionMovilUseCase:
             raise ClienteNoRegistradoError()
 
         ahora = self._ahora()
+        await self._activaciones.anular_intentos_en_curso_vencidos(
+            cliente.id.value,
+            ahora - self._margen_verificacion,
+            ahora,
+        )
         consumidos = await self._activaciones.contar_intentos_consumidos(
             cliente.id.value, ahora - self._politica.ventana
         )

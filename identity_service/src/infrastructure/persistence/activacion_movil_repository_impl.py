@@ -93,6 +93,46 @@ class SqlAlchemyActivacionMovilRepository(ActivacionMovilRepository):
         )
         return result.scalar_one()
 
+    async def anular_intentos_en_curso_vencidos(
+        self,
+        cliente_id: UUID,
+        expira_antes_de: datetime,
+        resuelto_en: datetime,
+    ) -> int:
+        result = await self.session.execute(
+            select(IntentoPruebaVidaModel.sesion_id)
+            .join(
+                SesionActivacionModel,
+                SesionActivacionModel.id == IntentoPruebaVidaModel.sesion_id,
+            )
+            .where(
+                IntentoPruebaVidaModel.cliente_id == cliente_id,
+                IntentoPruebaVidaModel.estado == EstadoIntento.EN_CURSO.value,
+                SesionActivacionModel.expira_en < expira_antes_de,
+            )
+        )
+        session_ids = list(result.scalars())
+        if not session_ids:
+            return 0
+        await self.session.execute(
+            update(IntentoPruebaVidaModel)
+            .where(
+                IntentoPruebaVidaModel.cliente_id == cliente_id,
+                IntentoPruebaVidaModel.sesion_id.in_(session_ids),
+                IntentoPruebaVidaModel.estado == EstadoIntento.EN_CURSO.value,
+            )
+            .values(estado=EstadoIntento.ANULADO.value, resuelto_en=resuelto_en)
+        )
+        await self.session.execute(
+            update(SesionActivacionModel)
+            .where(
+                SesionActivacionModel.id.in_(session_ids),
+                SesionActivacionModel.estado == EstadoSesion.EN_VERIFICACION.value,
+            )
+            .values(estado=EstadoSesion.CANCELADA.value)
+        )
+        return len(session_ids)
+
     async def guardar_intento(self, intento: IntentoPruebaVida) -> None:
         self.session.add(
             IntentoPruebaVidaModel(

@@ -38,6 +38,15 @@ class ActivacionMovilRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def anular_intentos_en_curso_vencidos(
+        self,
+        cliente_id: UUID,
+        expira_antes_de: datetime,
+        resuelto_en: datetime,
+    ) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
     async def guardar_intento(self, intento: IntentoPruebaVida) -> None:
         raise NotImplementedError
 

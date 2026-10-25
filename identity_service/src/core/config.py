@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     REDIS_AUTH_TOKEN: str = ""
     KYC_SERVICE_URL: str = "http://localhost:8202"
     KYC_TIMEOUT_SECONDS: float = 0.7
+    LIVENESS_ADAPTER_URL: str = "http://localhost:8203"
+    LIVENESS_ADAPTER_TIMEOUT_SECONDS: float = 15.0
 
     model_config = SettingsConfigDict(
         env_file=".env",

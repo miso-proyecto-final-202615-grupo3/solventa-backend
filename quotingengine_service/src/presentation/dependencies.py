@@ -1,7 +1,7 @@
 from collections.abc import AsyncGenerator
 
 import httpx
-from fastapi import Depends
+from fastapi import Depends, Request
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -58,7 +58,6 @@ _redis_client = Redis.from_url(
     decode_responses=True,
 )
 _regla_rating_cache = ReglaRatingCache(_redis_client, settings.RATING_CACHE_TTL_SECONDS)
-_perfil_gateway = IdentityGrpcClient()
 _open_data_http = httpx.AsyncClient(timeout=settings.OPEN_DATA_TIMEOUT_SECONDS)
 _open_data_cache = OpenDataRedisCache(
     _redis_client, settings.OPEN_DATA_CACHE_TTL_SECONDS
@@ -74,8 +73,13 @@ def get_regla_rating_cache() -> ReglaRatingCachePort:
     return _regla_rating_cache
 
 
-def get_perfil_cliente_gateway() -> PerfilClienteGateway:
-    return _perfil_gateway
+def iniciar_recursos(app) -> None:
+    # grpc.aio channels must be created on the application's running event loop.
+    app.state.perfil_cliente_gateway = IdentityGrpcClient()
+
+
+def get_perfil_cliente_gateway(request: Request) -> PerfilClienteGateway:
+    return request.app.state.perfil_cliente_gateway
 
 
 def get_open_data_gateway() -> OpenDataGateway:
@@ -86,9 +90,9 @@ def get_open_data_cache() -> OpenDataCachePort:
     return _open_data_cache
 
 
-async def cerrar_recursos() -> None:
+async def cerrar_recursos(app) -> None:
     await _regla_rating_cache.cerrar()
-    await _perfil_gateway.cerrar()
+    await app.state.perfil_cliente_gateway.cerrar()
     await _open_data_http.aclose()
 
 

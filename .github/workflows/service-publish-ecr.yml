@@ -20,8 +20,9 @@ on:
           - identity_service
           - bff_web
           - bff_mobile
+          - motor_cotizacion
           - mock_kyc
-        default: greeting_service
+        default: identity_service
 
 permissions:
   contents: read

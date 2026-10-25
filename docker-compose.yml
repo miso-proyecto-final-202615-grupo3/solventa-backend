@@ -6,27 +6,38 @@ services:
     container_name: solventa-identity-service
     ports:
       - "8000:8000"
+      - "50051:50051"
     env_file:
       - .env
     environment:
       PROJECT_NAME: Solventa Identity Service
       ENVIRONMENT: dev
-      DATABASE_URL: ${DATABASE_URL:-}
+      DATABASE_URL: "${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@db:5432/identity_db}"
       AWS_REGION: ${AWS_REGION:-}
       COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
       COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
       COGNITO_ENABLED: ${COGNITO_ENABLED:-}
-      REDIS_ENDPOINT: ${REDIS_ENDPOINT:-}
+      REDIS_ENDPOINT: "${REDIS_ENDPOINT:-redis://redis:6379/0}"
       REDIS_AUTH_TOKEN: ${REDIS_AUTH_TOKEN:-}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
       KYC_SERVICE_URL: ${KYC_SERVICE_URL:-http://mock_kyc:8000}
-      AWS_PROFILE: ${AWS_PROFILE:-default}
+      OPEN_FINANCE_URL: ${OPEN_FINANCE_URL:-http://mock_open_finance:8000}
+      OPEN_FINANCE_TIMEOUT_SECONDS: ${OPEN_FINANCE_TIMEOUT_SECONDS:-0.2}
+      IDENTITY_GRPC_PORT: ${IDENTITY_GRPC_PORT:-50051}
+      AWS_PROFILE: ${AWS_PROFILE:-}
       AWS_SDK_LOAD_CONFIG: "1"
+    volumes:
+      - type: bind
+        source: ${USERPROFILE}/.aws
+        target: /root/.aws
+        read_only: true
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+      mock_open_finance:
+        condition: service_started
       lgtm:
         condition: service_started
 
@@ -42,6 +53,34 @@ services:
     environment:
       MOCK_KYC_STATUS: ${MOCK_KYC_STATUS:-PASSED}
 
+  mock_open_finance:
+    build:
+      context: .
+      dockerfile: docker/services/Dockerfile.mock_open_finance
+    container_name: solventa-mock-open-finance
+    ports:
+      - "8200:8000"
+    environment:
+      MOCK_OPEN_FINANCE_STATUS: ${MOCK_OPEN_FINANCE_STATUS:-AVAILABLE}
+      MOCK_OPEN_FINANCE_DELAY_MS: ${MOCK_OPEN_FINANCE_DELAY_MS:-0}
+      MOCK_OPEN_FINANCE_INCOME: ${MOCK_OPEN_FINANCE_INCOME:-8500000}
+      MOCK_OPEN_FINANCE_SAVINGS: ${MOCK_OPEN_FINANCE_SAVINGS:-25500000}
+      MOCK_OPEN_FINANCE_DTI: ${MOCK_OPEN_FINANCE_DTI:-28}
+      MOCK_OPEN_FINANCE_OVERDRAFTS: ${MOCK_OPEN_FINANCE_OVERDRAFTS:-0}
+      MOCK_OPEN_FINANCE_SCORE: ${MOCK_OPEN_FINANCE_SCORE:-820}
+
+  mock_open_data:
+    build:
+      context: .
+      dockerfile: docker/services/Dockerfile.mock_open_data
+    container_name: solventa-mock-open-data
+    ports:
+      - "8201:8000"
+    environment:
+      MOCK_OPEN_DATA_STATUS: ${MOCK_OPEN_DATA_STATUS:-AVAILABLE}
+      MOCK_OPEN_DATA_DELAY_MS: ${MOCK_OPEN_DATA_DELAY_MS:-0}
+      MOCK_OPEN_DATA_CATEGORY: ${MOCK_OPEN_DATA_CATEGORY:-}
+
   bff_web:
     build:
       context: .
@@ -55,9 +94,12 @@ services:
       PROJECT_NAME: Solventa BFF Web
       ENVIRONMENT: development
       IDENTITY_SERVICE_URL: ${IDENTITY_SERVICE_URL:-http://identity_service:8000}
+      MOTOR_COTIZACION_URL: ${MOTOR_COTIZACION_URL:-http://motor_cotizacion:8000}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
     depends_on:
       identity_service:
+        condition: service_started
+      motor_cotizacion:
         condition: service_started
       lgtm:
         condition: service_started
@@ -82,19 +124,47 @@ services:
       lgtm:
         condition: service_started
 
+  motor_cotizacion:
+    build:
+      context: .
+      dockerfile: docker/services/Dockerfile.motor_cotizacion
+    container_name: solventa-motor-cotizacion
+    ports:
+      - "8003:8000"
+    env_file:
+      - .env
+    environment:
+      PROJECT_NAME: Solventa Motor de Cotización
+      ENVIRONMENT: development
+      IDENTITY_GRPC_TARGET: ${IDENTITY_GRPC_TARGET:-identity_service:50051}
+      OPEN_DATA_URL: ${OPEN_DATA_URL:-http://mock_open_data:8000}
+      OPEN_DATA_TIMEOUT_SECONDS: ${OPEN_DATA_TIMEOUT_SECONDS:-0.25}
+      OPEN_DATA_CACHE_TTL_SECONDS: ${OPEN_DATA_CACHE_TTL_SECONDS:-300}
+      REDIS_ENDPOINT: "${REDIS_ENDPOINT:-redis://redis:6379/0}"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+    depends_on:
+      identity_service:
+        condition: service_started
+      mock_open_data:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      lgtm:
+        condition: service_started
+
   db:
     image: postgres:16-alpine
     container_name: solventa-db
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-appdata}
+      POSTGRES_DB: ${POSTGRES_DB:-identity_db}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d appdata"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-identity_db}"]
       interval: 10s
       timeout: 5s
       retries: 5

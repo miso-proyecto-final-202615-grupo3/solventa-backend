@@ -9,6 +9,7 @@ ambiente y su imagen Docker. Cada servicio se despliega como un pod independient
 | Servicio | Descripción | Prefijo de API |
 | --- | --- | --- |
 | `identity_service` | Identidad y registro de clientes | `/api/v1/identity-service` |
+| `motor_cotizacion` | Perfilamiento y cálculo de prima hipotecaria | `/api/v1/motor-cotizacion` |
 | `bff_web` | Backend For Frontend del cliente web | `/api/v1/bff-web` |
 | `bff_mobile` | Backend For Frontend de la app móvil Android | `/api/v1/bff-mobile` |
 
@@ -35,6 +36,20 @@ uvicorn src.main:app --reload --app-dir identity_service
 La API queda en `http://localhost:8000` y el health check en
 `http://localhost:8000/health`.
 
+El motor expone `POST /api/v1/motor-cotizacion/cotizar`; el BFF publica
+`POST /api/v1/bff-web/cotizaciones`. Identidad entrega el perfil financiero al
+motor por gRPC en el puerto interno `50051`.
+
+Para ejecutar el motor fuera de Compose:
+
+```powershell
+cd motor_cotizacion
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements-dev.txt
+uvicorn src.main:app --reload
+```
+
 ## Pruebas (por servicio)
 
 Desde la carpeta del servicio (usa su `pytest.ini`):
@@ -43,6 +58,9 @@ Desde la carpeta del servicio (usa su `pytest.ini`):
 cd identity_service
 python -m pytest -v
 ```
+
+El mismo comando aplica dentro de `motor_cotizacion`; `contracts/generate_protos.py`
+regenera los stubs gRPC de ambos servicios.
 
 ## Docker
 
@@ -55,8 +73,8 @@ docker build -f docker/services/Dockerfile.identity_service -t solventa/identity
 
 ## CI/CD
 
-- **CI (`ci.yml`):** corre `pytest` por servicio (`identity_service`, `bff_web`, `bff_mobile`) y build de
-  las imágenes en cada push/PR a `dev` y `main`.
+- **CI (`ci.yml`):** corre `pytest` por servicio (`identity_service`, `bff_web`, `bff_mobile`,
+  `motor_cotizacion`) y construye sus imágenes y los mocks en cada push/PR a `dev` y `main`.
 - **Despliegue:** portado del template de referencia (`template-solventa-backend-services`):
   - Workflows manuales de ECR/EKS: `backend-publish-ecr`, `backend-deploy-eks`,
     `service-publish-ecr`, `service-deploy-eks`, `eks-setup-init`.
@@ -76,9 +94,16 @@ docker compose up --build
 | Servicio | URL local |
 | --- | --- |
 | `identity_service` | `http://localhost:8000` |
+| gRPC de Identidad | `localhost:50051` |
 | `bff_web` | `http://localhost:8001` |
 | `bff_mobile` | `http://localhost:8002` (desde el emulador Android: `http://10.0.2.2:8002`) |
+| `motor_cotizacion` | `http://localhost:8003` |
 | `mock_kyc` | `http://localhost:8202` |
+| `mock_open_finance` | `http://localhost:8200` |
+| `mock_open_data` | `http://localhost:8201` |
+
+Los mocks locales usan HTTP. En ambientes desplegados, configura `OPEN_FINANCE_URL`
+y `OPEN_DATA_URL` con los endpoints HTTPS de los proveedores.
 
 ### BFF Mobile
 

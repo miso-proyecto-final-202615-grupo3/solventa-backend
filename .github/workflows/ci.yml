@@ -14,7 +14,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [identity_service, bff_web, bff_mobile]
+        service:
+          - identity_service
+          - bff_web
+          - bff_mobile
+          - motor_cotizacion
+          - mock_open_finance
+          - mock_open_data
 
     steps:
       - uses: actions/checkout@v4
@@ -37,7 +43,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [identity_service, bff_web, bff_mobile, mock_kyc]
+        service:
+          - identity_service
+          - bff_web
+          - bff_mobile
+          - motor_cotizacion
+          - mock_kyc
+          - mock_open_finance
+          - mock_open_data
     needs: test
     steps:
       - uses: actions/checkout@v4

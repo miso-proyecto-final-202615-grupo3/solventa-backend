@@ -1,0 +1,5 @@
+image:
+  repository: REPLACE_WITH_MOTOR_COTIZACION_ECR_URI
+
+redis:
+  existingSecret: solventa-qa-app-secrets

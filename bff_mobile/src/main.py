@@ -2,7 +2,7 @@ from fastapi import FastAPI
 
 from src.core.config import settings
 from src.core.telemetry import setup_telemetry
-from src.presentation.routers import auth, health
+from src.presentation.routers import activacion, auth, health
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -15,6 +15,7 @@ setup_telemetry(app)
 
 app.include_router(health.router, prefix=settings.API_PREFIX)
 app.include_router(auth.router, prefix=settings.API_PREFIX)
+app.include_router(activacion.router, prefix=settings.API_PREFIX)
 
 
 @app.get("/")

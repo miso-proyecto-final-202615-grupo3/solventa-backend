@@ -4,7 +4,16 @@ import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile, status
+from fastapi import (
+    FastAPI,
+    File,
+    Form,
+    Header,
+    HTTPException,
+    Response,
+    UploadFile,
+    status,
+)
 from pydantic import BaseModel, Field
 
 app = FastAPI(title="Solventa Liveness Adapter", version="0.1.0")
@@ -34,6 +43,23 @@ async def start_session(
         "capture": {"type": "FRAMES", "challenge": {"gesture": "BLINK", "nonce": nonce}},
         "correlation_id": x_correlation_id or str(uuid.uuid4()),
     }
+
+
+@app.post(
+    "/api/v1/liveness-adapter/liveness/sessions/{session_id}/cancel",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def cancel_session(session_id: str) -> Response:
+    """Invalida un reto no usado; cancelar dos veces es seguro."""
+    session = _sessions.get(session_id)
+    if session is None:
+        raise HTTPException(404, detail={"codigo": "SESION_NO_ENCONTRADA"})
+    if session["state"] == "CANCELLED":
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    if session["state"] != "CREATED":
+        raise HTTPException(409, detail={"codigo": "SESION_INVALIDA"})
+    session["state"] = "CANCELLED"
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @app.post("/api/v1/liveness-adapter/liveness/verifications")

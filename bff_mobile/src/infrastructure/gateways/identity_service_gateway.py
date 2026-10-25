@@ -61,6 +61,24 @@ class IdentityServiceGateway:
             headers={"X-Correlation-Id": correlation_id},
         )
 
+    async def verificar_activacion_movil(self, sesion_id: str, correo: str, nonce: str, frames: dict[str, bytes], correlation_id: str) -> dict:
+        try:
+            response = await self._client.post(
+                f"/api/v1/identity-service/clientes/activacion-movil/sesiones/{sesion_id}/verificacion",
+                data={"correo": correo, "nonce": nonce},
+                files={key: (f"{key}.jpg", value, "image/jpeg") for key, value in frames.items()},
+                headers={"X-Correlation-Id": correlation_id},
+            )
+        except httpx.HTTPError as exc:
+            raise IdentityGatewayError(503, "El servicio de identidad no está disponible.") from exc
+        try:
+            body = response.json()
+        except ValueError:
+            body = {}
+        if not response.is_success:
+            raise IdentityGatewayError(response.status_code, body.get("detail", "El servicio de identidad devolvió un error."))
+        return body
+
     async def aclose(self) -> None:
         await self._client.aclose()
 

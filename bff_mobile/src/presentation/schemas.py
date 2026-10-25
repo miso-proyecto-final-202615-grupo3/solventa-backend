@@ -54,3 +54,9 @@ class IniciarActivacionResponse(BaseModel):
     expira_en: str | None = None
     captura: dict | None = None
     intentos_restantes: int | None = None
+
+
+class VerificarActivacionResponse(BaseModel):
+    aprobada: bool
+    folio: str | None = None
+    motivo: str | None = None

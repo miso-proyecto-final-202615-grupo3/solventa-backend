@@ -85,10 +85,30 @@ class SqlAlchemyClienteRepository(ClienteRepository):
         result = await self.session.execute(
             select(ClienteModel).where(ClienteModel.id == cliente_id.value)
         )
-        db_obj = result.scalars().first()
+        return self._a_entidad(result.scalars().first())
+
+    async def obtener_por_correo(self, correo: str) -> Cliente | None:
+        result = await self.session.execute(
+            select(ClienteModel).where(
+                func.lower(ClienteModel.correo) == correo.lower()
+            )
+        )
+        return self._a_entidad(result.scalars().first())
+
+    async def bloquear_para_actualizar(
+        self, cliente_id: ClienteId
+    ) -> Cliente | None:
+        result = await self.session.execute(
+            select(ClienteModel)
+            .where(ClienteModel.id == cliente_id.value)
+            .with_for_update()
+        )
+        return self._a_entidad(result.scalars().first())
+
+    @staticmethod
+    def _a_entidad(db_obj: ClienteModel | None) -> Cliente | None:
         if db_obj is None:
             return None
-
         return Cliente(
             id=ClienteId(value=db_obj.id),
             nombres=db_obj.nombres,

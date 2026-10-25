@@ -28,6 +28,12 @@ class ObtenerPerfilFinancieroUseCase:
         self.open_finance_provider = open_finance_provider
 
     async def ejecutar(self, cliente_id: uuid.UUID) -> PerfilOpenFinance:
+        await self.validar_consentimiento(cliente_id)
+        return await self.open_finance_provider.obtener_perfil_financiero(
+            cliente_id
+        )
+
+    async def validar_consentimiento(self, cliente_id: uuid.UUID) -> None:
         cliente = await self.cliente_repository.obtener_por_id(
             ClienteId(value=cliente_id)
         )
@@ -42,7 +48,3 @@ class ObtenerPerfilFinancieroUseCase:
             or consentimiento.estado != EstadoConsentimiento.ACEPTADO
         ):
             raise ConsentimientoNoActivoError
-
-        return await self.open_finance_provider.obtener_perfil_financiero(
-            cliente_id
-        )

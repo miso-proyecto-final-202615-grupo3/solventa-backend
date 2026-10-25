@@ -21,8 +21,8 @@ class Settings(BaseSettings):
     REDIS_AUTH_TOKEN: str = ""
     KYC_SERVICE_URL: str = "http://localhost:8202"
     KYC_TIMEOUT_SECONDS: float = 0.7
-    OPEN_FINANCE_URL: str = "http://localhost:8200"
-    OPEN_FINANCE_TIMEOUT_SECONDS: float = Field(default=0.25, gt=0, le=0.7)
+    OPEN_FINANCE_URL: str = ""
+    OPEN_FINANCE_TIMEOUT_SECONDS: float = Field(default=0.2, gt=0, le=0.7)
     IDENTITY_GRPC_PORT: int = 50051
 
     model_config = SettingsConfigDict(

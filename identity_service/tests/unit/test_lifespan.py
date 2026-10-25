@@ -8,6 +8,7 @@ class _EngineSinBD:
 
 async def test_lifespan_no_rompe_por_falta_de_bd(monkeypatch):
     monkeypatch.setattr(main, "engine", _EngineSinBD())
+    monkeypatch.setattr(main.settings, "IDENTITY_GRPC_PORT", 0)
 
     async with main.lifespan(None):
         pass

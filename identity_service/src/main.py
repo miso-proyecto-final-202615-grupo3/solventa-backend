@@ -12,7 +12,7 @@ from src.application.use_cases.obtener_perfil_financiero_use_case import (
     ObtenerPerfilFinancieroUseCase,
 )
 from src.core.config import settings
-from src.core.database import Base, engine
+from src.core.database import Base, SessionLocal, engine
 from src.core.telemetry import setup_telemetry
 from src.infrastructure.gateways.open_finance_http_client import (
     OpenFinanceHttpClient,
@@ -59,7 +59,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                     SqlAlchemyConsentimientoRepository(session),
                     open_finance_client,
                 )
-                return await use_case.ejecutar(cliente_id)
+                await use_case.validar_consentimiento(cliente_id)
+            return await open_finance_client.obtener_perfil_financiero(
+                cliente_id
+            )
 
         grpc_server = grpc.aio.server()
         perfilamiento_pb2_grpc.add_PerfilamientoServicer_to_server(

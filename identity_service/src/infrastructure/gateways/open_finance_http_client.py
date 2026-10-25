@@ -35,6 +35,8 @@ class OpenFinanceHttpClient(OpenFinanceProvider):
     async def obtener_perfil_financiero(
         self, cliente_id: uuid.UUID
     ) -> PerfilOpenFinance:
+        if not self.base_url:
+            raise OpenFinanceUnavailableError
         try:
             response = await self.client.post(
                 f"{self.base_url}/profile",

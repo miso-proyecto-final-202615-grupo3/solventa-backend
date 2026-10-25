@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from src.domain.clientes.value_objects import EstadoKYC, TipoDocumento
+from src.domain.activacion_movil.entities import Plataforma
 
 _PHONE_PATTERN = re.compile(r"^\+?[0-9][0-9\s\-()]{6,19}$")
 _CEDULA_PATTERN = re.compile(r"^\d{5,10}$")
@@ -85,3 +86,21 @@ class ClienteResponse(BaseModel):
     estado_kyc: EstadoKYC
     fecha_creacion: datetime
     fecha_actualizacion: datetime
+
+
+class IniciarActivacionMovilRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    correo: EmailStr
+    installation_id: UUID
+    plataforma: Plataforma
+    modelo: str = Field(min_length=1, max_length=100)
+    version_so: str = Field(min_length=1, max_length=20)
+
+
+class IniciarActivacionMovilResponse(BaseModel):
+    dispositivo_vinculado: bool
+    sesion_id: str | None = None
+    expira_en: datetime | None = None
+    captura: dict | None = None
+    intentos_restantes: int | None = None

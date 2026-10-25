@@ -1,6 +1,8 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from uuid import uuid4
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,6 +27,13 @@ from src.application.use_cases.verificar_kyc_use_case import (
     KycClienteNoEncontradoError,
     VerificarKycUseCase,
 )
+from src.application.use_cases.iniciar_activacion_movil_use_case import (
+    ClienteNoRegistradoError,
+    ConsentimientoBiometricoRequeridoError,
+    IniciarActivacionMovilUseCase,
+    IntentosAgotadosError,
+)
+from src.domain.activacion_movil.entities import DatosDispositivo
 from src.domain.clientes.entities import Cliente
 from src.presentation.dependencies import (
     get_db,
@@ -32,6 +41,7 @@ from src.presentation.dependencies import (
     get_gestionar_consentimiento_use_case,
     get_registrar_cliente_use_case,
     get_verificar_kyc_use_case,
+    get_iniciar_activacion_movil_use_case,
 )
 from src.infrastructure.persistence.models import ClienteModel, DispositivoVinculadoModel
 from src.presentation.schemas import (
@@ -41,9 +51,62 @@ from src.presentation.schemas import (
     ClienteResponse,
     ConsentimientoResponse,
     PasswordVerify,
+    IniciarActivacionMovilRequest,
+    IniciarActivacionMovilResponse,
 )
 
 router = APIRouter(prefix="/clientes", tags=["Clientes"])
+
+
+@router.post(
+    "/activacion-movil/sesiones",
+    response_model=IniciarActivacionMovilResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def iniciar_activacion_movil(
+    payload: IniciarActivacionMovilRequest,
+    response: Response,
+    correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
+    use_case: IniciarActivacionMovilUseCase = Depends(
+        get_iniciar_activacion_movil_use_case
+    ),
+) -> IniciarActivacionMovilResponse:
+    try:
+        resultado = await use_case.ejecutar(
+            str(payload.correo),
+            DatosDispositivo(
+                installation_id=payload.installation_id,
+                plataforma=payload.plataforma,
+                modelo=payload.modelo,
+                version_so=payload.version_so,
+            ),
+            correlation_id or str(uuid4()),
+        )
+    except ClienteNoRegistradoError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"codigo": "CLIENTE_NO_REGISTRADO", "mensaje": "Cliente no registrado."},
+        ) from exc
+    except ConsentimientoBiometricoRequeridoError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"codigo": "CONSENTIMIENTO_REQUERIDO", "mensaje": "Consentimiento biométrico requerido."},
+        ) from exc
+    except IntentosAgotadosError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={"codigo": "INTENTOS_AGOTADOS", "mensaje": "Se agotaron los intentos disponibles."},
+        ) from exc
+
+    if resultado.dispositivo_vinculado:
+        response.status_code = status.HTTP_200_OK
+    return IniciarActivacionMovilResponse(
+        dispositivo_vinculado=resultado.dispositivo_vinculado,
+        sesion_id=resultado.sesion_id,
+        expira_en=resultado.expira_en,
+        captura=resultado.captura,
+        intentos_restantes=resultado.intentos_restantes,
+    )
 
 
 @router.get("/resumen-movil")

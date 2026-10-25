@@ -2,7 +2,9 @@ import httpx
 
 from src.application.ports.liveness import (
     LivenessAdapterUnavailableError,
+    LivenessSessionConflictError,
     LivenessSessionInfo,
+    LivenessSessionNotFoundError,
     LivenessVerificationPort,
 )
 from src.core.config import settings
@@ -29,6 +31,22 @@ class HttpLivenessAdapterClient(LivenessVerificationPort):
             body = response.json()
             return LivenessSessionInfo(body["session_id"], body["expires_at"], body["capture"])
         except (httpx.HTTPError, KeyError, ValueError) as exc:
+            raise LivenessAdapterUnavailableError() from exc
+
+    async def cancel_session(self, session_id: str, correlation_id: str) -> None:
+        try:
+            response = await self._client.post(
+                f"/api/v1/liveness-adapter/liveness/sessions/{session_id}/cancel",
+                headers={"X-Correlation-Id": correlation_id},
+            )
+            if response.status_code == 404:
+                raise LivenessSessionNotFoundError()
+            if response.status_code == 409:
+                raise LivenessSessionConflictError()
+            response.raise_for_status()
+        except (LivenessSessionNotFoundError, LivenessSessionConflictError):
+            raise
+        except httpx.HTTPError as exc:
             raise LivenessAdapterUnavailableError() from exc
 
     async def aclose(self) -> None:

@@ -3,7 +3,11 @@ import json
 import httpx
 import pytest
 
-from src.application.ports.liveness import LivenessAdapterUnavailableError
+from src.application.ports.liveness import (
+    LivenessAdapterUnavailableError,
+    LivenessSessionConflictError,
+    LivenessSessionNotFoundError,
+)
 from src.infrastructure.gateways.http_liveness_adapter_client import HttpLivenessAdapterClient
 
 
@@ -56,5 +60,35 @@ async def test_traduce_respuesta_invalida_a_error_del_puerto():
     try:
         with pytest.raises(LivenessAdapterUnavailableError):
             await client.start_session("cliente-456", "corr-123")
+    finally:
+        await client.aclose()
+
+
+async def test_cancela_sesion_y_propagacion_de_correlacion():
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url == f"{BASE}/api/v1/liveness-adapter/liveness/sessions/sesion-789/cancel"
+        assert request.headers["X-Correlation-Id"] == "corr-123"
+        return httpx.Response(204)
+
+    client = _client(handler)
+    try:
+        await client.cancel_session("sesion-789", "corr-123")
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.parametrize(
+    ("status_code", "error"),
+    [
+        (404, LivenessSessionNotFoundError),
+        (409, LivenessSessionConflictError),
+        (503, LivenessAdapterUnavailableError),
+    ],
+)
+async def test_mapea_errores_de_cancelacion(status_code, error):
+    client = _client(lambda request: httpx.Response(status_code))
+    try:
+        with pytest.raises(error):
+            await client.cancel_session("sesion-789", "corr-123")
     finally:
         await client.aclose()

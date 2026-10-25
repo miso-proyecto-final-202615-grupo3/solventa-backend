@@ -5,6 +5,7 @@ from src.application.ports.liveness import (
     LivenessSessionConflictError,
     LivenessSessionInfo,
     LivenessSessionNotFoundError,
+    LivenessVerification,
     LivenessVerificationPort,
 )
 from src.core.config import settings
@@ -47,6 +48,26 @@ class HttpLivenessAdapterClient(LivenessVerificationPort):
         except (LivenessSessionNotFoundError, LivenessSessionConflictError):
             raise
         except httpx.HTTPError as exc:
+            raise LivenessAdapterUnavailableError() from exc
+
+    async def verify(self, session_id, customer_id, nonce, frames, correlation_id) -> LivenessVerification:
+        try:
+            response = await self._client.post(
+                "/api/v1/liveness-adapter/liveness/verifications",
+                data={"metadata": __import__("json").dumps({"session_id": session_id, "customer_id": customer_id, "nonce": nonce})},
+                files={name: (f"{name}.jpg", content, "image/jpeg") for name, content in frames.items()},
+                headers={"X-Correlation-Id": correlation_id},
+            )
+            if response.status_code == 404:
+                raise LivenessSessionNotFoundError()
+            if response.status_code == 409:
+                raise LivenessSessionConflictError()
+            response.raise_for_status()
+            body = response.json()
+            return LivenessVerification(body["verification_id"], body["status"] == "approved", body.get("reason"))
+        except (LivenessSessionNotFoundError, LivenessSessionConflictError):
+            raise
+        except (httpx.HTTPError, KeyError, ValueError) as exc:
             raise LivenessAdapterUnavailableError() from exc
 
     async def aclose(self) -> None:

@@ -21,6 +21,13 @@ class LivenessSessionInfo:
     capture: dict
 
 
+@dataclass(frozen=True)
+class LivenessVerification:
+    verification_id: str
+    approved: bool
+    reason: str | None = None
+
+
 class LivenessVerificationPort(ABC):
     @abstractmethod
     async def start_session(self, customer_id: str, correlation_id: str) -> LivenessSessionInfo:
@@ -28,4 +35,9 @@ class LivenessVerificationPort(ABC):
 
     @abstractmethod
     async def cancel_session(self, session_id: str, correlation_id: str) -> None:
+        raise NotImplementedError
+
+    async def verify(
+        self, session_id: str, customer_id: str, nonce: str, frames: dict[str, bytes], correlation_id: str
+    ) -> LivenessVerification:
         raise NotImplementedError

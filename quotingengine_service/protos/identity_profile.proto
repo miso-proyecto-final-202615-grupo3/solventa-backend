@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package solventa.identity.v1;
+
+service IdentityProfile {
+  // Consulta el perfil del cliente. Requiere consentimiento ACEPTADO.
+  // NOT_FOUND: cliente inexistente. PERMISSION_DENIED: consentimiento no otorgado.
+  rpc ObtenerPerfilCliente(ObtenerPerfilClienteRequest) returns (PerfilClienteResponse);
+}
+
+message ObtenerPerfilClienteRequest {
+  string cliente_id = 1;
+}
+
+message PerfilClienteResponse {
+  string id = 1;
+  string nombres = 2;
+  string apellidos = 3;
+  string tipo_documento = 4;
+  string numero_identificacion = 5;
+  string correo = 6;
+  string fecha_nacimiento = 7;
+  string pais_residencia = 8;
+  string telefono = 9;
+  string estado_kyc = 10;
+}

@@ -9,10 +9,9 @@ image:
   pullPolicy: Always
   tag: "latest"
 
-network:
-  portName: http
+http:
   containerPort: 8000
-  protocol: TCP
+  servicePort: 80
 
 probes:
   readiness:
@@ -25,11 +24,6 @@ probes:
     port: http
     initialDelaySeconds: 20
     periodSeconds: 20
-
-service:
-  type: ClusterIP
-  port: 80
-  targetPort: 8000
 
 database:
   enabled: false

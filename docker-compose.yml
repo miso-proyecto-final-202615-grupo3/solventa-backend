@@ -10,7 +10,7 @@ services:
       - .env
     environment:
       PROJECT_NAME: Solventa Identity Service
-      ENVIRONMENT: dev
+      ENVIRONMENT: local
       DATABASE_URL: ${DATABASE_URL:-}
       AWS_REGION: ${AWS_REGION:-}
       COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
@@ -20,8 +20,6 @@ services:
       REDIS_AUTH_TOKEN: ${REDIS_AUTH_TOKEN:-}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
       KYC_SERVICE_URL: ${KYC_SERVICE_URL:-http://mock_kyc:8000}
-      AWS_PROFILE: ${AWS_PROFILE:-default}
-      AWS_SDK_LOAD_CONFIG: "1"
     depends_on:
       db:
         condition: service_healthy
@@ -41,12 +39,19 @@ services:
       - .env
     environment:
       PROJECT_NAME: Solventa Quoting Engine Service
-      ENVIRONMENT: dev
+      ENVIRONMENT: local
       DATABASE_URL: ${DATABASE_URL:-}
+      REDIS_ENDPOINT: ${REDIS_ENDPOINT:-}
+      REDIS_AUTH_TOKEN: ${REDIS_AUTH_TOKEN:-}
+      IDENTITY_GRPC_ADDRESS: ${IDENTITY_GRPC_ADDRESS:-identity_service:50051}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+      identity_service:
+        condition: service_started
       lgtm:
         condition: service_started
 
@@ -73,11 +78,14 @@ services:
       - .env
     environment:
       PROJECT_NAME: Solventa BFF Web
-      ENVIRONMENT: development
+      ENVIRONMENT: local
       IDENTITY_SERVICE_URL: ${IDENTITY_SERVICE_URL:-http://identity_service:8000}
+      QUOTINGENGINE_SERVICE_URL: ${QUOTINGENGINE_SERVICE_URL:-http://quotingengine_service:8000}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
     depends_on:
       identity_service:
+        condition: service_started
+      quotingengine_service:
         condition: service_started
       lgtm:
         condition: service_started
@@ -93,11 +101,14 @@ services:
       - .env
     environment:
       PROJECT_NAME: Solventa BFF Mobile
-      ENVIRONMENT: development
+      ENVIRONMENT: local
       IDENTITY_SERVICE_URL: ${IDENTITY_SERVICE_URL:-http://identity_service:8000}
+      QUOTINGENGINE_SERVICE_URL: ${QUOTINGENGINE_SERVICE_URL:-http://quotingengine_service:8000}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
     depends_on:
       identity_service:
+        condition: service_started
+      quotingengine_service:
         condition: service_started
       lgtm:
         condition: service_started

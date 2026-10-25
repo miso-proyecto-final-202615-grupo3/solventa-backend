@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     API_PREFIX: str = "/api/v1/bff-mobile"
     IDENTITY_SERVICE_URL: str = "http://localhost:8000"
     IDENTITY_TIMEOUT_SECONDS: float = 5.0
+    QUOTINGENGINE_SERVICE_URL: str = "http://localhost:8000"
     OTEL_EXPORTER_OTLP_ENDPOINT: str = "http://localhost:4317"
 
     model_config = SettingsConfigDict(

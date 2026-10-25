@@ -6,10 +6,12 @@ from fastapi import FastAPI
 from sqlalchemy import text
 
 from src.core.config import settings
-from src.core.database import Base, engine
+from src.core.database import Base, SessionLocal, engine
 from src.core.telemetry import setup_telemetry
 from src.infrastructure.persistence import models  # noqa: F401
-from src.presentation.routers import health
+from src.infrastructure.persistence.seed import sembrar_catalogo
+from src.presentation.dependencies import cerrar_recursos
+from src.presentation.routers import cotizaciones, health, productos
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +27,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             "No se pudo crear el esquema en el arranque.",
             exc_info=True,
         )
-    yield
+    if settings.SEED_ON_STARTUP:
+        try:
+            async with SessionLocal() as session:
+                await sembrar_catalogo(session)
+        except Exception:
+            logger.warning("No se pudo cargar el catálogo inicial.", exc_info=True)
+    try:
+        yield
+    finally:
+        await cerrar_recursos()
 
 
 app = FastAPI(
@@ -53,6 +64,8 @@ async def log_internal_errors(request, call_next):
 
 
 app.include_router(health.router)
+app.include_router(productos.router, prefix=settings.API_PREFIX)
+app.include_router(cotizaciones.router, prefix=settings.API_PREFIX)
 
 
 @app.get("/")

@@ -33,8 +33,8 @@ Levantar el servicio desde la raíz del repositorio:
 uvicorn src.main:app --reload --app-dir identity_service
 ```
 
-La API queda en `http://localhost:8000` y el health check en
-`http://localhost:8000/health`.
+La API queda en `http://localhost:8002` y el health check en
+`http://localhost:8002/health`.
 
 ## Pruebas (por servicio)
 
@@ -56,16 +56,15 @@ docker build -f docker/services/Dockerfile.identity_service -t solventa/identity
 
 ## CI/CD
 
-- **CI (`ci.yml`):** corre `pytest` por servicio (`identity_service`, `bff_web`, `bff_mobile`) y build de
-  las imágenes en cada push/PR a `dev` y `main`.
-- **Despliegue:** portado del template de referencia (`template-solventa-backend-services`):
+- **CI (`ci.yml`):** corre `pytest` por servicio y build de las imágenes en cada push/PR a `dev` y `main`.
+- **Despliegue:**
   - Workflows manuales de ECR/EKS: `backend-publish-ecr`, `backend-deploy-eks`,
-    `service-publish-ecr`, `service-deploy-eks`, `eks-setup-init`.
+    `service-publish-ecr`, `service-deploy-eks`, `eks-deploy-base-services`.
   - Helm: chart genérico en `deployment/helm/charts/backend-service` con `values` por servicio
     y ambiente (`deployment/helm/config/<service>/values.<env>.yaml`).
   - Kustomize: SecretStore + ExternalSecrets + ServiceAccount + Ingress ALB en
     `deployment/kuztomize`.
-- Requiere (igual que el template): GitHub Environments (`dev`/`qa`/`prod`) con
+- Requiere: GitHub Environments (`dev`/`qa`/`prod`) con
   `AWS_REGION`, `AWS_ROLE_ARN` y `DATABASE_URL`, y los repos ECR configurados en los `values`.
 
 ## Stack local (Docker Compose)
@@ -82,12 +81,6 @@ docker compose up --build
 | `quotingengine_service` | `http://localhost:8003` |
 
 | `mock_kyc` | `http://localhost:8202` |
-
-### BFF Mobile
-
-`POST /api/v1/bff-mobile/auth/login` con `{"correo", "password"}` devuelve
-`access_token`, `refresh_token`, `expires_in`, `token_type` y el `correo` del cliente.
-Credenciales inválidas → `401`; MS Identidad caído → `503`.
 
 ## Cognito en local vs. EKS
 

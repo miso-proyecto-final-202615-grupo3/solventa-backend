@@ -1,4 +1,5 @@
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from fastapi import Depends
 from redis.asyncio import Redis
@@ -122,3 +123,17 @@ def get_verificar_kyc_use_case(
     kyc_verifier: KycVerifier = Depends(get_kyc_verifier),
 ) -> VerificarKycUseCase:
     return VerificarKycUseCase(repository, kyc_verifier)
+
+
+@asynccontextmanager
+async def abrir_gestionar_consentimiento_use_case() -> AsyncGenerator[
+    GestionarConsentimientoUseCase, None
+]:
+    """Use case con sesión propia, para entradas fuera de FastAPI (gRPC)."""
+    async with SessionLocal() as session:
+        yield GestionarConsentimientoUseCase(
+            SqlAlchemyConsentimientoRepository(session),
+            SqlAlchemyClienteRepository(session),
+            _consentimiento_cache,
+            settings.CONSENT_TERMS_VERSION,
+        )

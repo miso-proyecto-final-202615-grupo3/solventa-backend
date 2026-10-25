@@ -9,10 +9,9 @@ image:
   pullPolicy: Always
   tag: "latest"
 
-network:
-  portName: http
+http:
   containerPort: 8000
-  protocol: TCP
+  servicePort: 80
 
 probes:
   readiness:
@@ -25,11 +24,6 @@ probes:
     port: http
     initialDelaySeconds: 20
     periodSeconds: 20
-
-service:
-  type: ClusterIP
-  port: 80
-  targetPort: 8000
 
 database:
   enabled: true
@@ -58,6 +52,14 @@ config:
   API_PREFIX: /api/v1/quotingengine-service
   OTEL_EXPORTER_OTLP_ENDPOINT: http://solventa-otel-collector-collector:4317
   OTEL_TRACES_EXPORTER: otlp
+  RATING_CACHE_TTL_SECONDS: 300
+  COTIZACION_VIGENCIA_DIAS: 15
+  SEED_ON_STARTUP: "true"
+  IDENTITY_GRPC_ADDRESS: identity-service:50051
+  IDENTITY_GRPC_TIMEOUT_SECONDS: 0.12
+  IDENTITY_GRPC_MAX_CONCURRENCY: 50
+  IDENTITY_CB_FAILURE_THRESHOLD: 5
+  IDENTITY_CB_RECOVERY_SECONDS: 15.0
 
 resources:
   requests:

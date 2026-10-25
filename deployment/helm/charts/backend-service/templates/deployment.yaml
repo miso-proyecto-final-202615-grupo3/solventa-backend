@@ -20,9 +20,14 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
-            - name: {{ .Values.network.portName }}
-              containerPort: {{ .Values.network.containerPort }}
-              protocol: {{ .Values.network.protocol }}
+            - name: http
+              containerPort: {{ .Values.http.containerPort }}
+              protocol: TCP
+            {{- if and .Values.grpc .Values.grpc.enabled }}
+            - name: grpc
+              containerPort: {{ .Values.grpc.containerPort }}
+              protocol: TCP
+            {{- end }}
           envFrom:
             - configMapRef:
                 name: {{ include "backend-service.fullname" . }}

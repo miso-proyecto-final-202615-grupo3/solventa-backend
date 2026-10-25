@@ -5,11 +5,16 @@ metadata:
   labels:
     {{- include "backend-service.labels" . | nindent 4 }}
 spec:
-  type: {{ .Values.service.type }}
   ports:
-    - port: {{ .Values.service.port }}
-      targetPort: {{ .Values.service.targetPort }}
+    - port: {{ .Values.http.servicePort }}
+      targetPort: http
       protocol: TCP
       name: http
+    {{- if and .Values.grpc .Values.grpc.enabled }}
+    - port: {{ .Values.grpc.servicePort | default .Values.grpc.containerPort }}
+      targetPort: grpc
+      protocol: TCP
+      name: grpc
+    {{- end }}
   selector:
     {{- include "backend-service.selectorLabels" . | nindent 4 }}

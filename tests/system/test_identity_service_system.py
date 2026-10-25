@@ -1,37 +1,54 @@
 import json
+import os
 import sys
 import uuid
+from pathlib import Path
 
 import requests
+from dotenv import load_dotenv
 
-if len(sys.argv) < 3:
-    print("Usage: python myscript.py <param1> <param2>")
-    sys.exit(1)
-
-param1 = sys.argv[1]
-param2 = sys.argv[2]
-
-SERVICE_URL_MAP = {
-    "bff-web": {
-        "local": "http://localhost:8000/api/v1/bff-web",
-        "dev": "http://k8s-solventasharedalb-062704d759-1248618214.us-east-1.elb.amazonaws.com/api/v1/bff-web",
-        "prod": "http://k8s-solventasharedalb-9252f1d65d-1778110791.us-east-1.elb.amazonaws.com/api/v1/bff-web",
-    },
-    "identity-service": {
-        "local": "http://localhost:8002/api/v1/identity-service",
-        "dev": "http://k8s-solventasharedalb-062704d759-1248618214.us-east-1.elb.amazonaws.com/api/v1/identity-service",
-        "prod": "http://k8s-solventasharedalb-9252f1d65d-1778110791.us-east-1.elb.amazonaws.com/api/v1/identity-service",
-    },
+SERVICE_PREFIX_MAP = {
+    "identity-service": "/api/v1/identity-service",
+    "bff-web": "/api/v1/bff-web",
+    "bff-mobile": "/api/v1/bff-mobile",
 }
 
-DEFAULT_SERVICE = "identity-service"
-DEFAULT_ENV = "local"
+ENVIRONMENT_MAP = {
+    "local": {
+        "identity-service": "SYSTEM_TESTS_IDENTITY_SERVICE_BASE_URL",
+        "bff-web": "SYSTEM_TESTS_BFF_WEB_BASE_URL",
+        "bff-mobile": "SYSTEM_TESTS_BFF_MOBILE_BASE_URL",
+    },
+    "dev": "SYSTEM_TESTS_DEV_BASE_URL",
+    "prod": "SYSTEM_TESTS_PROD_BASE_URL",
+}
 
-input_service = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_SERVICE
-input_env = sys.argv[2] if len(sys.argv) > 2 else DEFAULT_ENV
+if (
+    len(sys.argv) != 3
+    or sys.argv[1] not in ENVIRONMENT_MAP
+    or sys.argv[2] not in SERVICE_PREFIX_MAP
+):
+    print(
+        f"Usage: python {sys.argv[0]} "
+        "<local|dev|prod> <identity-service|bff-web|bff-mobile>"
+    )
+    sys.exit(1)
 
-service_dict = SERVICE_URL_MAP.get(input_service, SERVICE_URL_MAP[DEFAULT_SERVICE])
-IDENTITY_SERVICE_URL = service_dict.get(input_env, service_dict[DEFAULT_ENV])
+load_dotenv(Path(__file__).resolve().parent / ".env")
+
+ENTORNO = sys.argv[1]
+SERVICIO = sys.argv[2]
+VARIABLE_BASE_URL = (
+    ENVIRONMENT_MAP["local"][SERVICIO]
+    if ENTORNO == "local"
+    else ENVIRONMENT_MAP[ENTORNO]
+)
+BASE_URL = os.getenv(VARIABLE_BASE_URL)
+if not BASE_URL:
+    print(f"{VARIABLE_BASE_URL} no está definida en el entorno ni en .env")
+    sys.exit(1)
+
+IDENTITY_SERVICE_URL = BASE_URL.rstrip("/") + SERVICE_PREFIX_MAP[SERVICIO]
 
 URL_REGISTRO = f"{IDENTITY_SERVICE_URL}/clientes/registro"
 URL_AUTENTICAR = f"{IDENTITY_SERVICE_URL}/clientes/autenticar"
@@ -101,7 +118,7 @@ def _datos_cliente():
         "nombres": "Cliente",
         "apellidos": "Prueba Sistema",
         "tipo_documento": "CC",
-        "numero_identificacion": str(uuid.uuid4().int)[:20],
+        "numero_identificacion": str(uuid.uuid4().int)[:10],
         "correo": f"system-{identificador}@example.com",
         "password": "SystemTest123!",
         "consentimiento_datos": True,

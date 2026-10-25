@@ -20,6 +20,7 @@ services:
       REDIS_AUTH_TOKEN: ${REDIS_AUTH_TOKEN:-}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
       KYC_SERVICE_URL: ${KYC_SERVICE_URL:-http://mock_kyc:8000}
+      LIVENESS_ADAPTER_URL: ${LIVENESS_ADAPTER_URL:-http://liveness_adapter:8000}
       AWS_PROFILE: ${AWS_PROFILE:-default}
       AWS_SDK_LOAD_CONFIG: "1"
     depends_on:
@@ -29,6 +30,16 @@ services:
         condition: service_healthy
       lgtm:
         condition: service_started
+      liveness_adapter:
+        condition: service_started
+
+  liveness_adapter:
+    build:
+      context: .
+      dockerfile: docker/services/Dockerfile.liveness_adapter
+    container_name: solventa-liveness-adapter
+    ports:
+      - "8203:8000"
 
   mock_kyc:
     build:
@@ -55,6 +66,7 @@ services:
       PROJECT_NAME: Solventa BFF Web
       ENVIRONMENT: development
       IDENTITY_SERVICE_URL: ${IDENTITY_SERVICE_URL:-http://identity_service:8000}
+      ALLOW_DEMO_ACTIVATION_WITHOUT_JWT: ${ALLOW_DEMO_ACTIVATION_WITHOUT_JWT:-false}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
     depends_on:
       identity_service:

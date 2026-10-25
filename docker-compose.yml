@@ -83,6 +83,7 @@ services:
       PROJECT_NAME: Solventa BFF Mobile
       ENVIRONMENT: development
       IDENTITY_SERVICE_URL: ${IDENTITY_SERVICE_URL:-http://identity_service:8000}
+      ALLOW_DEMO_ACTIVATION_WITHOUT_JWT: ${ALLOW_DEMO_ACTIVATION_WITHOUT_JWT:-false}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
     depends_on:
       identity_service:

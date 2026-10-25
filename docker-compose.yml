@@ -6,11 +6,12 @@ services:
     container_name: solventa-identity-service
     ports:
       - "8002:8000"
+      - "50051:50051"
     env_file:
       - .env
     environment:
       PROJECT_NAME: Solventa Identity Service
-      ENVIRONMENT: dev
+      ENVIRONMENT: local
       DATABASE_URL: "${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@db:5432/identity_db}"
       AWS_REGION: ${AWS_REGION:-}
       COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
@@ -22,7 +23,8 @@ services:
       KYC_SERVICE_URL: ${KYC_SERVICE_URL:-http://mock_kyc:8000}
       OPEN_FINANCE_URL: ${OPEN_FINANCE_URL:-http://mock_open_finance:8000}
       OPEN_FINANCE_TIMEOUT_SECONDS: ${OPEN_FINANCE_TIMEOUT_SECONDS:-0.2}
-      IDENTITY_GRPC_PORT: ${IDENTITY_GRPC_PORT:-50051}
+      GRPC_ENABLED: ${GRPC_ENABLED:-true}
+      GRPC_PORT: ${GRPC_PORT:-50051}
       AWS_PROFILE: ${AWS_PROFILE:-}
       AWS_SDK_LOAD_CONFIG: "1"
     volumes:
@@ -51,12 +53,19 @@ services:
       - .env
     environment:
       PROJECT_NAME: Solventa Quoting Engine Service
-      ENVIRONMENT: dev
+      ENVIRONMENT: local
       DATABASE_URL: ${DATABASE_URL:-}
+      REDIS_ENDPOINT: ${REDIS_ENDPOINT:-}
+      REDIS_AUTH_TOKEN: ${REDIS_AUTH_TOKEN:-}
+      IDENTITY_GRPC_ADDRESS: ${IDENTITY_GRPC_ADDRESS:-identity_service:50051}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+      identity_service:
+        condition: service_started
       lgtm:
         condition: service_started
 
@@ -111,14 +120,14 @@ services:
       - .env
     environment:
       PROJECT_NAME: Solventa BFF Web
-      ENVIRONMENT: development
+      ENVIRONMENT: local
       IDENTITY_SERVICE_URL: ${IDENTITY_SERVICE_URL:-http://identity_service:8000}
-      MOTOR_COTIZACION_URL: ${MOTOR_COTIZACION_URL:-http://motor_cotizacion:8000}
+      QUOTINGENGINE_SERVICE_URL: ${QUOTINGENGINE_SERVICE_URL:-http://quotingengine_service:8000}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
     depends_on:
       identity_service:
         condition: service_started
-      motor_cotizacion:
+      quotingengine_service:
         condition: service_started
       lgtm:
         condition: service_started
@@ -134,11 +143,14 @@ services:
       - .env
     environment:
       PROJECT_NAME: Solventa BFF Mobile
-      ENVIRONMENT: development
+      ENVIRONMENT: local
       IDENTITY_SERVICE_URL: ${IDENTITY_SERVICE_URL:-http://identity_service:8000}
+      QUOTINGENGINE_SERVICE_URL: ${QUOTINGENGINE_SERVICE_URL:-http://quotingengine_service:8000}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
     depends_on:
       identity_service:
+        condition: service_started
+      quotingengine_service:
         condition: service_started
       lgtm:
         condition: service_started

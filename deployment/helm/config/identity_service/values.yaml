@@ -9,10 +9,9 @@ image:
   pullPolicy: Always
   tag: "latest"
 
-network:
-  portName: http
+http:
   containerPort: 8000
-  protocol: TCP
+  servicePort: 80
 
 extraContainerPorts:
   - name: grpc
@@ -37,10 +36,10 @@ probes:
     initialDelaySeconds: 20
     periodSeconds: 20
 
-service:
-  type: ClusterIP
-  port: 80
-  targetPort: 8000
+grpc:
+  enabled: true
+  containerPort: 50051
+  servicePort: 50051
 
 database:
   enabled: true
@@ -85,6 +84,8 @@ config:
   IDENTITY_GRPC_PORT: 50051
   KYC_SERVICE_URL: http://mock-kyc:80
   KYC_TIMEOUT_SECONDS: 0.7
+  GRPC_ENABLED: "true"
+  GRPC_PORT: 50051
 
 resources:
   requests:

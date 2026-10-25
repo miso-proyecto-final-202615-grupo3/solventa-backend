@@ -12,7 +12,6 @@ ambiente y su imagen Docker. Cada servicio se despliega como un pod independient
 | `bff_mobile` | Backend For Frontend de la app móvil Android | `/api/v1/bff-mobile` |
 | `identity_service` | Identidad y registro de clientes | `/api/v1/identity-service` |
 | `quotingengine_service` | Motor de cotización y suscripción | `/api/v1/quotingengine-service` |
-| `motor_cotizacion` | Perfilamiento y cálculo de prima hipotecaria | `/api/v1/motor-cotizacion` |
 
 ## Requisitos
 
@@ -34,17 +33,19 @@ Levantar el servicio desde la raíz del repositorio:
 uvicorn src.main:app --reload --app-dir identity_service
 ```
 
-La API queda en `http://localhost:8000` y el health check en
-`http://localhost:8000/health`.
+La API queda en `http://localhost:8002` y el health check en
+`http://localhost:8002/health`.
 
-El motor expone `POST /api/v1/motor-cotizacion/cotizar`; el BFF publica
-`POST /api/v1/bff-web/cotizaciones`. Identidad entrega el perfil financiero al
-motor por gRPC en el puerto interno `50051`.
+Quoting Engine expone consulta de productos en
+`GET /api/v1/quotingengine-service/productos` y solicitud de cotización en
+`POST /api/v1/quotingengine-service/cotizaciones`. Los BFF Web y Mobile actúan como
+fachada y reenvían esas operaciones. Identity entrega el perfil del cliente por gRPC
+en el puerto interno `50051`.
 
-Para ejecutar el motor fuera de Compose:
+Para ejecutar Quoting Engine fuera de Compose:
 
 ```powershell
-cd motor_cotizacion
+cd quotingengine_service
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements-dev.txt
@@ -60,8 +61,7 @@ cd identity_service
 python -m pytest -v
 ```
 
-El mismo comando aplica dentro de `motor_cotizacion`; `contracts/generate_protos.py`
-regenera los stubs gRPC de ambos servicios.
+El mismo comando aplica dentro de `quotingengine_service`.
 
 ## Docker
 
@@ -74,17 +74,16 @@ docker build -f docker/services/Dockerfile.identity_service -t solventa/identity
 
 ## CI/CD
 
-- **CI (`ci.yml`):** corre `pytest` por servicio (`identity_service`, `bff_web`, `bff_mobile`,
-  `quotingengine_service`, `motor_cotizacion`) con reportes de cobertura y construye sus imágenes
-  y los mocks en cada push/PR a `dev` y `main`.
+- **CI (`ci.yml`):** corre `pytest` con cobertura por servicio y construye sus imágenes en cada
+  push/PR a `dev` y `main`.
 - **Despliegue:** portado del template de referencia (`template-solventa-backend-services`):
   - Workflows manuales de ECR/EKS: `backend-publish-ecr`, `backend-deploy-eks`,
-    `service-publish-ecr`, `service-deploy-eks`, `eks-setup-init`.
+    `service-publish-ecr`, `service-deploy-eks`, `eks-deploy-base-services`.
   - Helm: chart genérico en `deployment/helm/charts/backend-service` con `values` por servicio
     y ambiente (`deployment/helm/config/<service>/values.<env>.yaml`).
   - Kustomize: SecretStore + ExternalSecrets + ServiceAccount + Ingress ALB en
     `deployment/kuztomize`.
-- Requiere (igual que el template): GitHub Environments (`dev`/`qa`/`prod`) con
+- Requiere: GitHub Environments (`dev`/`qa`/`prod`) con
   `AWS_REGION`, `AWS_ROLE_ARN` y `DATABASE_URL`, y los repos ECR configurados en los `values`.
 
 ## Stack local (Docker Compose)
@@ -100,19 +99,12 @@ docker compose up --build
 | `identity_service` | `http://localhost:8002` |
 | `quotingengine_service` | `http://localhost:8003` |
 | gRPC de Identidad | `localhost:50051` dentro de la red Compose |
-| `motor_cotizacion` | `http://localhost:8004` |
 | `mock_kyc` | `http://localhost:8202` |
-| `mock_open_finance` | `http://localhost:8200` |
-| `mock_open_data` | `http://localhost:8201` |
+| `mock_openfinance` | `http://localhost:8200` |
+| `mock_opendata` | `http://localhost:8201` |
 
 Los mocks locales usan HTTP. En ambientes desplegados, configura `OPEN_FINANCE_URL`
 y `OPEN_DATA_URL` con los endpoints HTTPS de los proveedores.
-
-### BFF Mobile
-
-`POST /api/v1/bff-mobile/auth/login` con `{"correo", "password"}` devuelve
-`access_token`, `refresh_token`, `expires_in`, `token_type` y el `correo` del cliente.
-Credenciales inválidas → `401`; MS Identidad caído → `503`.
 
 ## Cognito en local vs. EKS
 

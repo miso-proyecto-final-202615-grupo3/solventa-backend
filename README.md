@@ -114,7 +114,7 @@ Comprueba que los contenedores estén listos:
 
 ```powershell
 docker compose ps
-Invoke-RestMethod http://localhost:8000/api/v1/identity-service/health
+Invoke-RestMethod http://localhost:8000/health
 ```
 
 Para crear un reto de prueba de vida, primero registra un cliente y luego llama

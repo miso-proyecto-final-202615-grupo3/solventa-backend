@@ -54,6 +54,7 @@ config:
   OTEL_EXPORTER_OTLP_ENDPOINT: http://solventa-otel-collector-collector:4317
   OTEL_TRACES_EXPORTER: otlp
   IDENTITY_SERVICE_URL: http://identity-service:80
+  MOTOR_COTIZACION_URL: http://motor-cotizacion:80
 
 resources:
   requests:

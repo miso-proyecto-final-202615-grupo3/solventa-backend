@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     API_PREFIX: str = "/api/v1/bff-web"
     IDENTITY_SERVICE_URL: str = "http://localhost:8000"
+    MOTOR_COTIZACION_URL: str = "http://localhost:8003"
     OTEL_EXPORTER_OTLP_ENDPOINT: str = "http://localhost:4317"
 
     model_config = SettingsConfigDict(

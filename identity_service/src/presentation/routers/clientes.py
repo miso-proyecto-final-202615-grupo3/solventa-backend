@@ -1,6 +1,8 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.ports.identity_provider import (
     IdentityProviderError,
@@ -25,11 +27,13 @@ from src.application.use_cases.verificar_kyc_use_case import (
 )
 from src.domain.clientes.entities import Cliente
 from src.presentation.dependencies import (
+    get_db,
     get_autenticar_cliente_use_case,
     get_gestionar_consentimiento_use_case,
     get_registrar_cliente_use_case,
     get_verificar_kyc_use_case,
 )
+from src.infrastructure.persistence.models import ClienteModel, DispositivoVinculadoModel
 from src.presentation.schemas import (
     AutenticarResponse,
     ActualizarConsentimientoRequest,
@@ -40,6 +44,37 @@ from src.presentation.schemas import (
 )
 
 router = APIRouter(prefix="/clientes", tags=["Clientes"])
+
+
+@router.get("/resumen-movil")
+async def consultar_resumen_movil(
+    correo: str = Query(...),
+    installation_id: uuid.UUID | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Consulta interna del BFF; la autenticación del usuario ocurre en el BFF."""
+    result = await db.execute(
+        select(ClienteModel).where(func.lower(ClienteModel.correo) == correo.lower())
+    )
+    cliente = result.scalar_one_or_none()
+    if cliente is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente no encontrado.")
+    vinculado = False
+    if installation_id is not None:
+        vinculo = await db.execute(
+            select(DispositivoVinculadoModel.id).where(
+                DispositivoVinculadoModel.cliente_id == cliente.id,
+                DispositivoVinculadoModel.installation_id == installation_id,
+                DispositivoVinculadoModel.estado == "ACTIVO",
+            )
+        )
+        vinculado = vinculo.scalar_one_or_none() is not None
+    return {
+        "id": str(cliente.id),
+        "nombre": f"{cliente.nombres} {cliente.apellidos}".strip(),
+        "estado_kyc": cliente.estado_kyc.value,
+        "dispositivo_vinculado": vinculado,
+    }
 
 
 def _cliente_response(cliente: Cliente) -> ClienteResponse:

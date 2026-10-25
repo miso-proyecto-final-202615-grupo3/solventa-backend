@@ -1,3 +1,5 @@
+import uuid
+
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
@@ -8,6 +10,14 @@ class LoginRequest(BaseModel):
 
     correo: EmailStr
     password: str = Field(min_length=1, max_length=128)
+    installation_id: uuid.UUID | None = None
+
+
+class ClienteMovil(BaseModel):
+    id: uuid.UUID
+    nombre: str
+    estado_kyc: str
+    dispositivo_vinculado: bool
 
 
 class LoginResponse(BaseModel):
@@ -23,3 +33,4 @@ class LoginResponse(BaseModel):
     expires_in: int | None = None
     token_type: str = "Bearer"
     correo: EmailStr | None = None
+    cliente: ClienteMovil | None = None

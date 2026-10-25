@@ -26,6 +26,7 @@ class FakeIdentityGateway:
         self.resultado: dict | None = None
         self.error: tuple[int, str] | None = None
         self.llamadas: list[tuple[str, str]] = []
+        self.resumen: dict | None = None
 
     async def autenticar_cliente(self, correo: str, password: str) -> dict:
         self.llamadas.append((correo, password))
@@ -33,6 +34,13 @@ class FakeIdentityGateway:
             status, detail = self.error
             raise IdentityGatewayError(status, detail)
         return self.resultado
+
+    async def obtener_resumen_movil(
+        self, correo: str, installation_id: str | None
+    ) -> dict:
+        if self.resumen is None:
+            raise IdentityGatewayError(503, "No disponible")
+        return self.resumen
 
 
 @pytest.fixture
@@ -86,7 +94,7 @@ async def test_login_sin_id_token_devuelve_correo_nulo(
     response = await bff_client.post(LOGIN_PATH, json=CREDENCIALES)
 
     assert response.status_code == 200
-    assert response.json()["correo"] is None
+    assert "correo" not in response.json()
 
 
 async def test_login_credenciales_invalidas_devuelve_401(

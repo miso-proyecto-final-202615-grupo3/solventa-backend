@@ -31,6 +31,24 @@ class IdentityServiceGateway:
             {"correo": correo, "password": password},
         )
 
+    async def obtener_resumen_movil(
+        self, correo: str, installation_id: str | None
+    ) -> dict:
+        try:
+            response = await self._client.get(
+                "/api/v1/identity-service/clientes/resumen-movil",
+                params={"correo": correo, "installation_id": installation_id},
+            )
+        except httpx.HTTPError as exc:
+            raise IdentityGatewayError(503, "El servicio de identidad no está disponible.") from exc
+        try:
+            body = response.json()
+        except ValueError:
+            body = {}
+        if not response.is_success:
+            raise IdentityGatewayError(response.status_code, body.get("detail", "El servicio de identidad devolvió un error."))
+        return body
+
     async def aclose(self) -> None:
         await self._client.aclose()
 

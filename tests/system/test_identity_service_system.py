@@ -13,12 +13,12 @@ param2 = sys.argv[2]
 
 SERVICE_URL_MAP = {
     "bff-web": {
-        "local": "http://localhost:8001/api/v1/bff-web",
+        "local": "http://localhost:8000/api/v1/bff-web",
         "dev": "http://k8s-solventasharedalb-062704d759-1248618214.us-east-1.elb.amazonaws.com/api/v1/bff-web",
         "prod": "http://k8s-solventasharedalb-9252f1d65d-1778110791.us-east-1.elb.amazonaws.com/api/v1/bff-web",
     },
     "identity-service": {
-        "local": "http://localhost:8000/api/v1/identity-service",
+        "local": "http://localhost:8002/api/v1/identity-service",
         "dev": "http://k8s-solventasharedalb-062704d759-1248618214.us-east-1.elb.amazonaws.com/api/v1/identity-service",
         "prod": "http://k8s-solventasharedalb-9252f1d65d-1778110791.us-east-1.elb.amazonaws.com/api/v1/identity-service",
     },

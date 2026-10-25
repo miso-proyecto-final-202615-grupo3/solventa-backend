@@ -1,2 +1,5 @@
 image:
   repository: bff-mobile
+
+config:
+  ENVIRONMENT: qa

@@ -18,6 +18,7 @@ on:
         type: choice
         options:
           - identity_service
+          - quotingengine_service
           - bff_web
           - bff_mobile
           - motor_cotizacion

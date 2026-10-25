@@ -1,0 +1,9 @@
+-r requirements.txt
+
+# Dev dependencies (local y CI, no entran a la imagen)
+pytest>=9.1.1
+pytest-asyncio>=1.4.0
+httpx>=0.28.1
+pytest-cov>=7.1.0
+aiosqlite>=0.22.1
+pytest-html>=4.2.0

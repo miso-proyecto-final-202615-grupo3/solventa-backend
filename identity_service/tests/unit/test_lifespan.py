@@ -21,7 +21,7 @@ async def test_lifespan_inicia_y_detiene_servidor_grpc(monkeypatch):
         async def stop(self, grace):
             eventos.append("stop")
 
-    async def iniciar(factory, port):
+    async def iniciar(factory, open_finance_gateway, port):
         eventos.append(("start", port))
         return ServidorFalso()
 

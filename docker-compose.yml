@@ -21,7 +21,7 @@ services:
       REDIS_AUTH_TOKEN: ${REDIS_AUTH_TOKEN:-}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
       KYC_SERVICE_URL: ${KYC_SERVICE_URL:-http://mock_kyc:8000}
-      OPEN_FINANCE_URL: ${OPEN_FINANCE_URL:-http://mock_open_finance:8000}
+      OPEN_FINANCE_URL: ${OPEN_FINANCE_URL:-http://mock_openfinance:8000}
       OPEN_FINANCE_TIMEOUT_SECONDS: ${OPEN_FINANCE_TIMEOUT_SECONDS:-0.2}
       GRPC_ENABLED: ${GRPC_ENABLED:-true}
       GRPC_PORT: ${GRPC_PORT:-50051}
@@ -37,7 +37,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      mock_open_finance:
+      mock_openfinance:
         condition: service_started
       lgtm:
         condition: service_started
@@ -54,10 +54,13 @@ services:
     environment:
       PROJECT_NAME: Solventa Quoting Engine Service
       ENVIRONMENT: local
-      DATABASE_URL: ${DATABASE_URL:-}
-      REDIS_ENDPOINT: ${REDIS_ENDPOINT:-}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@db:5432/identity_db}
+      REDIS_ENDPOINT: ${REDIS_ENDPOINT:-redis://redis:6379/0}
       REDIS_AUTH_TOKEN: ${REDIS_AUTH_TOKEN:-}
       IDENTITY_GRPC_ADDRESS: ${IDENTITY_GRPC_ADDRESS:-identity_service:50051}
+      OPEN_DATA_URL: ${OPEN_DATA_URL:-http://mock_opendata:8000}
+      OPEN_DATA_TIMEOUT_SECONDS: ${OPEN_DATA_TIMEOUT_SECONDS:-0.25}
+      OPEN_DATA_CACHE_TTL_SECONDS: ${OPEN_DATA_CACHE_TTL_SECONDS:-300}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
     depends_on:
       db:
@@ -65,6 +68,8 @@ services:
       redis:
         condition: service_healthy
       identity_service:
+        condition: service_started
+      mock_opendata:
         condition: service_started
       lgtm:
         condition: service_started
@@ -81,33 +86,33 @@ services:
     environment:
       MOCK_KYC_STATUS: ${MOCK_KYC_STATUS:-PASSED}
 
-  mock_open_finance:
+  mock_openfinance:
     build:
       context: .
-      dockerfile: docker/services/Dockerfile.mock_open_finance
-    container_name: solventa-mock-open-finance
+      dockerfile: docker/services/Dockerfile.mock_openfinance
+    container_name: solventa-mock-openfinance
     ports:
       - "8200:8000"
     environment:
-      MOCK_OPEN_FINANCE_STATUS: ${MOCK_OPEN_FINANCE_STATUS:-AVAILABLE}
-      MOCK_OPEN_FINANCE_DELAY_MS: ${MOCK_OPEN_FINANCE_DELAY_MS:-0}
-      MOCK_OPEN_FINANCE_INCOME: ${MOCK_OPEN_FINANCE_INCOME:-8500000}
-      MOCK_OPEN_FINANCE_SAVINGS: ${MOCK_OPEN_FINANCE_SAVINGS:-25500000}
-      MOCK_OPEN_FINANCE_DTI: ${MOCK_OPEN_FINANCE_DTI:-28}
-      MOCK_OPEN_FINANCE_OVERDRAFTS: ${MOCK_OPEN_FINANCE_OVERDRAFTS:-0}
-      MOCK_OPEN_FINANCE_SCORE: ${MOCK_OPEN_FINANCE_SCORE:-820}
+      MOCK_OPENFINANCE_STATUS: ${MOCK_OPENFINANCE_STATUS:-AVAILABLE}
+      MOCK_OPENFINANCE_DELAY_MS: ${MOCK_OPENFINANCE_DELAY_MS:-0}
+      MOCK_OPENFINANCE_INCOME: ${MOCK_OPENFINANCE_INCOME:-8500000}
+      MOCK_OPENFINANCE_SAVINGS: ${MOCK_OPENFINANCE_SAVINGS:-25500000}
+      MOCK_OPENFINANCE_DTI: ${MOCK_OPENFINANCE_DTI:-28}
+      MOCK_OPENFINANCE_OVERDRAFTS: ${MOCK_OPENFINANCE_OVERDRAFTS:-0}
+      MOCK_OPENFINANCE_SCORE: ${MOCK_OPENFINANCE_SCORE:-820}
 
-  mock_open_data:
+  mock_opendata:
     build:
       context: .
-      dockerfile: docker/services/Dockerfile.mock_open_data
-    container_name: solventa-mock-open-data
+      dockerfile: docker/services/Dockerfile.mock_opendata
+    container_name: solventa-mock-opendata
     ports:
       - "8201:8000"
     environment:
-      MOCK_OPEN_DATA_STATUS: ${MOCK_OPEN_DATA_STATUS:-AVAILABLE}
-      MOCK_OPEN_DATA_DELAY_MS: ${MOCK_OPEN_DATA_DELAY_MS:-0}
-      MOCK_OPEN_DATA_CATEGORY: ${MOCK_OPEN_DATA_CATEGORY:-}
+      MOCK_OPENDATA_STATUS: ${MOCK_OPENDATA_STATUS:-AVAILABLE}
+      MOCK_OPENDATA_DELAY_MS: ${MOCK_OPENDATA_DELAY_MS:-0}
+      MOCK_OPENDATA_CATEGORY: ${MOCK_OPENDATA_CATEGORY:-}
 
   bff_web:
     build:
@@ -152,34 +157,6 @@ services:
         condition: service_started
       quotingengine_service:
         condition: service_started
-      lgtm:
-        condition: service_started
-
-  motor_cotizacion:
-    build:
-      context: .
-      dockerfile: docker/services/Dockerfile.motor_cotizacion
-    container_name: solventa-motor-cotizacion
-    ports:
-      - "8004:8000"
-    env_file:
-      - .env
-    environment:
-      PROJECT_NAME: Solventa Motor de Cotización
-      ENVIRONMENT: development
-      IDENTITY_GRPC_TARGET: ${IDENTITY_GRPC_TARGET:-identity_service:50051}
-      OPEN_DATA_URL: ${OPEN_DATA_URL:-http://mock_open_data:8000}
-      OPEN_DATA_TIMEOUT_SECONDS: ${OPEN_DATA_TIMEOUT_SECONDS:-0.25}
-      OPEN_DATA_CACHE_TTL_SECONDS: ${OPEN_DATA_CACHE_TTL_SECONDS:-300}
-      REDIS_ENDPOINT: "${REDIS_ENDPOINT:-redis://redis:6379/0}"
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
-    depends_on:
-      identity_service:
-        condition: service_started
-      mock_open_data:
-        condition: service_started
-      redis:
-        condition: service_healthy
       lgtm:
         condition: service_started
 

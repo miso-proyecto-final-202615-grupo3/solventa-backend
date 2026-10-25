@@ -1,10 +1,12 @@
 from collections.abc import AsyncGenerator
 
+import httpx
 from fastapi import Depends
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.ports.perfil_cliente_gateway import PerfilClienteGateway
+from src.application.ports.open_data_gateway import OpenDataCachePort, OpenDataGateway
 from src.application.ports.regla_rating_cache import ReglaRatingCachePort
 from src.application.pricing.registry import PricingStrategyRegistry
 from src.application.pricing.strategies.otros_productos import (
@@ -27,7 +29,9 @@ from src.application.use_cases.solicitar_cotizacion_use_case import (
 from src.core.config import settings
 from src.core.database import SessionLocal
 from src.infrastructure.cache.regla_rating_cache import ReglaRatingCache
+from src.infrastructure.cache.open_data_redis_cache import OpenDataRedisCache
 from src.infrastructure.gateways.identity_grpc_client import IdentityGrpcClient
+from src.infrastructure.gateways.open_data_http_client import OpenDataHttpClient
 from src.infrastructure.persistence.auditoria_decision_repository_impl import (
     SqlAlchemyAuditoriaDecisionRepository,
 )
@@ -55,6 +59,10 @@ _redis_client = Redis.from_url(
 )
 _regla_rating_cache = ReglaRatingCache(_redis_client, settings.RATING_CACHE_TTL_SECONDS)
 _perfil_gateway = IdentityGrpcClient()
+_open_data_http = httpx.AsyncClient(timeout=settings.OPEN_DATA_TIMEOUT_SECONDS)
+_open_data_cache = OpenDataRedisCache(
+    _redis_client, settings.OPEN_DATA_CACHE_TTL_SECONDS
+)
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -70,9 +78,18 @@ def get_perfil_cliente_gateway() -> PerfilClienteGateway:
     return _perfil_gateway
 
 
+def get_open_data_gateway() -> OpenDataGateway:
+    return OpenDataHttpClient(_open_data_http)
+
+
+def get_open_data_cache() -> OpenDataCachePort:
+    return _open_data_cache
+
+
 async def cerrar_recursos() -> None:
     await _regla_rating_cache.cerrar()
     await _perfil_gateway.cerrar()
+    await _open_data_http.aclose()
 
 
 def get_regla_rating_resolver(
@@ -84,10 +101,12 @@ def get_regla_rating_resolver(
 
 def get_pricing_registry(
     gateway: PerfilClienteGateway = Depends(get_perfil_cliente_gateway),
+    open_data: OpenDataGateway = Depends(get_open_data_gateway),
+    open_data_cache: OpenDataCachePort = Depends(get_open_data_cache),
 ) -> PricingStrategyRegistry:
     return PricingStrategyRegistry(
         [
-            VidaHipotecarioPricingStrategy(gateway),
+            VidaHipotecarioPricingStrategy(gateway, open_data, open_data_cache),
             ProteccionPagosPricingStrategy(),
             ViajePricingStrategy(),
             ProteccionDispositivosPricingStrategy(),

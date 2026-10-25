@@ -44,6 +44,7 @@ class CotizacionResponse(BaseModel):
     estado: str
     moneda: str
     prima_base: Decimal
+    prima_neta: Decimal
     ajustes: list[AjusteResponse]
     impuestos: list[ImpuestoResponse]
     prima_total: Decimal
@@ -65,6 +66,7 @@ def cotizacion_response(detalle: Any) -> CotizacionResponse:
         estado=c.estado.value,
         moneda=c.moneda,
         prima_base=r.get("prima_base", "0"),
+        prima_neta=r.get("prima_neta", "0"),
         ajustes=r.get("ajustes", []),
         impuestos=r.get("impuestos", []),
         prima_total=c.prima_total,

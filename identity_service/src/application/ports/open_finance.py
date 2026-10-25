@@ -1,12 +1,23 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from decimal import Decimal
 import uuid
 
-from src.domain.perfilamiento.entities import PerfilOpenFinance
+
+class OpenFinanceNoDisponibleError(Exception):
+    pass
 
 
-class OpenFinanceProvider(ABC):
+@dataclass(frozen=True)
+class PerfilOpenFinance:
+    ingreso_mensual: Decimal
+    ahorros_liquidos: Decimal
+    dti_pct: Decimal
+    sobregiros_12_meses: int
+    score: int
+
+
+class OpenFinanceGateway(ABC):
     @abstractmethod
-    async def obtener_perfil_financiero(
-        self, cliente_id: uuid.UUID
-    ) -> PerfilOpenFinance:
+    async def obtener_perfil(self, cliente_id: uuid.UUID) -> PerfilOpenFinance:
         raise NotImplementedError

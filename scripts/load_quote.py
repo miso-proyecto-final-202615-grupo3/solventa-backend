@@ -17,8 +17,7 @@ async def run(args: argparse.Namespace) -> int:
     results: list[tuple[float, int | None]] = []
     payload = {
         "cliente_id": args.cliente_id,
-        "ramo": "VIDA_HIPOTECARIO",
-        "consentimiento_version": args.consentimiento_version,
+        "producto_codigo": "VIDA_HIPOTECARIO",
         "parametros": {
             "saldo_credito": args.saldo_credito,
             "ubicacion": {
@@ -44,7 +43,7 @@ async def run(args: argparse.Namespace) -> int:
         await asyncio.gather(*(request_one() for _ in range(args.requests)))
 
     latencies_ms = [duration * 1000 for duration, _ in results]
-    failures = sum(status != 200 for _, status in results)
+    failures = sum(status != 201 for _, status in results)
     p95 = percentile95(latencies_ms)
     print(
         json.dumps(
@@ -66,10 +65,9 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--url",
-        default="http://localhost:8001/api/v1/bff-web/cotizaciones",
+        default="http://localhost:8000/api/v1/bff-web/cotizaciones",
     )
     parser.add_argument("--cliente-id", required=True)
-    parser.add_argument("--consentimiento-version", default="1.0")
     parser.add_argument("--saldo-credito", type=int, default=200_000_000)
     parser.add_argument("--municipio", default="Bogotá D.C.")
     parser.add_argument("--zona", choices=("URBANA", "RURAL"), default="URBANA")

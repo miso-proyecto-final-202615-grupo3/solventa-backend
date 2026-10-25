@@ -40,7 +40,8 @@ Quoting Engine expone consulta de productos en
 `GET /api/v1/quotingengine-service/productos` y solicitud de cotización en
 `POST /api/v1/quotingengine-service/cotizaciones`. Los BFF Web y Mobile actúan como
 fachada y reenvían esas operaciones. Identity entrega el perfil del cliente por gRPC
-en el puerto interno `50051`.
+en el puerto interno `50051`, validando el consentimiento antes de consultar Open Finance.
+Open Data se consulta desde Quoting Engine; ambos proveedores degradan de forma controlada.
 
 Para ejecutar Quoting Engine fuera de Compose:
 
@@ -98,13 +99,17 @@ docker compose up --build
 | `bff_mobile` | `http://localhost:8001` (desde el emulador Android: `http://10.0.2.2:8001`) |
 | `identity_service` | `http://localhost:8002` |
 | `quotingengine_service` | `http://localhost:8003` |
-| gRPC de Identidad | `localhost:50051` dentro de la red Compose |
+| gRPC de Identidad | `localhost:50051` |
 | `mock_kyc` | `http://localhost:8202` |
 | `mock_openfinance` | `http://localhost:8200` |
 | `mock_opendata` | `http://localhost:8201` |
 
 Los mocks locales usan HTTP. En ambientes desplegados, configura `OPEN_FINANCE_URL`
 y `OPEN_DATA_URL` con los endpoints HTTPS de los proveedores.
+
+La consulta de productos queda expuesta por los BFF en `GET /api/v1/bff-web/productos`
+y `GET /api/v1/bff-mobile/productos`; la cotización recibe `producto_codigo`, el
+saldo pendiente del crédito y la ubicación del inmueble.
 
 ## Cognito en local vs. EKS
 

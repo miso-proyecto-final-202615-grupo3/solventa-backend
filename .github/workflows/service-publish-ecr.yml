@@ -21,7 +21,6 @@ on:
           - quotingengine_service
           - bff_web
           - bff_mobile
-          - motor_cotizacion
           - mock_kyc
         default: identity_service
 

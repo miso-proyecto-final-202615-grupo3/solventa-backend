@@ -19,9 +19,8 @@ jobs:
           - quotingengine_service
           - bff_web
           - bff_mobile
-          - motor_cotizacion
-          - mock_open_finance
-          - mock_open_data
+          - mock_openfinance
+          - mock_opendata
 
     steps:
       - uses: actions/checkout@v4
@@ -69,10 +68,9 @@ jobs:
           - quotingengine_service
           - bff_web
           - bff_mobile
-          - motor_cotizacion
           - mock_kyc
-          - mock_open_finance
-          - mock_open_data
+          - mock_openfinance
+          - mock_opendata
     needs: test
     steps:
       - uses: actions/checkout@v4

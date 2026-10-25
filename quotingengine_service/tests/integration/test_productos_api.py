@@ -25,7 +25,10 @@ async def test_lista_ramos_con_condiciones_y_parametros(api_client: AsyncClient)
     assert "Open Finance" in hipotecario["mensaje_legal"]
     assert "Open Data" in hipotecario["mensaje_legal"]
     assert hipotecario["fuentes_datos"] == ["OPEN_FINANCE", "OPEN_DATA"]
-    assert [p["nombre"] for p in hipotecario["parametros"]] == ["valor_vivienda"]
+    assert [p["nombre"] for p in hipotecario["parametros"]] == [
+        "saldo_credito",
+        "ubicacion",
+    ]
     assert len(hipotecario["coberturas"]) == 2
 
 

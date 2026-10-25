@@ -1,12 +1,15 @@
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
+import httpx
 from sqlalchemy import text
 
 from src.core.config import settings
 from src.core.database import Base, engine
 from src.core.telemetry import setup_telemetry
+from src.infrastructure.gateways.open_finance_http_client import OpenFinanceHttpClient
 from src.infrastructure.persistence import models  # noqa: F401
 from src.presentation.dependencies import (
     abrir_gestionar_consentimiento_use_case,
@@ -33,14 +36,23 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
     grpc_server = None
     if settings.GRPC_ENABLED:
-        grpc_server = await iniciar_servidor_grpc(
-            abrir_gestionar_consentimiento_use_case, settings.GRPC_PORT
-        )
+        async with httpx.AsyncClient(
+            timeout=settings.OPEN_FINANCE_TIMEOUT_SECONDS
+        ) as http_client:
+            grpc_server = await iniciar_servidor_grpc(
+                abrir_gestionar_consentimiento_use_case,
+                OpenFinanceHttpClient(http_client),
+                settings.GRPC_PORT,
+            )
+            try:
+                yield
+            finally:
+                await grpc_server.stop(grace=2)
+                await cerrar_consentimiento_cache()
+        return
     try:
         yield
     finally:
-        if grpc_server is not None:
-            await grpc_server.stop(grace=2)
         await cerrar_consentimiento_cache()
 
 

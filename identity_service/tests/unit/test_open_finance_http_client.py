@@ -4,18 +4,16 @@ from decimal import Decimal
 import httpx
 import pytest
 
-from src.infrastructure.gateways.open_finance_http_client import (
-    OpenFinanceHttpClient,
-    OpenFinanceUnavailableError,
-)
+from src.application.ports.open_finance import OpenFinanceNoDisponibleError
+from src.infrastructure.gateways.open_finance_http_client import OpenFinanceHttpClient
 
 
-async def test_consulta_perfil_open_finance_y_normaliza_montos():
+async def test_consulta_perfil_financiero_del_proveedor():
     cliente_id = uuid.uuid4()
-    llamadas = []
+    requests = []
 
     def handler(request: httpx.Request) -> httpx.Response:
-        llamadas.append(request)
+        requests.append(request)
         return httpx.Response(
             200,
             json={
@@ -28,28 +26,31 @@ async def test_consulta_perfil_open_finance_y_normaliza_montos():
         )
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-        gateway = OpenFinanceHttpClient(client, "https://open-finance.test")
-        perfil = await gateway.obtener_perfil_financiero(cliente_id)
+        perfil = await OpenFinanceHttpClient(
+            client, "http://openfinance"
+        ).obtener_perfil(cliente_id)
 
-    assert str(llamadas[0].url) == "https://open-finance.test/profile"
-    assert llamadas[0].method == "POST"
+    assert requests[0].url == "http://openfinance/profile"
+    assert requests[0].read() == f'{{"cliente_id":"{cliente_id}"}}'.encode()
     assert perfil.ingreso_mensual == Decimal("8500000")
     assert perfil.ahorros_liquidos == Decimal("25500000")
     assert perfil.dti_pct == Decimal("28")
+    assert perfil.score == 820
 
 
 @pytest.mark.parametrize(
-    "response", [
-        httpx.Response(503, json={"detail": "caído"}),
-        httpx.Response(200, json={"ingreso_mensual": "inválido"}),
-    ]
+    "response",
+    [
+        httpx.Response(503),
+        httpx.Response(200, json={"ingreso_mensual": -1}),
+        httpx.Response(200, text="not-json"),
+    ],
 )
-async def test_convierte_falla_o_respuesta_invalida_en_indisponibilidad(response):
-    def handler(_request: httpx.Request) -> httpx.Response:
-        return response
-
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-        gateway = OpenFinanceHttpClient(client, "https://open-finance.test")
-
-        with pytest.raises(OpenFinanceUnavailableError):
-            await gateway.obtener_perfil_financiero(uuid.uuid4())
+async def test_indisponibilidad_o_respuesta_invalida_se_normaliza(response):
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(lambda _request: response)
+    ) as client:
+        with pytest.raises(OpenFinanceNoDisponibleError):
+            await OpenFinanceHttpClient(client, "http://openfinance").obtener_perfil(
+                uuid.uuid4()
+            )

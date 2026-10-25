@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     IDENTITY_GRPC_MAX_CONCURRENCY: int = 50
     IDENTITY_CB_FAILURE_THRESHOLD: int = 5
     IDENTITY_CB_RECOVERY_SECONDS: float = 15.0
+    OPEN_DATA_URL: str = ""
+    OPEN_DATA_TIMEOUT_SECONDS: float = 0.25
+    OPEN_DATA_CACHE_TTL_SECONDS: int = 300
 
     model_config = SettingsConfigDict(
         env_file=".env",

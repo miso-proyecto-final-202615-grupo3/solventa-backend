@@ -2,6 +2,7 @@ import logging
 
 import grpc
 
+from src.application.ports.open_finance import OpenFinanceGateway
 from src.presentation.grpc import identity_profile_pb2_grpc
 from src.presentation.grpc.identity_profile_servicer import (
     IdentityProfileServicer,
@@ -12,11 +13,13 @@ logger = logging.getLogger(__name__)
 
 
 async def iniciar_servidor_grpc(
-    use_case_factory: UseCaseFactory, port: int
+    use_case_factory: UseCaseFactory,
+    open_finance_gateway: OpenFinanceGateway,
+    port: int,
 ) -> grpc.aio.Server:
     server = grpc.aio.server()
     identity_profile_pb2_grpc.add_IdentityProfileServicer_to_server(
-        IdentityProfileServicer(use_case_factory), server
+        IdentityProfileServicer(use_case_factory, open_finance_gateway), server
     )
     server.add_insecure_port(f"[::]:{port}")
     await server.start()

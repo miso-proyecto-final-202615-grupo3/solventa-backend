@@ -104,3 +104,9 @@ class IniciarActivacionMovilResponse(BaseModel):
     expira_en: datetime | None = None
     captura: dict | None = None
     intentos_restantes: int | None = None
+
+
+class VerificarActivacionMovilResponse(BaseModel):
+    aprobada: bool
+    folio: str | None = None
+    motivo: str | None = None

@@ -15,6 +15,7 @@ from src.application.ports.liveness import LivenessVerificationPort
 from src.application.use_cases.iniciar_activacion_movil_use_case import (
     IniciarActivacionMovilUseCase,
 )
+from src.application.use_cases.verificar_activacion_movil_use_case import VerificarActivacionMovilUseCase
 from src.application.use_cases.gestionar_consentimiento_use_case import (
     GestionarConsentimientoUseCase,
 )
@@ -150,6 +151,14 @@ def get_iniciar_activacion_movil_use_case(
         consentimiento,
         liveness,
         db.commit,
+    )
+
+
+def get_verificar_activacion_movil_use_case(
+    db: AsyncSession = Depends(get_db), liveness: LivenessVerificationPort = Depends(get_liveness_verifier),
+) -> VerificarActivacionMovilUseCase:
+    return VerificarActivacionMovilUseCase(
+        SqlAlchemyClienteRepository(db), SqlAlchemyActivacionMovilRepository(db), liveness, db.commit
     )
 
 

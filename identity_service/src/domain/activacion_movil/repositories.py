@@ -24,6 +24,18 @@ class ActivacionMovilRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def obtener_sesion(self, cliente_id: UUID, sesion_id: str) -> SesionActivacion | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def actualizar_estado_sesion(self, sesion_id: str, estado) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def vincular_dispositivo(self, cliente_id: UUID, dispositivo: DatosDispositivo, folio: str, cuando: datetime) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     async def guardar_sesion(self, sesion: SesionActivacion) -> None:
         raise NotImplementedError
 

@@ -52,6 +52,29 @@ class SqlAlchemyActivacionMovilRepository(ActivacionMovilRepository):
         model = result.scalars().first()
         return self._a_sesion(model) if model else None
 
+    async def obtener_sesion(self, cliente_id: UUID, sesion_id: str) -> SesionActivacion | None:
+        result = await self.session.execute(select(SesionActivacionModel).where(
+            SesionActivacionModel.id == sesion_id, SesionActivacionModel.cliente_id == cliente_id
+        ))
+        model = result.scalar_one_or_none()
+        return self._a_sesion(model) if model else None
+
+    async def actualizar_estado_sesion(self, sesion_id: str, estado: EstadoSesion) -> None:
+        await self.session.execute(update(SesionActivacionModel).where(SesionActivacionModel.id == sesion_id).values(estado=estado.value))
+
+    async def vincular_dispositivo(self, cliente_id: UUID, dispositivo: DatosDispositivo, folio: str, cuando: datetime) -> None:
+        await self.session.execute(update(DispositivoVinculadoModel).where(
+            (DispositivoVinculadoModel.cliente_id == cliente_id) |
+            (DispositivoVinculadoModel.installation_id == dispositivo.installation_id),
+            DispositivoVinculadoModel.estado == "ACTIVO",
+        ).values(estado="REVOCADO", revocado_en=cuando))
+        self.session.add(DispositivoVinculadoModel(
+            cliente_id=cliente_id, installation_id=dispositivo.installation_id,
+            plataforma=dispositivo.plataforma.value, modelo=dispositivo.modelo,
+            version_so=dispositivo.version_so, folio_verificacion=folio, estado="ACTIVO", vinculado_en=cuando,
+        ))
+        await self.session.flush()
+
     async def guardar_sesion(self, sesion: SesionActivacion) -> None:
         self.session.add(
             SesionActivacionModel(

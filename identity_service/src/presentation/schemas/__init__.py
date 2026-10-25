@@ -12,6 +12,7 @@ from src.presentation.schemas.cliente_schemas import (
     ClienteResponse,
     IniciarActivacionMovilRequest,
     IniciarActivacionMovilResponse,
+    VerificarActivacionMovilResponse,
 )
 from src.presentation.schemas.consentimiento_schemas import (
     ActualizarConsentimientoRequest,
@@ -29,5 +30,6 @@ __all__ = [
     "EventoAuditoriaResponse",
     "IniciarActivacionMovilRequest",
     "IniciarActivacionMovilResponse",
+    "VerificarActivacionMovilResponse",
     "PasswordVerify",
 ]

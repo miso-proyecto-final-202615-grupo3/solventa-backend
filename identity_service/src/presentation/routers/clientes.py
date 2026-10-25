@@ -2,7 +2,7 @@ import uuid
 
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,6 +33,9 @@ from src.application.use_cases.iniciar_activacion_movil_use_case import (
     IniciarActivacionMovilUseCase,
     IntentosAgotadosError,
 )
+from src.application.use_cases.verificar_activacion_movil_use_case import (
+    SesionActivacionInvalidaError, VerificarActivacionMovilUseCase,
+)
 from src.domain.activacion_movil.entities import DatosDispositivo
 from src.domain.clientes.entities import Cliente
 from src.presentation.dependencies import (
@@ -42,6 +45,7 @@ from src.presentation.dependencies import (
     get_registrar_cliente_use_case,
     get_verificar_kyc_use_case,
     get_iniciar_activacion_movil_use_case,
+    get_verificar_activacion_movil_use_case,
 )
 from src.infrastructure.persistence.models import ClienteModel, DispositivoVinculadoModel
 from src.presentation.schemas import (
@@ -53,9 +57,27 @@ from src.presentation.schemas import (
     PasswordVerify,
     IniciarActivacionMovilRequest,
     IniciarActivacionMovilResponse,
+    VerificarActivacionMovilResponse,
 )
 
 router = APIRouter(prefix="/clientes", tags=["Clientes"])
+
+
+@router.post("/activacion-movil/sesiones/{sesion_id}/verificacion", response_model=VerificarActivacionMovilResponse)
+async def verificar_activacion_movil(
+    sesion_id: str, correo: str = Form(...), nonce: str = Form(...),
+    frame_inicio: UploadFile = File(...), frame_gesto: UploadFile = File(...), frame_fin: UploadFile = File(...),
+    correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
+    use_case: VerificarActivacionMovilUseCase = Depends(get_verificar_activacion_movil_use_case),
+) -> VerificarActivacionMovilResponse:
+    frames = {"frame_inicio": await frame_inicio.read(524289), "frame_gesto": await frame_gesto.read(524289), "frame_fin": await frame_fin.read(524289)}
+    if any(len(frame) > 524288 or not frame.startswith(b"\xff\xd8\xff") for frame in frames.values()):
+        raise HTTPException(415, detail={"codigo": "EVIDENCIA_INVALIDA"})
+    try:
+        result = await use_case.ejecutar(correo, sesion_id, nonce, frames, correlation_id or str(uuid4()))
+    except SesionActivacionInvalidaError as exc:
+        raise HTTPException(409, detail={"codigo": "SESION_INVALIDA"}) from exc
+    return VerificarActivacionMovilResponse(aprobada=result.aprobada, folio=result.folio, motivo=result.motivo)
 
 
 @router.post(

@@ -1,0 +1,17 @@
+FROM python:3.13-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+COPY mock_open_data/requirements.txt ./requirements.txt
+COPY README.md ./README.md
+COPY mock_open_data/src ./src
+
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt
+
+EXPOSE 8000
+
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]

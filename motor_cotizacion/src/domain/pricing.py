@@ -22,6 +22,7 @@ class PerfilFinanciero:
 class ResultadoPricing:
     categoria_open_finance: CategoriaOpenFinance
     factor_open_finance: Decimal
+    factor_open_data: Decimal
     prima_base: Decimal
     ajuste_open_finance: Decimal
     ajuste_open_data: Decimal
@@ -103,6 +104,7 @@ def calcular_pricing(
     return ResultadoPricing(
         categoria_open_finance=categoria,
         factor_open_finance=factor_open_finance,
+        factor_open_data=factor_open_data,
         prima_base=prima_base,
         ajuste_open_finance=ajuste_open_finance,
         ajuste_open_data=ajuste_open_data,

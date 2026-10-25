@@ -71,3 +71,42 @@ async def test_autenticar_cliente_error_sin_cuerpo_json():
         assert exc.value.status_code == 500
     finally:
         await gateway.aclose()
+
+
+async def test_inicia_activacion_y_propagacion_de_correlacion():
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["X-Correlation-Id"] == "corr-123"
+        assert json.loads(request.content) == {
+            "correo": "ana@example.com",
+            "installation_id": "instalacion-1",
+            "plataforma": "ANDROID",
+            "modelo": "Pixel",
+            "version_so": "15",
+        }
+        return httpx.Response(
+            201,
+            json={
+                "dispositivo_vinculado": False,
+                "sesion_id": "sesion-1",
+                "intentos_restantes": 3,
+            },
+        )
+
+    gateway = IdentityServiceGateway(
+        base_url=BASE, transport=httpx.MockTransport(handler)
+    )
+    try:
+        response = await gateway.iniciar_activacion_movil(
+            "ana@example.com",
+            {
+                "installation_id": "instalacion-1",
+                "plataforma": "ANDROID",
+                "modelo": "Pixel",
+                "version_so": "15",
+            },
+            "corr-123",
+        )
+    finally:
+        await gateway.aclose()
+
+    assert response["sesion_id"] == "sesion-1"

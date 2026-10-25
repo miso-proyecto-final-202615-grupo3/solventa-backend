@@ -4,7 +4,7 @@ from src.core.config import settings
 
 
 class IdentityGatewayError(Exception):
-    def __init__(self, status_code: int, detail: str) -> None:
+    def __init__(self, status_code: int, detail: str | dict) -> None:
         self.status_code = status_code
         self.detail = detail
         super().__init__(detail)
@@ -49,12 +49,26 @@ class IdentityServiceGateway:
             raise IdentityGatewayError(response.status_code, body.get("detail", "El servicio de identidad devolvió un error."))
         return body
 
+    async def iniciar_activacion_movil(
+        self,
+        correo: str,
+        dispositivo: dict,
+        correlation_id: str,
+    ) -> dict:
+        return await self._post(
+            "/api/v1/identity-service/clientes/activacion-movil/sesiones",
+            {"correo": correo, **dispositivo},
+            headers={"X-Correlation-Id": correlation_id},
+        )
+
     async def aclose(self) -> None:
         await self._client.aclose()
 
-    async def _post(self, path: str, payload: dict) -> dict:
+    async def _post(
+        self, path: str, payload: dict, headers: dict[str, str] | None = None
+    ) -> dict:
         try:
-            response = await self._client.post(path, json=payload)
+            response = await self._client.post(path, json=payload, headers=headers)
         except httpx.HTTPError as exc:
             raise IdentityGatewayError(
                 status_code=503,

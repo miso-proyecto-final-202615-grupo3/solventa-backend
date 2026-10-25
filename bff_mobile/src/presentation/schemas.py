@@ -34,3 +34,22 @@ class LoginResponse(BaseModel):
     token_type: str = "Bearer"
     correo: EmailStr | None = None
     cliente: ClienteMovil | None = None
+
+
+class IniciarActivacionRequest(BaseModel):
+    """Datos del dispositivo; el correo se obtiene del JWT, nunca del body."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    installation_id: uuid.UUID
+    plataforma: str = Field(pattern="^(ANDROID|IOS)$")
+    modelo: str = Field(min_length=1, max_length=100)
+    version_so: str = Field(min_length=1, max_length=20)
+
+
+class IniciarActivacionResponse(BaseModel):
+    dispositivo_vinculado: bool
+    sesion_id: str | None = None
+    expira_en: str | None = None
+    captura: dict | None = None
+    intentos_restantes: int | None = None

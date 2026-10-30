@@ -54,7 +54,7 @@ _redis_client = Redis.from_url(
     decode_responses=True,
 )
 _regla_rating_cache = ReglaRatingCache(_redis_client, settings.RATING_CACHE_TTL_SECONDS)
-_perfil_gateway = IdentityGrpcClient()
+_perfil_gateway: IdentityGrpcClient | None = None
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -67,12 +67,22 @@ def get_regla_rating_cache() -> ReglaRatingCachePort:
 
 
 def get_perfil_cliente_gateway() -> PerfilClienteGateway:
+    if _perfil_gateway is None:
+        raise RuntimeError("El cliente gRPC de identidad no fue inicializado.")
     return _perfil_gateway
 
 
+async def inicializar_recursos() -> None:
+    global _perfil_gateway
+    _perfil_gateway = IdentityGrpcClient()
+
+
 async def cerrar_recursos() -> None:
+    global _perfil_gateway
     await _regla_rating_cache.cerrar()
-    await _perfil_gateway.cerrar()
+    if _perfil_gateway is not None:
+        await _perfil_gateway.cerrar()
+        _perfil_gateway = None
 
 
 def get_regla_rating_resolver(

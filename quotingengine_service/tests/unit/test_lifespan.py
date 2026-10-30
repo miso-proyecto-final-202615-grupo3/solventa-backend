@@ -22,7 +22,11 @@ async def test_lifespan_no_rompe_por_falta_de_bd(monkeypatch):
     async def cerrar():
         cerrado.append(True)
 
+    async def inicializar():
+        return None
+
     monkeypatch.setattr(main, "cerrar_recursos", cerrar)
+    monkeypatch.setattr(main, "inicializar_recursos", inicializar)
 
     async with main.lifespan(None):
         pass

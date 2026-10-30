@@ -10,7 +10,7 @@ from src.core.database import Base, SessionLocal, engine
 from src.core.telemetry import setup_telemetry
 from src.infrastructure.persistence import models  # noqa: F401
 from src.infrastructure.persistence.seed import sembrar_catalogo
-from src.presentation.dependencies import cerrar_recursos
+from src.presentation.dependencies import cerrar_recursos, inicializar_recursos
 from src.presentation.routers import cotizaciones, health, productos
 
 logger = logging.getLogger(__name__)
@@ -33,6 +33,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 await sembrar_catalogo(session)
         except Exception:
             logger.warning("No se pudo cargar el catálogo inicial.", exc_info=True)
+    await inicializar_recursos()
     try:
         yield
     finally:

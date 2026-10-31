@@ -108,7 +108,8 @@ services:
       - .env
     environment:
       PROJECT_NAME: Solventa BFF Mobile
-      ENVIRONMENT: local
+      # El bypass de demostración solo se permite en development.
+      ENVIRONMENT: ${BFF_MOBILE_ENVIRONMENT:-development}
       IDENTITY_SERVICE_URL: ${IDENTITY_SERVICE_URL:-http://identity_service:8000}
       ALLOW_DEMO_ACTIVATION_WITHOUT_JWT: ${ALLOW_DEMO_ACTIVATION_WITHOUT_JWT:-false}
       QUOTINGENGINE_SERVICE_URL: ${QUOTINGENGINE_SERVICE_URL:-http://quotingengine_service:8000}

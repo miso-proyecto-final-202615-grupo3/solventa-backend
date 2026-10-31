@@ -23,10 +23,11 @@ from src.core.config import settings
 from src.infrastructure.configuration import RedisActiveProviderConfiguration
 from src.infrastructure.provider_factory import LivenessProviderFactory
 from src.infrastructure.providers.propio import PropioProvider
+from src.infrastructure.providers.didit import DiditProvider
 
 app = FastAPI(title="Solventa Liveness Adapter", version="0.1.0")
 _sessions: dict[str, dict] = {}
-_factory = LivenessProviderFactory([PropioProvider()])
+_factory = LivenessProviderFactory([PropioProvider()] + ([DiditProvider()] if settings.DIDIT_ENABLED else []))
 _redis = Redis.from_url(settings.REDIS_ENDPOINT, password=settings.REDIS_AUTH_TOKEN or None)
 _active_provider = RedisActiveProviderConfiguration(_redis, settings.LIVENESS_PROVIDER)
 

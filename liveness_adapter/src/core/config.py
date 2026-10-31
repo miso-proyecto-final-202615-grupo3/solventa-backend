@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     PROPIO_MAX_INTEROCULAR_VARIATION: float = 0.25
     PROPIO_MIN_DURATION_SECONDS: float = 0.3
     PROPIO_MAX_DURATION_SECONDS: float = 15.0
+    DIDIT_ENABLED: bool = False
+    DIDIT_BASE_URL: str = "http://mock_kyc:8000"
+    DIDIT_API_KEY: str = ""
+    DIDIT_WORKFLOW_ID: str = ""
+    DIDIT_MAX_SESIONES_DIA: int = 5
+    DIDIT_MAX_SESIONES_MES: int = 100
 
 
 settings = Settings()

@@ -24,12 +24,33 @@ from src.infrastructure.configuration import RedisActiveProviderConfiguration
 from src.infrastructure.provider_factory import LivenessProviderFactory
 from src.infrastructure.providers.propio import PropioProvider
 from src.infrastructure.providers.didit import DiditProvider
+from src.infrastructure.session_store import RedisLivenessSessionStore
 
 app = FastAPI(title="Solventa Liveness Adapter", version="0.1.0")
 _sessions: dict[str, dict] = {}
 _factory = LivenessProviderFactory([PropioProvider()] + ([DiditProvider()] if settings.DIDIT_ENABLED else []))
 _redis = Redis.from_url(settings.REDIS_ENDPOINT, password=settings.REDIS_AUTH_TOKEN or None)
 _active_provider = RedisActiveProviderConfiguration(_redis, settings.LIVENESS_PROVIDER)
+_session_store = RedisLivenessSessionStore(_redis, settings.LIVENESS_SESSION_TTL_SECONDS)
+
+
+async def _save_session(session_id: str, session: dict) -> None:
+    _sessions[session_id] = session
+    try:
+        await _session_store.save(session_id, session)
+    except Exception:
+        # Desarrollo local sin Redis: la sesión sigue siendo válida dentro del proceso.
+        pass
+
+
+async def _get_session(session_id: str) -> dict | None:
+    try:
+        session = await _session_store.get(session_id)
+        if session is not None:
+            return session
+    except Exception:
+        pass
+    return _sessions.get(session_id)
 
 
 class StartRequest(BaseModel):
@@ -61,7 +82,7 @@ async def start_session(
     session_id = str(uuid.uuid4())
     created_at = datetime.now(timezone.utc)
     expires_at = created_at + timedelta(minutes=2)
-    _sessions[session_id] = {
+    session = {
         "customer_id": payload.customer_id,
         "nonce_hash": hashlib.sha256(nonce.encode()).hexdigest(),
         "expires_at": expires_at,
@@ -70,6 +91,7 @@ async def start_session(
         "provider": provider_name,
         "gesture": started.capture.get("reto", {}).get("gesto"),
     }
+    await _save_session(session_id, session)
     return {
         "session_id": session_id,
         "expires_at": expires_at.isoformat(),
@@ -84,7 +106,7 @@ async def start_session(
 )
 async def cancel_session(session_id: str) -> Response:
     """Invalida un reto no usado; cancelar dos veces es seguro."""
-    session = _sessions.get(session_id)
+    session = await _get_session(session_id)
     if session is None:
         raise HTTPException(404, detail={"codigo": "SESION_NO_ENCONTRADA"})
     if session["state"] == "CANCELLED":
@@ -92,6 +114,7 @@ async def cancel_session(session_id: str) -> Response:
     if session["state"] != "CREATED":
         raise HTTPException(409, detail={"codigo": "SESION_INVALIDA"})
     session["state"] = "CANCELLED"
+    await _save_session(session_id, session)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -105,7 +128,9 @@ async def verify_session(
 ) -> dict:
     try:
         data = json.loads(metadata)
-        session = _sessions[data["session_id"]]
+        session = await _get_session(data["session_id"])
+        if session is None:
+            raise KeyError
     except (KeyError, ValueError, TypeError):
         raise HTTPException(404, detail={"codigo": "SESION_NO_ENCONTRADA"})
     if session["state"] != "CREATED" or session["expires_at"] <= datetime.now(timezone.utc):
@@ -139,8 +164,10 @@ async def verify_session(
         result = provider.verify(session, frame_data)
     except ProviderUnavailableError as exc:
         session["state"] = "CANCELLED"
+        await _save_session(data["session_id"], session)
         raise HTTPException(502, detail={"codigo": "PROVEEDOR_NO_DISPONIBLE"}) from exc
     session["state"] = "USED"
+    await _save_session(data["session_id"], session)
     return {
         "verification_id": result.verification_id or f"{session['provider']}-{uuid.uuid4()}",
         "status": "approved" if result.approved else "rejected",

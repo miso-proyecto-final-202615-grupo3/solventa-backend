@@ -43,7 +43,7 @@ class VerificarActivacionMovilUseCase:
         self._ahora = ahora or (lambda: datetime.now(UTC))
         self._margen_verificacion = margen_verificacion
 
-    async def ejecutar(self, correo: str, sesion_id: str, nonce: str, frames: dict[str, bytes], correlation_id: str) -> VerificacionActivacionResultado:
+    async def ejecutar(self, correo: str, sesion_id: str, nonce: str, frames: dict[str, bytes], captured_at: dict[str, str], correlation_id: str) -> VerificacionActivacionResultado:
         cliente = await self._clientes.obtener_por_correo(correo)
         if cliente is None:
             raise SesionActivacionInvalidaError()
@@ -65,7 +65,7 @@ class VerificarActivacionMovilUseCase:
         await self._activaciones.actualizar_estado_sesion(sesion.id, EstadoSesion.EN_VERIFICACION)
         await self._commit()
         try:
-            resultado = await self._liveness.verify(sesion.id, str(cliente.id.value), nonce, frames, correlation_id)
+            resultado = await self._liveness.verify(sesion.id, str(cliente.id.value), nonce, frames, captured_at, correlation_id)
         except LivenessAdapterUnavailableError as exc:
             await self._activaciones.actualizar_estado_intento(
                 intento.id, EstadoIntento.ANULADO, self._ahora(), motivo="PROVEEDOR_NO_DISPONIBLE"

@@ -118,7 +118,7 @@ def crear_use_case(consumidos=0, liveness=None):
 async def test_aprueba_y_retorna_el_contrato_canonico():
     use_case, activaciones, _ = crear_use_case(consumidos=1)
 
-    result = await use_case.ejecutar("ana@example.com", "sesion-1", "nonce", {}, "corr-1")
+    result = await use_case.ejecutar("ana@example.com", "sesion-1", "nonce", {}, {}, "corr-1")
 
     assert result.resultado == "APROBADO"
     assert result.intento == 2
@@ -131,7 +131,7 @@ async def test_rechaza_el_cuarto_intento_antes_de_llamar_al_adaptador():
     use_case, activaciones, _ = crear_use_case(consumidos=3)
 
     with pytest.raises(IntentosActivacionAgotadosError):
-        await use_case.ejecutar("ana@example.com", "sesion-1", "nonce", {}, "corr-1")
+        await use_case.ejecutar("ana@example.com", "sesion-1", "nonce", {}, {}, "corr-1")
 
     assert not activaciones.intentos
     assert activaciones.recuperaciones
@@ -141,7 +141,7 @@ async def test_anula_el_intento_si_el_adaptador_no_esta_disponible():
     use_case, activaciones, commits = crear_use_case(liveness=LivenessFake(unavailable=True))
 
     with pytest.raises(VerificacionPruebaVidaNoDisponibleError):
-        await use_case.ejecutar("ana@example.com", "sesion-1", "nonce", {}, "corr-1")
+        await use_case.ejecutar("ana@example.com", "sesion-1", "nonce", {}, {}, "corr-1")
 
     assert activaciones.estados_intento[-1][1] == EstadoIntento.ANULADO
     assert activaciones.estados_sesion[-1] == ("sesion-1", EstadoSesion.CANCELADA)

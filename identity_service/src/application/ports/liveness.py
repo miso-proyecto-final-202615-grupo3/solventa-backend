@@ -39,6 +39,6 @@ class LivenessVerificationPort(ABC):
 
     @abstractmethod
     async def verify(
-        self, session_id: str, customer_id: str, nonce: str, frames: dict[str, bytes], correlation_id: str
+        self, session_id: str, customer_id: str, nonce: str, frames: dict[str, bytes], captured_at: dict[str, str], correlation_id: str
     ) -> LivenessVerification:
         raise NotImplementedError

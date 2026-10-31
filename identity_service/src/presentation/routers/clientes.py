@@ -1,4 +1,5 @@
 import uuid
+import json
 
 from uuid import uuid4
 
@@ -66,7 +67,7 @@ router = APIRouter(prefix="/clientes", tags=["Clientes"])
 
 @router.post("/activacion-movil/sesiones/{sesion_id}/verificacion", response_model=VerificarActivacionMovilResponse)
 async def verificar_activacion_movil(
-    sesion_id: str, correo: str = Form(...), nonce: str = Form(...),
+    sesion_id: str, correo: str = Form(...), metadata: str = Form(...),
     frame_inicio: UploadFile = File(...), frame_gesto: UploadFile = File(...), frame_fin: UploadFile = File(...),
     correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
     use_case: VerificarActivacionMovilUseCase = Depends(get_verificar_activacion_movil_use_case),
@@ -78,7 +79,10 @@ async def verificar_activacion_movil(
     if any(upload.content_type != "image/jpeg" or not frames[name].startswith(b"\xff\xd8\xff") for name, upload in uploads.items()):
         raise HTTPException(415, detail={"codigo": "FORMATO_NO_SOPORTADO"})
     try:
-        result = await use_case.ejecutar(correo, sesion_id, nonce, frames, correlation_id or str(uuid4()))
+        data = json.loads(metadata)
+        result = await use_case.ejecutar(correo, sesion_id, data["nonce"], frames, data.get("capturas", {}), correlation_id or str(uuid4()))
+    except (KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(422, detail={"codigo": "DATOS_INVALIDOS"}) from exc
     except SesionActivacionInvalidaError as exc:
         raise HTTPException(409, detail={"codigo": "SESION_INVALIDA"}) from exc
     except IntentosActivacionAgotadosError as exc:

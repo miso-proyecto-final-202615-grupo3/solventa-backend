@@ -61,11 +61,11 @@ class IdentityServiceGateway:
             headers={"X-Correlation-Id": correlation_id},
         )
 
-    async def verificar_activacion_movil(self, sesion_id: str, correo: str, nonce: str, frames: dict[str, bytes], correlation_id: str) -> dict:
+    async def verificar_activacion_movil(self, sesion_id: str, correo: str, metadata: str, frames: dict[str, bytes], correlation_id: str) -> dict:
         try:
             response = await self._client.post(
                 f"/api/v1/identity-service/clientes/activacion-movil/sesiones/{sesion_id}/verificacion",
-                data={"correo": correo, "nonce": nonce},
+                data={"correo": correo, "metadata": metadata},
                 files={key: (f"{key}.jpg", value, "image/jpeg") for key, value in frames.items()},
                 headers={"X-Correlation-Id": correlation_id},
             )

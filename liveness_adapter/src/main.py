@@ -56,11 +56,13 @@ async def start_session(
     if not isinstance(nonce, str):
         raise HTTPException(502, detail={"codigo": "PROVEEDOR_NO_DISPONIBLE"})
     session_id = str(uuid.uuid4())
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=2)
+    created_at = datetime.now(timezone.utc)
+    expires_at = created_at + timedelta(minutes=2)
     _sessions[session_id] = {
         "customer_id": payload.customer_id,
         "nonce_hash": hashlib.sha256(nonce.encode()).hexdigest(),
         "expires_at": expires_at,
+        "created_at": created_at,
         "state": "CREATED",
         "provider": provider_name,
         "gesture": started.capture.get("reto", {}).get("gesto"),
@@ -109,6 +111,14 @@ async def verify_session(
         raise HTTPException(404, detail={"codigo": "SESION_NO_ENCONTRADA"})
     if hashlib.sha256(str(data.get("nonce", "")).encode()).hexdigest() != session["nonce_hash"]:
         raise HTTPException(409, detail={"codigo": "SESION_INVALIDA"})
+    try:
+        timestamps = [datetime.fromisoformat(data["capturas"][name].replace("Z", "+00:00")) for name in ("inicio", "gesto", "fin")]
+    except (KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(422, detail={"codigo": "DATOS_INVALIDOS"}) from exc
+    if (timestamps != sorted(timestamps) or timestamps[0] < session["created_at"] or
+            timestamps[-1] > session["expires_at"] or
+            not settings.PROPIO_MIN_DURATION_SECONDS <= (timestamps[-1] - timestamps[0]).total_seconds() <= settings.PROPIO_MAX_DURATION_SECONDS):
+        raise HTTPException(422, detail={"codigo": "CAPTURA_INVALIDA"})
     frames = [frame_inicio, frame_gesto, frame_fin]
     frame_data: dict[str, bytes] = {}
     for frame in frames:

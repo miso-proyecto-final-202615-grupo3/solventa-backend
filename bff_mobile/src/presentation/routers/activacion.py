@@ -1,4 +1,5 @@
 import uuid
+import json
 
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile, status
 
@@ -19,7 +20,7 @@ router = APIRouter(prefix="/activacion", tags=["Activación móvil"])
 
 @router.post("/sesiones/{sesion_id}/verificacion", response_model=VerificarActivacionResponse)
 async def verificar_activacion(
-    sesion_id: str, nonce: str = Form(...),
+    sesion_id: str, metadata: str = Form(...),
     frame_inicio: UploadFile = File(...), frame_gesto: UploadFile = File(...), frame_fin: UploadFile = File(...),
     correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
     cliente: ClienteAutenticado = Depends(get_cliente_autenticado),
@@ -32,7 +33,11 @@ async def verificar_activacion(
     if any(upload.content_type != "image/jpeg" or not frames[name].startswith(b"\xff\xd8\xff") for name, upload in uploads.items()):
         raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, {"codigo": "FORMATO_NO_SOPORTADO"})
     try:
-        result = await gateway.verificar_activacion_movil(sesion_id, cliente.correo, nonce, frames, correlation_id or str(uuid.uuid4()))
+        json.loads(metadata)["nonce"]
+    except (KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, {"codigo": "DATOS_INVALIDOS"}) from exc
+    try:
+        result = await gateway.verificar_activacion_movil(sesion_id, cliente.correo, metadata, frames, correlation_id or str(uuid.uuid4()))
     except IdentityGatewayError as exc:
         raise HTTPException(exc.status_code, exc.detail) from exc
     return VerificarActivacionResponse.model_validate(result)

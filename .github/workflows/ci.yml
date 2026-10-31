@@ -19,6 +19,7 @@ jobs:
           - quotingengine_service
           - bff_web
           - bff_mobile
+          - liveness_adapter
 
     steps:
       - uses: actions/checkout@v4
@@ -67,6 +68,7 @@ jobs:
           - bff_web
           - bff_mobile
           - mock_kyc
+          - liveness_adapter
     needs: test
     steps:
       - uses: actions/checkout@v4

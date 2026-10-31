@@ -31,11 +31,13 @@ jobs:
       fail-fast: false
       matrix:
         service_name:
-          - identity_service
-          - quotingengine_service
           - bff_web
           - bff_mobile
+          - identity_service
+          - quotingengine_service
           - mock_kyc
+          - mock_opendata
+          - mock_openfinance
     env:
       DEPLOYMENT_ENV: ${{ inputs.target_env }}
       AWS_REGION: ${{ secrets.AWS_REGION }}

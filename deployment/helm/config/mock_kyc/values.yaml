@@ -41,7 +41,7 @@ kmsKey:
   enabled: false
 
 config:
-  PROJECT_NAME: Solventa Mock KYC
+  PROJECT_NAME: solventa-mock-kyc
   VERSION: "0.1.0"
   ENVIRONMENT: dev
   MOCK_KYC_STATUS: PASSED

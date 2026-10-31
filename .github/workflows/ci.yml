@@ -15,12 +15,13 @@ jobs:
       fail-fast: false
       matrix:
         service:
-          - identity_service
-          - quotingengine_service
           - bff_web
           - bff_mobile
-          - mock_openfinance
+          - identity_service
+          - quotingengine_service
+          - mock_kyc
           - mock_opendata
+          - mock_openfinance
 
     steps:
       - uses: actions/checkout@v4
@@ -59,19 +60,20 @@ jobs:
 
   build:
     name: Docker Build ${{ matrix.service }}
+    needs: test
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         service:
-          - identity_service
-          - quotingengine_service
           - bff_web
           - bff_mobile
+          - identity_service
+          - quotingengine_service
           - mock_kyc
-          - mock_openfinance
           - mock_opendata
-    needs: test
+          - mock_openfinance
+
     steps:
       - uses: actions/checkout@v4
 

@@ -80,7 +80,7 @@ def get_perfil_cliente_gateway() -> PerfilClienteGateway:
     return _perfil_gateway
 
 
-async def inicializar_recursos() -> None:
+async def inicializar_recursos(app) -> None:
     global _perfil_gateway
     _perfil_gateway = IdentityGrpcClient()
 

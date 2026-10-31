@@ -1,0 +1,5 @@
+image:
+  repository: mock-opendata
+
+config:
+  ENVIRONMENT: qa

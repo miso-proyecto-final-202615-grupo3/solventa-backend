@@ -25,13 +25,6 @@ services:
       OPEN_FINANCE_TIMEOUT_SECONDS: ${OPEN_FINANCE_TIMEOUT_SECONDS:-0.2}
       GRPC_ENABLED: ${GRPC_ENABLED:-true}
       GRPC_PORT: ${GRPC_PORT:-50051}
-      AWS_PROFILE: ${AWS_PROFILE:-}
-      AWS_SDK_LOAD_CONFIG: "1"
-    volumes:
-      - type: bind
-        source: ${USERPROFILE}/.aws
-        target: /root/.aws
-        read_only: true
     depends_on:
       db:
         condition: service_healthy

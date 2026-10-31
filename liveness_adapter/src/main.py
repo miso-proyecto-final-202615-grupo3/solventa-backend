@@ -17,7 +17,7 @@ from fastapi import (
 )
 from pydantic import BaseModel, Field
 
-from src.application.ports import ProviderNotRegisteredError
+from src.application.ports import ProviderNotRegisteredError, ProviderUnavailableError
 from src.core.config import settings
 from src.infrastructure.configuration import InMemoryActiveProviderConfiguration
 from src.infrastructure.provider_factory import LivenessProviderFactory
@@ -35,6 +35,11 @@ class StartRequest(BaseModel):
 
 class ActiveProviderRequest(BaseModel):
     provider: str = Field(min_length=1)
+
+
+@app.get("/api/v1/liveness-adapter/health")
+async def health() -> dict:
+    return {"status": "healthy", "provider": _active_provider.get_active_provider()}
 
 
 @app.post("/api/v1/liveness-adapter/liveness/sessions", status_code=status.HTTP_201_CREATED)
@@ -58,6 +63,7 @@ async def start_session(
         "expires_at": expires_at,
         "state": "CREATED",
         "provider": provider_name,
+        "gesture": started.capture.get("reto", {}).get("gesto"),
     }
     return {
         "session_id": session_id,
@@ -116,7 +122,11 @@ async def verify_session(
         provider = _factory.get(session["provider"])
     except ProviderNotRegisteredError as exc:
         raise HTTPException(500, detail={"codigo": "PROVEEDOR_NO_REGISTRADO"}) from exc
-    result = provider.verify(session, frame_data)
+    try:
+        result = provider.verify(session, frame_data)
+    except ProviderUnavailableError as exc:
+        session["state"] = "CANCELLED"
+        raise HTTPException(502, detail={"codigo": "PROVEEDOR_NO_DISPONIBLE"}) from exc
     session["state"] = "USED"
     return {
         "verification_id": result.verification_id or f"{session['provider']}-{uuid.uuid4()}",

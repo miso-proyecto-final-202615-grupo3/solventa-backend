@@ -26,3 +26,7 @@ class LivenessProvider(Protocol):
 
 class ProviderNotRegisteredError(Exception):
     pass
+
+
+class ProviderUnavailableError(Exception):
+    pass

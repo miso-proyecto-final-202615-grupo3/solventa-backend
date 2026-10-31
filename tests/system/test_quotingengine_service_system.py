@@ -232,7 +232,14 @@ def test_case_2_crear_solicitud_cotizacion():
     solicitud = {
         "cliente_id": CLIENTE_REGISTRADO["id"],
         "producto_codigo": CODIGO_PRODUCTO,
-        "parametros": {"valor_vivienda": 200000000},
+        "parametros": {
+            "saldo_credito": 200000000,
+            "ubicacion": {
+                "municipio": "Bogotá D.C.",
+                "zona": "URBANA",
+                "estrato": 4,
+            },
+        },
     }
     response = _enviar(
         "POST",

@@ -8,6 +8,7 @@ from src.presentation.routers import clientes, consentimientos, health, quotinge
 
 logger = logging.getLogger(__name__)
 
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,

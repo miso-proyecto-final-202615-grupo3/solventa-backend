@@ -33,11 +33,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 await sembrar_catalogo(session)
         except Exception:
             logger.warning("No se pudo cargar el catálogo inicial.", exc_info=True)
-    await inicializar_recursos()
+    await inicializar_recursos(app)
     try:
         yield
     finally:
-        await cerrar_recursos()
+        await cerrar_recursos(app)
 
 
 app = FastAPI(

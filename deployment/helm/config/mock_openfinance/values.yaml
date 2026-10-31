@@ -1,0 +1,61 @@
+replicaCount: 1
+fullnameOverride: mock-openfinance
+
+containerName: backend-service
+serviceAccountName: solventa-app-sa
+
+image:
+  repository: mock-openfinance
+  pullPolicy: Always
+  tag: "latest"
+
+http:
+  containerPort: 8000
+  servicePort: 80
+
+probes:
+  readiness:
+    path: /docs
+    port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  liveness:
+    path: /docs
+    port: http
+    initialDelaySeconds: 20
+    periodSeconds: 20
+
+database:
+  enabled: false
+
+bucket:
+  enabled: false
+
+redis:
+  enabled: false
+
+cognito:
+  enabled: false
+
+kmsKey:
+  enabled: false
+
+config:
+  PROJECT_NAME: solventa-mock-openfinance
+  VERSION: "0.1.0"
+  ENVIRONMENT: dev
+  MOCK_OPENFINANCE_STATUS: AVAILABLE
+  MOCK_OPENFINANCE_DELAY_MS: "0"
+  MOCK_OPENFINANCE_INCOME: "8500000"
+  MOCK_OPENFINANCE_SAVINGS: "25500000"
+  MOCK_OPENFINANCE_DTI: "28"
+  MOCK_OPENFINANCE_OVERDRAFTS: "0"
+  MOCK_OPENFINANCE_SCORE: "820"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

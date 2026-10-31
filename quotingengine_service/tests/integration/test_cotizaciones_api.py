@@ -9,6 +9,7 @@ from src.application.ports.perfil_cliente_gateway import (
     ConsentimientoNoOtorgadoError,
     PerfilNoDisponibleError,
 )
+from src.application.ports.open_data_gateway import OpenDataNoDisponibleError
 from src.core.config import settings
 from src.infrastructure.persistence.seed import sembrar_catalogo
 from tests.fakes import FakePerfilGateway
@@ -25,7 +26,14 @@ def _payload(**extra):
     return {
         "cliente_id": str(uuid.uuid4()),
         "producto_codigo": "VIDA_HIPOTECARIO",
-        "parametros": {"valor_vivienda": 200000000},
+        "parametros": {
+            "saldo_credito": 200000000,
+            "ubicacion": {
+                "municipio": "Bogotá D.C.",
+                "zona": "URBANA",
+                "estrato": 4,
+            },
+        },
         **extra,
     }
 
@@ -42,14 +50,50 @@ async def test_cotiza_vida_hipotecario(
     assert data["producto_codigo"] == "VIDA_HIPOTECARIO"
     assert data["moneda"] == "COP"
     assert float(data["prima_base"]) == 50000.0
-    assert data["ajustes"] == []
+    assert float(data["prima_neta"]) == 40375.0
+    assert [(a["concepto"], a["tipo"], float(a["valor"])) for a in data["ajustes"]] == [
+        ("OPEN_FINANCE", "DEDUCCION", 7500.0),
+        ("OPEN_DATA", "DEDUCCION", 2125.0),
+    ]
     assert data["impuestos"][0]["concepto"] == "IVA"
-    assert float(data["impuestos"][0]["valor"]) == 9500.0
-    assert float(data["prima_total"]) == 59500.0
+    assert float(data["impuestos"][0]["valor"]) == 7671.25
+    assert float(data["prima_total"]) == 48046.25
     assert data["degradada"] is False
     assert len(data["coberturas"]) == 2
-    assert sum(float(c["prima"]) for c in data["coberturas"]) == pytest.approx(59500.0)
+    assert sum(float(c["prima"]) for c in data["coberturas"]) == pytest.approx(48046.25)
     assert fake_gateway.llamadas == [uuid.UUID(payload["cliente_id"])]
+
+
+async def test_open_data_usa_cache_territorial_si_proveedor_no_disponible(
+    api_client: AsyncClient,
+    fake_open_data_gateway,
+):
+    primera = await api_client.post(BASE, json=_payload())
+    assert primera.status_code == 201
+    fake_open_data_gateway.error = OpenDataNoDisponibleError()
+
+    respuesta = await api_client.post(BASE, json=_payload())
+
+    assert respuesta.status_code == 201
+    data = respuesta.json()
+    assert float(data["prima_total"]) == 48046.25
+    assert data["degradada"] is True
+    assert data["motivos_degradacion"] == ["OPEN_DATA_CACHE"]
+
+
+async def test_open_data_sin_cache_aplica_factor_neutral(
+    api_client: AsyncClient,
+    fake_open_data_gateway,
+):
+    fake_open_data_gateway.error = OpenDataNoDisponibleError()
+
+    respuesta = await api_client.post(BASE, json=_payload())
+
+    assert respuesta.status_code == 201
+    data = respuesta.json()
+    assert float(data["prima_total"]) == 50575.0
+    assert data["degradada"] is True
+    assert data["motivos_degradacion"] == ["OPEN_DATA_NO_DISPONIBLE"]
 
 
 async def test_consulta_cotizacion_guardada(api_client: AsyncClient):
@@ -71,7 +115,6 @@ async def test_cotizacion_inexistente(api_client: AsyncClient):
     ("error", "motivo"),
     [
         (PerfilNoDisponibleError(), "PERFIL_NO_DISPONIBLE"),
-        (ConsentimientoNoOtorgadoError(), "PERFIL_SIN_CONSENTIMIENTO"),
     ],
 )
 async def test_degradacion_controlada_sin_perfil(
@@ -85,7 +128,17 @@ async def test_degradacion_controlada_sin_perfil(
     data = response.json()
     assert data["degradada"] is True
     assert data["motivos_degradacion"] == [motivo]
-    assert float(data["prima_total"]) == 59500.0
+    assert float(data["prima_total"]) == 56525.0
+
+
+async def test_consentimiento_inactivo_rechaza_cotizacion(
+    api_client: AsyncClient, fake_gateway: FakePerfilGateway
+):
+    fake_gateway.error = ConsentimientoNoOtorgadoError()
+
+    response = await api_client.post(BASE, json=_payload())
+
+    assert response.status_code == 403
 
 
 async def test_cliente_inexistente(
@@ -123,13 +176,26 @@ async def test_cotiza_otros_ramos_sin_consultar_perfil(
 
 @pytest.mark.parametrize(
     "parametros",
-    [{}, {"valor_vivienda": "abc"}, {"valor_vivienda": 0}, {"valor_vivienda": None}],
+    [
+        {},
+        {"saldo_credito": "abc", "ubicacion": _payload()["parametros"]["ubicacion"]},
+        {"saldo_credito": 0, "ubicacion": _payload()["parametros"]["ubicacion"]},
+        {"saldo_credito": None, "ubicacion": _payload()["parametros"]["ubicacion"]},
+    ],
 )
 async def test_parametros_invalidos(api_client: AsyncClient, parametros):
     response = await api_client.post(BASE, json=_payload(parametros=parametros))
 
     assert response.status_code == 422
-    assert "valor_vivienda" in response.json()["detail"][0]
+
+
+async def test_rechaza_ubicacion_con_tipo_invalido(api_client: AsyncClient):
+    payload = _payload()
+    payload["parametros"]["ubicacion"]["zona"] = []
+
+    response = await api_client.post(BASE, json=payload)
+
+    assert response.status_code == 422
 
 
 async def test_ramo_inexistente(api_client: AsyncClient):

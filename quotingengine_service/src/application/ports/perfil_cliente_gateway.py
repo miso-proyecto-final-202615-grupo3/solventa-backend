@@ -2,6 +2,7 @@ import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal
 
 
 class PerfilClienteError(Exception):
@@ -13,7 +14,7 @@ class ClienteNoEncontradoError(PerfilClienteError):
 
 
 class ConsentimientoNoOtorgadoError(PerfilClienteError):
-    """El cliente no autorizó el uso de sus datos: se cotiza sin personalizar."""
+    """El cliente no autorizó el uso de sus datos financieros."""
 
 
 class PerfilNoDisponibleError(PerfilClienteError):
@@ -32,6 +33,12 @@ class PerfilCliente:
     pais_residencia: str
     telefono: str
     estado_kyc: str
+    open_finance_disponible: bool = True
+    ingreso_mensual: Decimal | None = None
+    ahorros_liquidos: Decimal | None = None
+    dti_pct: Decimal | None = None
+    sobregiros_12_meses: int | None = None
+    score: int | None = None
 
 
 class PerfilClienteGateway(ABC):

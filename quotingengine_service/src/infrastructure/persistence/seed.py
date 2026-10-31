@@ -46,21 +46,33 @@ def _parametro(
     }
 
 
+def _parametro_ubicacion() -> dict[str, Any]:
+    return {
+        "nombre": "ubicacion",
+        "etiqueta": "Ubicación de la vivienda",
+        "descripcion": "Municipio, zona y estrato del inmueble asegurado.",
+        "tipo": "object",
+        "requerido": True,
+    }
+
+
 def _regla(
     tasa_base: str,
-    parametro: dict[str, Any],
+    parametro: dict[str, Any] | list[dict[str, Any]],
     fuentes: list[str],
     descripcion_legal: str,
 ) -> dict[str, Any]:
     nombres_fuentes = " y ".join(
         {"OPEN_FINANCE": "Open Finance", "OPEN_DATA": "Open Data"}[f] for f in fuentes
     )
+    parametros = parametro if isinstance(parametro, list) else [parametro]
+    parametro_monto = next(p["nombre"] for p in parametros if p["tipo"] != "object")
     return {
         "moneda": "COP",
         "tasa_base": tasa_base,
         "iva": "0.19",
-        "parametro_monto": parametro["nombre"],
-        "parametros": [parametro],
+        "parametro_monto": parametro_monto,
+        "parametros": parametros,
         "fuentes_datos": fuentes,
         "mensaje_legal": descripcion_legal + _AVISO.format(fuentes=nombres_fuentes),
     }
@@ -86,11 +98,14 @@ CATALOGO: list[dict[str, Any]] = [
         ],
         "regla": _regla(
             "0.00025",
-            _parametro(
-                "valor_vivienda",
-                "Valor de la vivienda",
-                "Monto asegurado: valor de la vivienda o saldo del crédito hipotecario.",
-            ),
+            [
+                _parametro(
+                    "saldo_credito",
+                    "Saldo pendiente del crédito",
+                    "Monto asegurado correspondiente al saldo pendiente del crédito hipotecario.",
+                ),
+                _parametro_ubicacion(),
+            ],
             ["OPEN_FINANCE", "OPEN_DATA"],
             "Cubre la cancelación de la deuda hipotecaria restante en caso de "
             "fallecimiento o invalidez del asegurado.",

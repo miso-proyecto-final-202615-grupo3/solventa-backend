@@ -1,0 +1,57 @@
+replicaCount: 1
+fullnameOverride: mock-opendata
+
+containerName: backend-service
+serviceAccountName: solventa-app-sa
+
+image:
+  repository: mock-opendata
+  pullPolicy: Always
+  tag: "latest"
+
+http:
+  containerPort: 8000
+  servicePort: 80
+
+probes:
+  readiness:
+    path: /docs
+    port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  liveness:
+    path: /docs
+    port: http
+    initialDelaySeconds: 20
+    periodSeconds: 20
+
+database:
+  enabled: false
+
+bucket:
+  enabled: false
+
+redis:
+  enabled: false
+
+cognito:
+  enabled: false
+
+kmsKey:
+  enabled: false
+
+config:
+  PROJECT_NAME: solventa-mock-opendata
+  VERSION: "0.1.0"
+  ENVIRONMENT: dev
+  MOCK_OPENDATA_STATUS: AVAILABLE
+  MOCK_OPENDATA_DELAY_MS: "0"
+  MOCK_OPENDATA_CATEGORY: ""
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

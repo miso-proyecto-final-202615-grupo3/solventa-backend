@@ -11,7 +11,7 @@ class ObtenerPerfilClienteRequest(_message.Message):
     def __init__(self, cliente_id: _Optional[str] = ...) -> None: ...
 
 class PerfilClienteResponse(_message.Message):
-    __slots__ = ("id", "nombres", "apellidos", "tipo_documento", "numero_identificacion", "correo", "fecha_nacimiento", "pais_residencia", "telefono", "estado_kyc")
+    __slots__ = ("id", "nombres", "apellidos", "tipo_documento", "numero_identificacion", "correo", "fecha_nacimiento", "pais_residencia", "telefono", "estado_kyc", "open_finance_disponible", "ingreso_mensual", "ahorros_liquidos", "dti_pct", "sobregiros_12_meses", "score")
     ID_FIELD_NUMBER: _ClassVar[int]
     NOMBRES_FIELD_NUMBER: _ClassVar[int]
     APELLIDOS_FIELD_NUMBER: _ClassVar[int]
@@ -22,6 +22,12 @@ class PerfilClienteResponse(_message.Message):
     PAIS_RESIDENCIA_FIELD_NUMBER: _ClassVar[int]
     TELEFONO_FIELD_NUMBER: _ClassVar[int]
     ESTADO_KYC_FIELD_NUMBER: _ClassVar[int]
+    OPEN_FINANCE_DISPONIBLE_FIELD_NUMBER: _ClassVar[int]
+    INGRESO_MENSUAL_FIELD_NUMBER: _ClassVar[int]
+    AHORROS_LIQUIDOS_FIELD_NUMBER: _ClassVar[int]
+    DTI_PCT_FIELD_NUMBER: _ClassVar[int]
+    SOBREGIROS_12_MESES_FIELD_NUMBER: _ClassVar[int]
+    SCORE_FIELD_NUMBER: _ClassVar[int]
     id: str
     nombres: str
     apellidos: str
@@ -32,4 +38,10 @@ class PerfilClienteResponse(_message.Message):
     pais_residencia: str
     telefono: str
     estado_kyc: str
-    def __init__(self, id: _Optional[str] = ..., nombres: _Optional[str] = ..., apellidos: _Optional[str] = ..., tipo_documento: _Optional[str] = ..., numero_identificacion: _Optional[str] = ..., correo: _Optional[str] = ..., fecha_nacimiento: _Optional[str] = ..., pais_residencia: _Optional[str] = ..., telefono: _Optional[str] = ..., estado_kyc: _Optional[str] = ...) -> None: ...
+    open_finance_disponible: bool
+    ingreso_mensual: str
+    ahorros_liquidos: str
+    dti_pct: str
+    sobregiros_12_meses: int
+    score: int
+    def __init__(self, id: _Optional[str] = ..., nombres: _Optional[str] = ..., apellidos: _Optional[str] = ..., tipo_documento: _Optional[str] = ..., numero_identificacion: _Optional[str] = ..., correo: _Optional[str] = ..., fecha_nacimiento: _Optional[str] = ..., pais_residencia: _Optional[str] = ..., telefono: _Optional[str] = ..., estado_kyc: _Optional[str] = ..., open_finance_disponible: _Optional[bool] = ..., ingreso_mensual: _Optional[str] = ..., ahorros_liquidos: _Optional[str] = ..., dti_pct: _Optional[str] = ..., sobregiros_12_meses: _Optional[int] = ..., score: _Optional[int] = ...) -> None: ...

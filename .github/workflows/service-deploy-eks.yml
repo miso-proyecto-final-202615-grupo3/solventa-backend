@@ -17,12 +17,14 @@ on:
         required: true
         type: choice
         options:
-          - identity_service
-          - quotingengine_service
           - bff_web
           - bff_mobile
+          - identity_service
+          - quotingengine_service
           - mock_kyc
-        default: greeting_service
+          - mock_opendata
+          - mock_openfinance
+        default: identity_service
 
 permissions:
   contents: read

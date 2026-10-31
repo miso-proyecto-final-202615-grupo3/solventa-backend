@@ -8,9 +8,11 @@ class _EngineSinBD:
 
 async def test_lifespan_no_rompe_por_falta_de_bd(monkeypatch):
     monkeypatch.setattr(main, "engine", _EngineSinBD())
+    monkeypatch.setattr(main.settings, "GRPC_PORT", 0)
 
     async with main.lifespan(None):
         pass
+
 
 async def test_lifespan_inicia_y_detiene_servidor_grpc(monkeypatch):
     eventos = []
@@ -19,7 +21,7 @@ async def test_lifespan_inicia_y_detiene_servidor_grpc(monkeypatch):
         async def stop(self, grace):
             eventos.append("stop")
 
-    async def iniciar(factory, port):
+    async def iniciar(factory, open_finance_gateway, port):
         eventos.append(("start", port))
         return ServidorFalso()
 

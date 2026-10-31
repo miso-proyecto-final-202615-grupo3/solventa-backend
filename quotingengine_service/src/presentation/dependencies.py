@@ -58,6 +58,7 @@ _redis_client = Redis.from_url(
     decode_responses=True,
 )
 _regla_rating_cache = ReglaRatingCache(_redis_client, settings.RATING_CACHE_TTL_SECONDS)
+_perfil_gateway: IdentityGrpcClient | None = None
 _open_data_http = httpx.AsyncClient(timeout=settings.OPEN_DATA_TIMEOUT_SECONDS)
 _open_data_cache = OpenDataRedisCache(
     _redis_client, settings.OPEN_DATA_CACHE_TTL_SECONDS
@@ -73,13 +74,15 @@ def get_regla_rating_cache() -> ReglaRatingCachePort:
     return _regla_rating_cache
 
 
-def iniciar_recursos(app) -> None:
-    # grpc.aio channels must be created on the application's running event loop.
-    app.state.perfil_cliente_gateway = IdentityGrpcClient()
+def get_perfil_cliente_gateway() -> PerfilClienteGateway:
+    if _perfil_gateway is None:
+        raise RuntimeError("El cliente gRPC de identidad no fue inicializado.")
+    return _perfil_gateway
 
 
-def get_perfil_cliente_gateway(request: Request) -> PerfilClienteGateway:
-    return request.app.state.perfil_cliente_gateway
+async def inicializar_recursos() -> None:
+    global _perfil_gateway
+    _perfil_gateway = IdentityGrpcClient()
 
 
 def get_open_data_gateway() -> OpenDataGateway:
@@ -90,9 +93,12 @@ def get_open_data_cache() -> OpenDataCachePort:
     return _open_data_cache
 
 
-async def cerrar_recursos(app) -> None:
+async def cerrar_recursos() -> None:
+    global _perfil_gateway
     await _regla_rating_cache.cerrar()
-    await app.state.perfil_cliente_gateway.cerrar()
+    if _perfil_gateway is not None:
+        await _perfil_gateway.cerrar()
+        _perfil_gateway = None
     await _open_data_http.aclose()
 
 

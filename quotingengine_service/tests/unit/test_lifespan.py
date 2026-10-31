@@ -19,13 +19,13 @@ async def test_lifespan_no_rompe_por_falta_de_bd(monkeypatch):
     monkeypatch.setattr(main, "SessionLocal", _SesionSinBD)
     eventos = []
 
-    def iniciar(app):
+    async def inicializar(app):
         eventos.append("start")
 
     async def cerrar(app):
         eventos.append("stop")
 
-    monkeypatch.setattr(main, "iniciar_recursos", iniciar)
+    monkeypatch.setattr(main, "inicializar_recursos", inicializar)
     monkeypatch.setattr(main, "cerrar_recursos", cerrar)
 
     async with main.lifespan(main.FastAPI()):

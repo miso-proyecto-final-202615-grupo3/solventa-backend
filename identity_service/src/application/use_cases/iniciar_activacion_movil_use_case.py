@@ -121,7 +121,7 @@ class IniciarActivacionMovilUseCase:
             dispositivo_vinculado=False,
             sesion_id=sesion.id,
             expira_en=sesion.expira_en,
-            captura=info.capture,
+            captura=self.normalizar_captura(info.capture),
             intentos_restantes=self._politica.intentos_restantes(consumidos),
         )
 
@@ -131,7 +131,7 @@ class IniciarActivacionMovilUseCase:
     ) -> SesionActivacion:
         try:
             expira_en = datetime.fromisoformat(info.expires_at.replace("Z", "+00:00"))
-            tipo_captura = info.capture.get("type", info.capture.get("kind"))
+            tipo_captura = info.capture.get("tipo", info.capture.get("type", info.capture.get("kind")))
         except (AttributeError, ValueError) as exc:
             raise LivenessAdapterUnavailableError() from exc
         if not isinstance(tipo_captura, str):
@@ -145,3 +145,15 @@ class IniciarActivacionMovilUseCase:
             creada_en=creada_en,
             expira_en=expira_en,
         )
+
+    @staticmethod
+    def normalizar_captura(captura: dict) -> dict:
+        """Expone al consumidor móvil únicamente el contrato canónico en español."""
+        tipo = captura.get("tipo", captura.get("type", captura.get("kind")))
+        reto = captura.get("reto", captura.get("challenge"))
+        resultado = {"tipo": tipo}
+        if reto is not None:
+            resultado["reto"] = reto
+        if "sdk" in captura:
+            resultado["sdk"] = captura["sdk"]
+        return resultado

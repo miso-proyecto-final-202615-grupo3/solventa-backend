@@ -107,6 +107,10 @@ class IniciarActivacionMovilResponse(BaseModel):
 
 
 class VerificarActivacionMovilResponse(BaseModel):
-    aprobada: bool
+    resultado: str
     folio: str | None = None
+    intento: int
+    intentos_restantes: int
+    dispositivo_vinculado: bool
+    vinculado_en: datetime | None = None
     motivo: str | None = None

@@ -133,8 +133,12 @@ def get_kyc_verifier() -> KycVerifier:
     return KycHttpClient()
 
 
-def get_liveness_verifier() -> LivenessVerificationPort:
-    return HttpLivenessAdapterClient()
+async def get_liveness_verifier() -> AsyncGenerator[LivenessVerificationPort, None]:
+    client = HttpLivenessAdapterClient()
+    try:
+        yield client
+    finally:
+        await client.aclose()
 
 
 def get_consentimiento_biometrico() -> ConsentimientoBiometricoPort:

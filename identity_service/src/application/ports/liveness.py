@@ -37,6 +37,7 @@ class LivenessVerificationPort(ABC):
     async def cancel_session(self, session_id: str, correlation_id: str) -> None:
         raise NotImplementedError
 
+    @abstractmethod
     async def verify(
         self, session_id: str, customer_id: str, nonce: str, frames: dict[str, bytes], correlation_id: str
     ) -> LivenessVerification:

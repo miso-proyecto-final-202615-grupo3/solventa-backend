@@ -34,7 +34,8 @@ from src.application.use_cases.iniciar_activacion_movil_use_case import (
     IntentosAgotadosError,
 )
 from src.application.use_cases.verificar_activacion_movil_use_case import (
-    SesionActivacionInvalidaError, VerificarActivacionMovilUseCase,
+    IntentosActivacionAgotadosError, SesionActivacionInvalidaError,
+    VerificacionPruebaVidaNoDisponibleError, VerificarActivacionMovilUseCase,
 )
 from src.domain.activacion_movil.entities import DatosDispositivo
 from src.domain.clientes.entities import Cliente
@@ -77,7 +78,16 @@ async def verificar_activacion_movil(
         result = await use_case.ejecutar(correo, sesion_id, nonce, frames, correlation_id or str(uuid4()))
     except SesionActivacionInvalidaError as exc:
         raise HTTPException(409, detail={"codigo": "SESION_INVALIDA"}) from exc
-    return VerificarActivacionMovilResponse(aprobada=result.aprobada, folio=result.folio, motivo=result.motivo)
+    except IntentosActivacionAgotadosError as exc:
+        raise HTTPException(429, detail={"codigo": "INTENTOS_AGOTADOS"}) from exc
+    except VerificacionPruebaVidaNoDisponibleError as exc:
+        raise HTTPException(503, detail={"codigo": "PROVEEDOR_NO_DISPONIBLE"}) from exc
+    return VerificarActivacionMovilResponse(
+        resultado=result.resultado, folio=result.folio, intento=result.intento,
+        intentos_restantes=result.intentos_restantes,
+        dispositivo_vinculado=result.dispositivo_vinculado,
+        vinculado_en=result.vinculado_en, motivo=result.motivo,
+    )
 
 
 @router.post(

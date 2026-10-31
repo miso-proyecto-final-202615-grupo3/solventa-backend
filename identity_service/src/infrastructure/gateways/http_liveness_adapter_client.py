@@ -1,3 +1,5 @@
+import json
+
 import httpx
 
 from src.application.ports.liveness import (
@@ -54,7 +56,7 @@ class HttpLivenessAdapterClient(LivenessVerificationPort):
         try:
             response = await self._client.post(
                 "/api/v1/liveness-adapter/liveness/verifications",
-                data={"metadata": __import__("json").dumps({"session_id": session_id, "customer_id": customer_id, "nonce": nonce})},
+                data={"metadata": json.dumps({"session_id": session_id, "customer_id": customer_id, "nonce": nonce})},
                 files={name: (f"{name}.jpg", content, "image/jpeg") for name, content in frames.items()},
                 headers={"X-Correlation-Id": correlation_id},
             )

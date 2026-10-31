@@ -57,6 +57,10 @@ class IniciarActivacionResponse(BaseModel):
 
 
 class VerificarActivacionResponse(BaseModel):
-    aprobada: bool
+    resultado: str
     folio: str | None = None
+    intento: int
+    intentos_restantes: int
+    dispositivo_vinculado: bool
+    vinculado_en: str | None = None
     motivo: str | None = None

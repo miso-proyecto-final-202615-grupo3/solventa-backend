@@ -4,7 +4,7 @@ from uuid import uuid4
 import pytest
 
 from src.application.ports.consentimiento_biometrico import ConsentimientoBiometricoPort
-from src.application.ports.liveness import LivenessSessionInfo, LivenessVerificationPort
+from src.application.ports.liveness import LivenessSessionInfo, LivenessVerification, LivenessVerificationPort
 from src.application.use_cases.iniciar_activacion_movil_use_case import (
     ClienteNoRegistradoError,
     ConsentimientoBiometricoRequeridoError,
@@ -100,6 +100,9 @@ class LivenessFake(LivenessVerificationPort):
 
     async def cancel_session(self, session_id, correlation_id):
         self.canceladas.append(session_id)
+
+    async def verify(self, session_id, customer_id, nonce, frames, correlation_id):
+        return LivenessVerification("folio", True)
 
 
 def _use_case(cliente=None, activaciones=None, consentimiento=None, liveness=None):

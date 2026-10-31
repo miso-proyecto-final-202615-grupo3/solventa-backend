@@ -9,7 +9,7 @@ from src.infrastructure.gateways.identity_service_gateway import (
 from src.infrastructure.gateways.quotingengine_service_gateway import (
     QuotingEngineServiceGateway,
 )
-from src.presentation.jwt_validator import ClienteAutenticado, CognitoJwtValidator, InvalidJwtError
+from src.presentation.jwt_validator import ClienteAutenticado, InvalidJwtError, get_cognito_jwt_validator
 
 
 def demo_sin_jwt_habilitada() -> bool:
@@ -25,7 +25,7 @@ def get_cliente_autenticado(
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Se requiere un token Bearer válido.")
     try:
-        return CognitoJwtValidator().validar(authorization.removeprefix("Bearer "))
+        return get_cognito_jwt_validator().validar(authorization.removeprefix("Bearer "))
     except InvalidJwtError as exc:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Token inválido o vencido.") from exc
 

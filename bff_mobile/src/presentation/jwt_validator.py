@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 import jwt
 from jwt import PyJWKClient
+from functools import lru_cache
 
 from src.core.config import settings
 
@@ -26,7 +27,7 @@ class CognitoJwtValidator:
             f"https://cognito-idp.{settings.COGNITO_REGION}.amazonaws.com/"
             f"{settings.COGNITO_USER_POOL_ID}"
         )
-        self._jwks = PyJWKClient(f"{self._issuer}/.well-known/jwks.json")
+        self._jwks = PyJWKClient(f"{self._issuer}/.well-known/jwks.json", cache_keys=True, lifespan=settings.COGNITO_JWKS_TTL_SECONDS)
 
     def validar(self, token: str) -> ClienteAutenticado:
         try:
@@ -42,13 +43,7 @@ class CognitoJwtValidator:
             raise InvalidJwtError("Token inválido o vencido.") from exc
 
         token_use = claims.get("token_use")
-        if token_use == "id":
-            if claims.get("aud") != settings.COGNITO_CLIENT_ID:
-                raise InvalidJwtError("El token no pertenece al cliente configurado.")
-        elif token_use == "access":
-            if claims.get("client_id") != settings.COGNITO_CLIENT_ID:
-                raise InvalidJwtError("El token no pertenece al cliente configurado.")
-        else:
+        if token_use != "access" or claims.get("client_id") != settings.COGNITO_CLIENT_ID:
             raise InvalidJwtError("Tipo de token no permitido.")
 
         correo = claims.get("email") or claims.get("username")
@@ -56,3 +51,8 @@ class CognitoJwtValidator:
         if not isinstance(correo, str) or not isinstance(subject, str):
             raise InvalidJwtError("El token no contiene la identidad del cliente.")
         return ClienteAutenticado(correo=correo, subject=subject)
+
+
+@lru_cache(maxsize=1)
+def get_cognito_jwt_validator() -> CognitoJwtValidator:
+    return CognitoJwtValidator()

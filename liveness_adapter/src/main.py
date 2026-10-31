@@ -17,6 +17,7 @@ from fastapi import (
 )
 from pydantic import BaseModel, Field
 from redis.asyncio import Redis
+from starlette.concurrency import run_in_threadpool
 
 from src.application.ports import ProviderNotRegisteredError, ProviderUnavailableError
 from src.core.config import settings
@@ -147,21 +148,29 @@ async def verify_session(
             timestamps[-1] > session["expires_at"] or
             not settings.PROPIO_MIN_DURATION_SECONDS <= (timestamps[-1] - timestamps[0]).total_seconds() <= settings.PROPIO_MAX_DURATION_SECONDS):
         raise HTTPException(422, detail={"codigo": "CAPTURA_INVALIDA"})
-    frames = [frame_inicio, frame_gesto, frame_fin]
+    uploads = {"frame_inicio": frame_inicio, "frame_gesto": frame_gesto, "frame_fin": frame_fin}
     frame_data: dict[str, bytes] = {}
-    for frame in frames:
+    for name, frame in uploads.items():
         content = await frame.read(settings.MAX_FRAME_BYTES + 1)
         if frame.content_type != "image/jpeg" or not content.startswith(b"\xff\xd8\xff"):
             raise HTTPException(415, detail={"codigo": "FORMATO_NO_SOPORTADO"})
         if len(content) > settings.MAX_FRAME_BYTES:
             raise HTTPException(413, detail={"codigo": "CAPTURA_DEMASIADO_GRANDE"})
-        frame_data[frame.filename.rsplit(".", 1)[0]] = content
+        frame_data[name] = content
+    try:
+        transitioned = await _session_store.transition(data["session_id"], "CREATED", "VERIFYING")
+    except Exception:
+        transitioned = session["state"] == "CREATED"
+    if not transitioned:
+        raise HTTPException(409, detail={"codigo": "SESION_INVALIDA"})
+    session["state"] = "VERIFYING"
+    await _save_session(data["session_id"], session)
     try:
         provider = _factory.get(session["provider"])
     except ProviderNotRegisteredError as exc:
         raise HTTPException(500, detail={"codigo": "PROVEEDOR_NO_REGISTRADO"}) from exc
     try:
-        result = provider.verify(session, frame_data)
+        result = await run_in_threadpool(provider.verify, session, frame_data)
     except ProviderUnavailableError as exc:
         session["state"] = "CANCELLED"
         await _save_session(data["session_id"], session)

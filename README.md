@@ -8,10 +8,11 @@ ambiente y su imagen Docker. Cada servicio se despliega como un pod independient
 
 | Servicio | Descripción | Prefijo de API |
 | --- | --- | --- |
-| `identity_service` | Identidad y registro de clientes | `/api/v1/identity-service` |
 | `bff_web` | Backend For Frontend del cliente web | `/api/v1/bff-web` |
 | `bff_mobile` | Backend For Frontend de la app móvil Android | `/api/v1/bff-mobile` |
-| `liveness_adapter` | Reto y verificación de prueba de vida | `/api/v1/liveness-adapter` |
+| `identity_service` | Identidad y registro de clientes | `/api/v1/identity-service` |
+| `quotingengine_service` | Motor de cotización y suscripción | `/api/v1/quotingengine-service` |
+| `liveness_adapter` | Adaptador de retos y verificación de prueba de vida | `/api/v1/liveness-adapter` |
 
 ## Requisitos
 
@@ -33,8 +34,8 @@ Levantar el servicio desde la raíz del repositorio:
 uvicorn src.main:app --reload --app-dir identity_service
 ```
 
-La API queda en `http://localhost:8000` y el health check en
-`http://localhost:8000/health`.
+La API queda en `http://localhost:8002` y el health check en
+`http://localhost:8002/health`.
 
 ## Pruebas (por servicio)
 
@@ -56,16 +57,15 @@ docker build -f docker/services/Dockerfile.identity_service -t solventa/identity
 
 ## CI/CD
 
-- **CI (`ci.yml`):** corre `pytest` por servicio (`identity_service`, `bff_web`, `bff_mobile`) y build de
-  las imágenes en cada push/PR a `dev` y `main`.
-- **Despliegue:** portado del template de referencia (`template-solventa-backend-services`):
+- **CI (`ci.yml`):** corre `pytest` por servicio y build de las imágenes en cada push/PR a `dev` y `main`.
+- **Despliegue:**
   - Workflows manuales de ECR/EKS: `backend-publish-ecr`, `backend-deploy-eks`,
-    `service-publish-ecr`, `service-deploy-eks`, `eks-setup-init`.
+    `service-publish-ecr`, `service-deploy-eks`, `eks-deploy-base-services`.
   - Helm: chart genérico en `deployment/helm/charts/backend-service` con `values` por servicio
     y ambiente (`deployment/helm/config/<service>/values.<env>.yaml`).
   - Kustomize: SecretStore + ExternalSecrets + ServiceAccount + Ingress ALB en
     `deployment/kuztomize`.
-- Requiere (igual que el template): GitHub Environments (`dev`/`qa`/`prod`) con
+- Requiere: GitHub Environments (`dev`/`qa`/`prod`) con
   `AWS_REGION`, `AWS_ROLE_ARN` y `DATABASE_URL`, y los repos ECR configurados en los `values`.
 
 ## Stack local (Docker Compose)
@@ -83,66 +83,12 @@ docker compose --profile observability up --build
 
 | Servicio | URL local |
 | --- | --- |
-| `identity_service` | `http://localhost:8000` |
-| `bff_web` | `http://localhost:8001` |
-| `bff_mobile` | `http://localhost:8002` (desde el emulador Android: `http://10.0.2.2:8002`) |
+| `bff_web` | `http://localhost:8000` |
+| `bff_mobile` | `http://localhost:8001` (desde el emulador Android: `http://10.0.2.2:8001`) |
+| `identity_service` | `http://localhost:8002` |
+| `quotingengine_service` | `http://localhost:8003` |
 | `mock_kyc` | `http://localhost:8202` |
 | `liveness_adapter` | `http://localhost:8203` |
-
-### BFF Mobile
-
-`POST /api/v1/bff-mobile/auth/login` con `{"correo", "password"}` devuelve
-`access_token`, `refresh_token`, `expires_in`, `token_type` y el `correo` del cliente.
-Credenciales inválidas → `401`; MS Identidad caído → `503`.
-
-### Demostración local de activación sin JWT
-
-Solo para desarrollo local, se puede habilitar el inicio de activación sin JWT.
-No habilites esta opción en QA o producción: la ruta rechaza la solicitud fuera de
-`dev`, `development` o `local` incluso si el flag está activo.
-
-En PowerShell, antes de levantar Compose:
-
-```powershell
-$env:COGNITO_ENABLED = "false"
-$env:ALLOW_DEMO_ACTIVATION_WITHOUT_JWT = "true"
-$env:POSTGRES_DB = "identity_db"
-docker compose up --build -d
-```
-
-Comprueba que los contenedores estén listos:
-
-```powershell
-docker compose ps
-Invoke-RestMethod http://localhost:8000/health
-```
-
-Para crear un reto de prueba de vida, primero registra un cliente y luego llama
-al BFF móvil. La respuesta entrega `sesion_id`, `captura.challenge.gesture` y
-`captura.challenge.nonce`; esos valores sirven para enviar los tres frames JPEG
-al adaptador. La sesión se vence a los dos minutos y un reto nuevo invalida el
-anterior.
-
-```powershell
-$cliente = @{
-  nombres = "Ana"; apellidos = "Perez"; tipo_documento = "CC"
-  numero_identificacion = "1020304050"; correo = "ana.demo@example.com"
-  password = "Secreta123"; consentimiento_datos = $true
-  fecha_nacimiento = "1990-01-01"; pais_residencia = "Colombia"; telefono = "+573001234567"
-} | ConvertTo-Json
-Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/v1/identity-service/clientes/registro -ContentType "application/json" -Body $cliente
-
-$reto = @{
-  correo = "ana.demo@example.com"; installation_id = "11111111-1111-4111-8111-111111111111"
-  plataforma = "ANDROID"; modelo = "Demo device"; version_so = "15"
-} | ConvertTo-Json
-Invoke-RestMethod -Method Post -Uri http://localhost:8002/api/v1/bff-mobile/activacion/sesiones -ContentType "application/json" -Body $reto
-```
-
-La app móvil aún no tiene el cliente ni la pantalla de captura de la prueba de
-vida. Por ahora el flujo puede demostrarse contra este endpoint; la app podrá
-lanzarse para autenticación, pero no iniciará ni enviará la captura hasta que
-se implemente ese bloque Android.
 
 ## Cognito en local vs. EKS
 

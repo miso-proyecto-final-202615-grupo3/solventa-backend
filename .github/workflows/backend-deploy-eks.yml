@@ -32,6 +32,7 @@ jobs:
       matrix:
         service_name:
           - identity_service
+          - quotingengine_service
           - bff_web
           - bff_mobile
           - mock_kyc

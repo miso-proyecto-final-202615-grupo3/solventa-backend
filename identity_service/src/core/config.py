@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     LIVENESS_ADAPTER_URL: str = "http://localhost:8203"
     LIVENESS_ADAPTER_TIMEOUT_SECONDS: float = 15.0
     REQUIRE_BIOMETRIC_CONSENT: bool = False
+    GRPC_ENABLED: bool = False
+    GRPC_PORT: int = 50051
 
     model_config = SettingsConfigDict(
         env_file=".env",

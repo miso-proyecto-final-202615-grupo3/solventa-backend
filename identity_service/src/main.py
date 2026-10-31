@@ -9,7 +9,11 @@ from src.core.config import settings
 from src.core.database import Base, engine
 from src.core.telemetry import setup_telemetry
 from src.infrastructure.persistence import models  # noqa: F401
-from src.presentation.dependencies import cerrar_consentimiento_cache
+from src.presentation.dependencies import (
+    abrir_gestionar_consentimiento_use_case,
+    cerrar_consentimiento_cache,
+)
+from src.presentation.grpc.server import iniciar_servidor_grpc
 from src.presentation.routers import clientes, consentimientos, health
 
 logger = logging.getLogger(__name__)
@@ -28,9 +32,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             "No se pudo crear el esquema en el arranque.",
             exc_info=True,
         )
+    grpc_server = None
+    if settings.GRPC_ENABLED:
+        grpc_server = await iniciar_servidor_grpc(
+            abrir_gestionar_consentimiento_use_case, settings.GRPC_PORT
+        )
     try:
         yield
     finally:
+        if grpc_server is not None:
+            await grpc_server.stop(grace=2)
         await cerrar_consentimiento_cache()
 
 

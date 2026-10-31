@@ -16,17 +16,19 @@ from fastapi import (
     status,
 )
 from pydantic import BaseModel, Field
+from redis.asyncio import Redis
 
 from src.application.ports import ProviderNotRegisteredError, ProviderUnavailableError
 from src.core.config import settings
-from src.infrastructure.configuration import InMemoryActiveProviderConfiguration
+from src.infrastructure.configuration import RedisActiveProviderConfiguration
 from src.infrastructure.provider_factory import LivenessProviderFactory
 from src.infrastructure.providers.propio import PropioProvider
 
 app = FastAPI(title="Solventa Liveness Adapter", version="0.1.0")
 _sessions: dict[str, dict] = {}
 _factory = LivenessProviderFactory([PropioProvider()])
-_active_provider = InMemoryActiveProviderConfiguration(settings.LIVENESS_PROVIDER)
+_redis = Redis.from_url(settings.REDIS_ENDPOINT, password=settings.REDIS_AUTH_TOKEN or None)
+_active_provider = RedisActiveProviderConfiguration(_redis, settings.LIVENESS_PROVIDER)
 
 
 class StartRequest(BaseModel):
@@ -39,14 +41,14 @@ class ActiveProviderRequest(BaseModel):
 
 @app.get("/api/v1/liveness-adapter/health")
 async def health() -> dict:
-    return {"status": "healthy", "provider": _active_provider.get_active_provider()}
+    return {"status": "healthy", "provider": await _active_provider.get_active_provider_async()}
 
 
 @app.post("/api/v1/liveness-adapter/liveness/sessions", status_code=status.HTTP_201_CREATED)
 async def start_session(
     payload: StartRequest, x_correlation_id: str | None = Header(None)
 ) -> dict:
-    provider_name = _active_provider.get_active_provider()
+    provider_name = await _active_provider.get_active_provider_async()
     try:
         provider = _factory.get(provider_name)
     except ProviderNotRegisteredError as exc:
@@ -154,7 +156,7 @@ def _require_admin_token(token: str | None) -> None:
 @app.get("/api/v1/liveness-adapter/admin/liveness-provider")
 async def get_active_provider(x_admin_token: str | None = Header(None)) -> dict:
     _require_admin_token(x_admin_token)
-    return {"provider": _active_provider.get_active_provider()}
+    return {"provider": await _active_provider.get_active_provider_async()}
 
 
 @app.put("/api/v1/liveness-adapter/admin/liveness-provider")
@@ -166,5 +168,5 @@ async def change_active_provider(
         _factory.get(payload.provider)
     except ProviderNotRegisteredError as exc:
         raise HTTPException(422, detail={"codigo": "PROVEEDOR_NO_REGISTRADO"}) from exc
-    _active_provider.set_active_provider(payload.provider)
+    await _active_provider.set_active_provider_async(payload.provider)
     return {"provider": payload.provider}

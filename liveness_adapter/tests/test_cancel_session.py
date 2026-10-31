@@ -1,31 +1,46 @@
 import pytest
 from fastapi import HTTPException
 
-from src.main import _sessions, cancel_session
+import src.main as main
 
 
-async def test_cancela_sesion_creada_de_forma_idempotente():
-    _sessions["sesion-1"] = {"state": "CREATED"}
+@pytest.fixture
+def sessions(monkeypatch):
+    values = {}
 
-    response = await cancel_session("sesion-1")
-    repeated_response = await cancel_session("sesion-1")
+    async def get(session_id):
+        return values.get(session_id)
+
+    async def save(session_id, session):
+        values[session_id] = session
+
+    monkeypatch.setattr(main, "_get_session", get)
+    monkeypatch.setattr(main, "_save_session", save)
+    return values
+
+
+async def test_cancela_sesion_creada_de_forma_idempotente(sessions):
+    sessions["sesion-1"] = {"state": "CREATED"}
+
+    response = await main.cancel_session("sesion-1")
+    repeated_response = await main.cancel_session("sesion-1")
 
     assert response.status_code == 204
     assert repeated_response.status_code == 204
-    assert _sessions["sesion-1"]["state"] == "CANCELLED"
+    assert sessions["sesion-1"]["state"] == "CANCELLED"
 
 
-async def test_rechaza_cancelar_sesion_ya_usada():
-    _sessions["sesion-usada"] = {"state": "USED"}
+async def test_rechaza_cancelar_sesion_ya_usada(sessions):
+    sessions["sesion-usada"] = {"state": "USED"}
 
     with pytest.raises(HTTPException) as error:
-        await cancel_session("sesion-usada")
+        await main.cancel_session("sesion-usada")
 
     assert error.value.status_code == 409
 
 
-async def test_rechaza_sesion_inexistente():
+async def test_rechaza_sesion_inexistente(sessions):
     with pytest.raises(HTTPException) as error:
-        await cancel_session("desconocida")
+        await main.cancel_session("desconocida")
 
     assert error.value.status_code == 404

@@ -28,7 +28,6 @@ from src.infrastructure.providers.didit import DiditProvider
 from src.infrastructure.session_store import RedisLivenessSessionStore
 
 app = FastAPI(title="Solventa Liveness Adapter", version="0.1.0")
-_sessions: dict[str, dict] = {}
 _factory = LivenessProviderFactory([PropioProvider()] + ([DiditProvider()] if settings.DIDIT_ENABLED else []))
 _redis = Redis.from_url(settings.REDIS_ENDPOINT, password=settings.REDIS_AUTH_TOKEN or None)
 _active_provider = RedisActiveProviderConfiguration(_redis, settings.LIVENESS_PROVIDER)
@@ -36,22 +35,17 @@ _session_store = RedisLivenessSessionStore(_redis, settings.LIVENESS_SESSION_TTL
 
 
 async def _save_session(session_id: str, session: dict) -> None:
-    _sessions[session_id] = session
     try:
         await _session_store.save(session_id, session)
-    except Exception:
-        # Desarrollo local sin Redis: la sesión sigue siendo válida dentro del proceso.
-        pass
+    except Exception as exc:
+        raise HTTPException(503, detail={"codigo": "SERVICIO_NO_DISPONIBLE"}) from exc
 
 
 async def _get_session(session_id: str) -> dict | None:
     try:
-        session = await _session_store.get(session_id)
-        if session is not None:
-            return session
-    except Exception:
-        pass
-    return _sessions.get(session_id)
+        return await _session_store.get(session_id)
+    except Exception as exc:
+        raise HTTPException(503, detail={"codigo": "SERVICIO_NO_DISPONIBLE"}) from exc
 
 
 class StartRequest(BaseModel):

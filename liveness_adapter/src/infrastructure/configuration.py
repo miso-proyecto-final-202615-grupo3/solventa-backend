@@ -12,7 +12,7 @@ class InMemoryActiveProviderConfiguration:
 
 
 class RedisActiveProviderConfiguration(InMemoryActiveProviderConfiguration):
-    """Persistencia del proveedor activo; conserva el último valor si Redis falla."""
+    """Persistencia del proveedor activo compartida por todos los pods."""
 
     def __init__(self, redis, active_provider: str) -> None:
         super().__init__(active_provider)
@@ -23,13 +23,13 @@ class RedisActiveProviderConfiguration(InMemoryActiveProviderConfiguration):
             value = await self._redis.get("liveness:active_provider")
             if value:
                 self._active_provider = value.decode() if isinstance(value, bytes) else value
-        except Exception:
-            pass
+        except Exception as exc:
+            raise RuntimeError("Redis no está disponible.") from exc
         return self._active_provider
 
     async def set_active_provider_async(self, provider_name: str) -> None:
         self._active_provider = provider_name
         try:
             await self._redis.set("liveness:active_provider", provider_name)
-        except Exception:
-            pass
+        except Exception as exc:
+            raise RuntimeError("Redis no está disponible.") from exc

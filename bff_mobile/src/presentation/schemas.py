@@ -37,12 +37,11 @@ class LoginResponse(BaseModel):
 
 
 class IniciarActivacionRequest(BaseModel):
-    """Datos del dispositivo; el correo se obtiene del JWT, nunca del body."""
+    """Datos del dispositivo; el correo se obtiene exclusivamente del JWT."""
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     installation_id: uuid.UUID
-    correo: EmailStr | None = None
     plataforma: str = Field(pattern="^(ANDROID|IOS)$")
     modelo: str = Field(min_length=1, max_length=100)
     version_so: str = Field(min_length=1, max_length=20)

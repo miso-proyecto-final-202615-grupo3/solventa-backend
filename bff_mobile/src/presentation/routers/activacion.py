@@ -2,12 +2,12 @@ import uuid
 
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile, status
 
-from src.core.config import settings
 from src.infrastructure.gateways.identity_service_gateway import (
     IdentityGatewayError,
     IdentityServiceGateway,
 )
-from src.presentation.dependencies import get_identity_service_gateway
+from src.presentation.dependencies import get_cliente_autenticado, get_identity_service_gateway
+from src.presentation.jwt_validator import ClienteAutenticado
 from src.presentation.schemas import (
     IniciarActivacionRequest,
     IniciarActivacionResponse,
@@ -17,26 +17,19 @@ from src.presentation.schemas import (
 router = APIRouter(prefix="/activacion", tags=["Activación móvil"])
 
 
-def _demo_sin_jwt_habilitada() -> bool:
-    return settings.ENVIRONMENT.lower() in {"development", "dev", "local"} and (
-        settings.ALLOW_DEMO_ACTIVATION_WITHOUT_JWT
-    )
-
-
 @router.post("/sesiones/{sesion_id}/verificacion", response_model=VerificarActivacionResponse)
 async def verificar_activacion(
-    sesion_id: str, correo: str = Form(...), nonce: str = Form(...),
+    sesion_id: str, nonce: str = Form(...),
     frame_inicio: UploadFile = File(...), frame_gesto: UploadFile = File(...), frame_fin: UploadFile = File(...),
     correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
+    cliente: ClienteAutenticado = Depends(get_cliente_autenticado),
     gateway: IdentityServiceGateway = Depends(get_identity_service_gateway),
 ) -> VerificarActivacionResponse:
-    if not _demo_sin_jwt_habilitada():
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Se requiere autenticación para verificar la activación.")
     frames = {"frame_inicio": await frame_inicio.read(524289), "frame_gesto": await frame_gesto.read(524289), "frame_fin": await frame_fin.read(524289)}
     if any(len(value) > 524288 or not value.startswith(b"\xff\xd8\xff") for value in frames.values()):
         raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, {"codigo": "EVIDENCIA_INVALIDA"})
     try:
-        result = await gateway.verificar_activacion_movil(sesion_id, correo, nonce, frames, correlation_id or str(uuid.uuid4()))
+        result = await gateway.verificar_activacion_movil(sesion_id, cliente.correo, nonce, frames, correlation_id or str(uuid.uuid4()))
     except IdentityGatewayError as exc:
         raise HTTPException(exc.status_code, exc.detail) from exc
     return VerificarActivacionResponse.model_validate(result)
@@ -50,22 +43,13 @@ async def verificar_activacion(
 async def iniciar_activacion(
     payload: IniciarActivacionRequest,
     correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
+    cliente: ClienteAutenticado = Depends(get_cliente_autenticado),
     gateway: IdentityServiceGateway = Depends(get_identity_service_gateway),
 ) -> IniciarActivacionResponse:
     """Crea un reto de prueba de vida para una instalación móvil."""
-    if not _demo_sin_jwt_habilitada():
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Se requiere autenticación para iniciar la activación.",
-        )
-    if payload.correo is None:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="El correo es obligatorio durante la demostración local.",
-        )
     try:
         result = await gateway.iniciar_activacion_movil(
-            str(payload.correo),
+            cliente.correo,
             {
                 "installation_id": str(payload.installation_id),
                 "plataforma": payload.plataforma,

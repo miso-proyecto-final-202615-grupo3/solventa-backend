@@ -43,7 +43,6 @@ async def client(monkeypatch):
 
 def _payload() -> dict:
     return {
-        "correo": "ana@example.com",
         "installation_id": str(uuid4()),
         "plataforma": "ANDROID",
         "modelo": "Pixel",
@@ -54,7 +53,7 @@ def _payload() -> dict:
 async def test_inicia_activacion_demo_sin_jwt(client):
     http, gateway = client
 
-    response = await http.post(PATH, json=_payload(), headers={"X-Correlation-Id": "corr-1"})
+    response = await http.post(PATH, json=_payload(), headers={"X-Correlation-Id": "corr-1", "X-Demo-Correo": "ana@example.com"})
 
     assert response.status_code == 201
     assert response.json()["sesion_id"] == "sesion-1"
@@ -67,16 +66,14 @@ async def test_rechaza_demo_fuera_de_desarrollo(client, monkeypatch):
     http, _ = client
     monkeypatch.setattr(settings, "ENVIRONMENT", "production")
 
-    response = await http.post(PATH, json=_payload())
+    response = await http.post(PATH, json=_payload(), headers={"X-Demo-Correo": "ana@example.com"})
 
     assert response.status_code == 401
 
 
-async def test_requiere_correo_en_el_modo_demo(client):
+async def test_requiere_identidad_demo_en_el_modo_demo(client):
     http, _ = client
-    payload = _payload()
-    payload.pop("correo")
 
-    response = await http.post(PATH, json=payload)
+    response = await http.post(PATH, json=_payload())
 
     assert response.status_code == 422

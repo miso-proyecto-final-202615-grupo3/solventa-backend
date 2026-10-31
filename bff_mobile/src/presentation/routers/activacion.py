@@ -25,9 +25,12 @@ async def verificar_activacion(
     cliente: ClienteAutenticado = Depends(get_cliente_autenticado),
     gateway: IdentityServiceGateway = Depends(get_identity_service_gateway),
 ) -> VerificarActivacionResponse:
-    frames = {"frame_inicio": await frame_inicio.read(524289), "frame_gesto": await frame_gesto.read(524289), "frame_fin": await frame_fin.read(524289)}
-    if any(len(value) > 524288 or not value.startswith(b"\xff\xd8\xff") for value in frames.values()):
-        raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, {"codigo": "EVIDENCIA_INVALIDA"})
+    uploads = {"frame_inicio": frame_inicio, "frame_gesto": frame_gesto, "frame_fin": frame_fin}
+    frames = {name: await upload.read(524289) for name, upload in uploads.items()}
+    if any(len(value) > 524288 for value in frames.values()):
+        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, {"codigo": "CAPTURA_DEMASIADO_GRANDE"})
+    if any(upload.content_type != "image/jpeg" or not frames[name].startswith(b"\xff\xd8\xff") for name, upload in uploads.items()):
+        raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, {"codigo": "FORMATO_NO_SOPORTADO"})
     try:
         result = await gateway.verificar_activacion_movil(sesion_id, cliente.correo, nonce, frames, correlation_id or str(uuid.uuid4()))
     except IdentityGatewayError as exc:

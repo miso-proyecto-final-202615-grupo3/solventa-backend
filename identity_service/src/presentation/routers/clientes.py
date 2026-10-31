@@ -71,9 +71,12 @@ async def verificar_activacion_movil(
     correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
     use_case: VerificarActivacionMovilUseCase = Depends(get_verificar_activacion_movil_use_case),
 ) -> VerificarActivacionMovilResponse:
-    frames = {"frame_inicio": await frame_inicio.read(524289), "frame_gesto": await frame_gesto.read(524289), "frame_fin": await frame_fin.read(524289)}
-    if any(len(frame) > 524288 or not frame.startswith(b"\xff\xd8\xff") for frame in frames.values()):
-        raise HTTPException(415, detail={"codigo": "EVIDENCIA_INVALIDA"})
+    uploads = {"frame_inicio": frame_inicio, "frame_gesto": frame_gesto, "frame_fin": frame_fin}
+    frames = {name: await upload.read(524289) for name, upload in uploads.items()}
+    if any(len(frame) > 524288 for frame in frames.values()):
+        raise HTTPException(413, detail={"codigo": "CAPTURA_DEMASIADO_GRANDE"})
+    if any(upload.content_type != "image/jpeg" or not frames[name].startswith(b"\xff\xd8\xff") for name, upload in uploads.items()):
+        raise HTTPException(415, detail={"codigo": "FORMATO_NO_SOPORTADO"})
     try:
         result = await use_case.ejecutar(correo, sesion_id, nonce, frames, correlation_id or str(uuid4()))
     except SesionActivacionInvalidaError as exc:

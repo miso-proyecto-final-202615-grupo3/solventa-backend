@@ -25,7 +25,7 @@ def test_modelos_de_activacion_no_persisten_evidencia_biometrica():
 
 
 def test_modelos_de_activacion_tienen_indices_de_consulta_requeridos():
-    assert {"installation_id", "estado"} == {
+    assert {"cliente_id", "installation_id", "estado"} == {
         column.name
         for index in SesionActivacionModel.__table__.indexes
         for column in index.columns

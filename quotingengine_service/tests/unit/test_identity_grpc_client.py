@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 
 import grpc
 import pytest
@@ -39,7 +40,15 @@ async def test_perfil_exitoso():
     cliente_id = uuid.uuid4()
     stub = StubFalso(
         identity_profile_pb2.PerfilClienteResponse(
-            id=str(cliente_id), nombres="Ana", fecha_nacimiento="1990-05-01"
+            id=str(cliente_id),
+            nombres="Ana",
+            fecha_nacimiento="1990-05-01",
+            open_finance_disponible=True,
+            ingreso_mensual="8500000",
+            ahorros_liquidos="25500000",
+            dti_pct="28",
+            sobregiros_12_meses=0,
+            score=820,
         )
     )
 
@@ -48,6 +57,26 @@ async def test_perfil_exitoso():
     assert perfil.cliente_id == cliente_id
     assert perfil.nombres == "Ana"
     assert perfil.fecha_nacimiento.year == 1990
+    assert perfil.ingreso_mensual == Decimal("8500000")
+    assert perfil.ahorros_liquidos == Decimal("25500000")
+    assert perfil.dti_pct == Decimal("28")
+    assert perfil.sobregiros_12_meses == 0
+    assert perfil.score == 820
+
+
+async def test_perfil_con_open_finance_degradado_no_expone_senales():
+    cliente_id = uuid.uuid4()
+    stub = StubFalso(
+        identity_profile_pb2.PerfilClienteResponse(
+            id=str(cliente_id), open_finance_disponible=False
+        )
+    )
+
+    perfil = await _cliente(stub).obtener_perfil(cliente_id)
+
+    assert not perfil.open_finance_disponible
+    assert perfil.ingreso_mensual is None
+    assert perfil.score is None
 
 
 @pytest.mark.parametrize(

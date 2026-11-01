@@ -7,6 +7,7 @@ from typing import Any
 
 from src.application.ports.perfil_cliente_gateway import PerfilCliente
 from src.domain.productos.entities import ProductoSeguro
+from src.domain.open_data import PerfilTerritorial
 from src.domain.reglas_rating.entities import ReglaRating
 
 
@@ -35,6 +36,7 @@ class SenalesPricing:
     """Datos externos recolectados para el cálculo (perfil, Open Finance/Open Data)."""
 
     perfil: PerfilCliente | None = None
+    perfil_territorial: PerfilTerritorial | None = None
     degradaciones: tuple[str, ...] = ()
 
 
@@ -70,7 +72,11 @@ class PricingStrategy(ABC):
     def codigo_producto(self) -> str:
         raise NotImplementedError
 
-    async def recolectar_senales(self, cliente_id: uuid.UUID) -> SenalesPricing:
+    async def recolectar_senales(
+        self,
+        cliente_id: uuid.UUID,
+        parametros: dict[str, Any] | None = None,
+    ) -> SenalesPricing:
         """Obtiene los datos externos que el algoritmo necesita (puede ser I/O)."""
         return SenalesPricing()
 

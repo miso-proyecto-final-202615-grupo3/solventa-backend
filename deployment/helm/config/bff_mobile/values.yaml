@@ -44,7 +44,7 @@ kmsKey:
   enabled: false
 
 config:
-  PROJECT_NAME: Solventa BFF Mobile
+  PROJECT_NAME: solventa-bff-mobile
   VERSION: "0.1.0"
   ENVIRONMENT: dev
   API_PREFIX: /api/v1/bff-mobile

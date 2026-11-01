@@ -23,4 +23,10 @@ message PerfilClienteResponse {
   string pais_residencia = 8;
   string telefono = 9;
   string estado_kyc = 10;
+  bool open_finance_disponible = 11;
+  string ingreso_mensual = 12;
+  string ahorros_liquidos = 13;
+  string dti_pct = 14;
+  uint32 sobregiros_12_meses = 15;
+  uint32 score = 16;
 }

@@ -24,12 +24,14 @@ jobs:
       fail-fast: false
       matrix:
         service_name:
-          - identity_service
-          - quotingengine_service
           - bff_web
           - bff_mobile
+          - identity_service
+          - quotingengine_service
           - liveness_adapter
           - mock_kyc
+          - mock_opendata
+          - mock_openfinance
     env:
       AWS_REGION: ${{ secrets.AWS_REGION }}
       SERVICE_NAME: ${{ matrix.service_name }}
@@ -87,12 +89,14 @@ jobs:
       fail-fast: false
       matrix:
         service_name:
-          - identity_service
-          - quotingengine_service
           - bff_web
           - bff_mobile
+          - identity_service
+          - quotingengine_service
           - liveness_adapter
           - mock_kyc
+          - mock_opendata
+          - mock_openfinance
     env:
       AWS_REGION: ${{ secrets.AWS_REGION }}
       SERVICE_NAME: ${{ matrix.service_name }}

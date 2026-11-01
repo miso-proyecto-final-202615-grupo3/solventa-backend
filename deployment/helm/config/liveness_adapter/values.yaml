@@ -15,12 +15,12 @@ http:
 
 probes:
   readiness:
-    path: /api/v1/liveness-adapter/ready
+    path: /ready
     port: http
     initialDelaySeconds: 10
     periodSeconds: 10
   liveness:
-    path: /api/v1/liveness-adapter/health
+    path: /health
     port: http
     initialDelaySeconds: 20
     periodSeconds: 20
@@ -51,7 +51,7 @@ extraSecretEnv:
     optional: true
 
 config:
-  PROJECT_NAME: Solventa Liveness Adapter
+  PROJECT_NAME: solventa-liveness-adapter
   ENVIRONMENT: dev
   LIVENESS_PROVIDER: propio
   LIVENESS_SESSION_TTL_SECONDS: "120"

@@ -50,7 +50,7 @@ config:
   VERSION: "0.1.0"
   ENVIRONMENT: dev
   API_PREFIX: /api/v1/quotingengine-service
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://localhost:4317
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://cloudwatch-agent.amazon-cloudwatch.svc.cluster.local:4315
   OTEL_TRACES_EXPORTER: otlp
   RATING_CACHE_TTL_SECONDS: 300
   COTIZACION_VIGENCIA_DIAS: 15

@@ -115,13 +115,13 @@ class ActiveProviderRequest(BaseModel):
     provider: str = Field(min_length=1)
 
 
-@app.get("/api/v1/liveness-adapter/health")
+@app.get("/health")
 async def health() -> dict:
     """Vida del proceso: no depende de Redis para que Kubernetes no reinicie pods sanos."""
     return {"status": "healthy"}
 
 
-@app.get("/api/v1/liveness-adapter/ready")
+@app.get("/ready")
 async def ready() -> dict:
     """Disponibilidad: modelos cargados y Redis, obligatorio para sesiones compartidas entre pods."""
     if not _providers_warm.is_set():

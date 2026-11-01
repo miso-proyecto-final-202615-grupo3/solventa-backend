@@ -15,6 +15,22 @@ class FaceSignals:
     interocular_ratio: float = 0.0
 
 
+def head_pose(matrix) -> tuple[float, float]:
+    """Yaw y pitch (grados) de la matriz 4x4 de transformación facial de MediaPipe.
+
+    MediaPipe 1.x la entrega como `numpy.ndarray`; su `.data` es un memoryview multidimensional que
+    no se puede recorrer, por eso se lee siempre con `numpy.asarray`.
+    """
+    import numpy as np
+
+    values = np.asarray(matrix, dtype=float).reshape(-1)
+    if values.size < 16:
+        return 0.0, 0.0
+    yaw = degrees(atan2(values[2], values[10]))
+    pitch = degrees(atan2(-values[6], (values[10] ** 2 + values[2] ** 2) ** 0.5))
+    return yaw, pitch
+
+
 class MediaPipeFaceAnalyzer:
     """Analizador local; no conserva ni registra imágenes biométricas."""
 
@@ -44,15 +60,8 @@ class MediaPipeFaceAnalyzer:
             left, right = landmarks[33], landmarks[263]
             interocular = hypot(left.x - right.x, left.y - right.y)
             blendshapes = {item.category_name: item.score for item in result.face_blendshapes[0]}
-            yaw = 0.0
-            pitch = 0.0
-            if result.facial_transformation_matrixes:
-                matrix = result.facial_transformation_matrixes[0]
-                values = getattr(matrix, "data", matrix)
-                values = list(values.flatten()) if hasattr(values, "flatten") else list(values)
-                if len(values) >= 16:
-                    yaw = degrees(atan2(values[2], values[10]))
-                    pitch = degrees(atan2(-values[6], (values[10] ** 2 + values[2] ** 2) ** 0.5))
+            matrixes = result.facial_transformation_matrixes
+            yaw, pitch = head_pose(matrixes[0]) if matrixes else (0.0, 0.0)
             return FaceSignals(
                 face_count=1,
                 blink_left=blendshapes.get("eyeBlinkLeft", 0.0),
@@ -64,6 +73,10 @@ class MediaPipeFaceAnalyzer:
             )
         except Exception as exc:
             raise RuntimeError("No fue posible analizar la evidencia facial.") from exc
+
+    def warm_up(self) -> None:
+        """Carga el modelo antes del primer request (≈6 s con 1 CPU)."""
+        self._get_detector()
 
     def _get_detector(self):
         with self._lock:

@@ -1,0 +1,11 @@
+# Override opcional para probar Cognito real en local (pool de dev).
+# Monta ~/.aws en solo lectura para que identity_service use el perfil AWS_PROFILE del .env.
+# Uso: docker compose -f docker-compose.yml -f docker-compose.cognito.yml up -d identity_service bff_mobile
+services:
+  identity_service:
+    environment:
+      COGNITO_ENABLED: "true"
+      AWS_SHARED_CREDENTIALS_FILE: /root/.aws/credentials
+      AWS_CONFIG_FILE: /root/.aws/config
+    volumes:
+      - ${USERPROFILE:-${HOME}}/.aws:/root/.aws:ro

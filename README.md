@@ -105,7 +105,10 @@ curl -X PUT -H "X-Admin-Token: $LIVENESS_ADMIN_TOKEN" -H "Content-Type: applicat
 - `didit` (demo, `DIDIT_ENABLED=false` por defecto): API real de sesiones de Didit o `mock_kyc`, con topes
   `DIDIT_MAX_SESIONES_DIA` / `DIDIT_MAX_SESIONES_MES` para no salir de la cuota gratuita.
 - Sin `LIVENESS_ADMIN_TOKEN` en `.env`, `/admin` responde 403. En EKS el servicio no tiene ingress (usar `port-forward`).
+- Probes: `/api/v1/liveness-adapter/health` (vida del proceso) y `/api/v1/liveness-adapter/ready`
+  (modelo de MediaPipe precargado y Redis disponible; tarda unos segundos al arrancar).
 - Logs de trazabilidad: `liveness_provider=<nombre> correlation_id=<id> status=<approved|rejected>`.
+  Si se rechaza un gesto, `propio_gesture_rejected` registra ángulos y parpadeo redondeados (nunca la imagen).
 - Prueba de concurrencia en PostgreSQL (criterio de terminado):
   `POSTGRES_TEST_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/appdata python -m pytest -m postgres identity_service/tests/integration/test_concurrencia_intentos.py`
 - Plan y decisiones: [docs/planning/HU3.1.1-plan-tecnico.md](docs/planning/HU3.1.1-plan-tecnico.md).
@@ -114,6 +117,11 @@ curl -X PUT -H "X-Admin-Token: $LIVENESS_ADMIN_TOKEN" -H "Content-Type: applicat
 
 - **Docker (compose):** el contenedor usa `NoopIdentityProvider` (`COGNITO_ENABLED=false`),
   porque no tiene credenciales AWS. El registro funciona contra la BD local sin depender de AWS.
+- **Docker con Cognito real (pool de dev):** con `COGNITO_ENABLED=true`, `COGNITO_USER_POOL_ID`,
+  `COGNITO_CLIENT_ID` y `AWS_PROFILE` en `.env`, el override monta `~/.aws` en solo lectura:
+  `docker compose -f docker-compose.yml -f docker-compose.cognito.yml up -d identity_service bff_mobile`.
+  El BFF valida el token con el mismo pool y app client que Identity, y obtiene el correo con
+  `GetUser` de Cognito (el access token solo trae el `sub`).
 - **Local uvicorn (fuera de Docker):** para probar Cognito real, crea un `.env` (gitignored)
   con `COGNITO_ENABLED=true`, `COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID` y `AWS_REGION`, y
   corre el servicio con tus credenciales AWS del host (`aws sso login` / access keys válidas).

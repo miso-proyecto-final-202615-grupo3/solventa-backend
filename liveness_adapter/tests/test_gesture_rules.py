@@ -13,7 +13,21 @@ def test_blink_requires_ojos_abiertos_cerrados_y_abiertos():
 
 
 def test_giro_izquierdo_requiere_desplazamiento_en_frame_central():
-    assert validate_gesture("TURN_LEFT", [signal(), signal(yaw=-25), signal()]) is None
+    assert validate_gesture("TURN_LEFT", [signal(), signal(yaw=25), signal()]) is None
+
+
+def test_giro_derecho_con_los_angulos_medidos_en_dispositivo_real():
+    # Motorola Edge 30 Fusion: TURN_RIGHT midió yaw 3 / -23 / 1.
+    assert validate_gesture("TURN_RIGHT", [signal(yaw=3), signal(yaw=-23), signal(yaw=1)]) is None
+
+
+def test_giro_en_direccion_contraria_se_rechaza():
+    assert validate_gesture("TURN_RIGHT", [signal(), signal(yaw=25), signal()]) == "GESTO_NO_DETECTADO"
+    assert validate_gesture("TURN_LEFT", [signal(), signal(yaw=-25), signal()]) == "GESTO_NO_DETECTADO"
+
+
+def test_el_signo_es_configurable():
+    assert validate_gesture("TURN_RIGHT", [signal(), signal(yaw=25), signal()], right_turn_sign=1) is None
 
 
 def test_rechaza_rostro_inconsistente():

@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     COGNITO_USER_POOL_ID: str = ""
     COGNITO_CLIENT_ID: str = ""
     COGNITO_JWKS_TTL_SECONDS: int = 3600
+    COGNITO_USERINFO_TIMEOUT_SECONDS: float = 3.0
+    COGNITO_USERINFO_CACHE_SECONDS: int = 300
     QUOTINGENGINE_SERVICE_URL: str = "http://localhost:8000"
     OTEL_EXPORTER_OTLP_ENDPOINT: str = "http://localhost:4317"
 

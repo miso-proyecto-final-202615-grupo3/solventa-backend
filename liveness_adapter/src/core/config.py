@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     PROPIO_MODEL_PATH: str = "/app/models/face_landmarker.task"
     PROPIO_MIN_FACE_WIDTH_RATIO: float = 0.20
     PROPIO_MAX_INTEROCULAR_VARIATION: float = 0.25
+    # Signo del yaw de MediaPipe al girar a la derecha (calibrado en Android con cámara frontal).
+    PROPIO_RIGHT_TURN_YAW_SIGN: int = -1
     PROPIO_MIN_DURATION_SECONDS: float = 0.3
     PROPIO_MAX_DURATION_SECONDS: float = 15.0
     DIDIT_ENABLED: bool = False

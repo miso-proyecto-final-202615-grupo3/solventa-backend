@@ -130,6 +130,10 @@ services:
       ENVIRONMENT: ${BFF_MOBILE_ENVIRONMENT:-development}
       IDENTITY_SERVICE_URL: ${IDENTITY_SERVICE_URL:-http://identity_service:8000}
       ALLOW_DEMO_ACTIVATION_WITHOUT_JWT: ${ALLOW_DEMO_ACTIVATION_WITHOUT_JWT:-false}
+      # Mismo pool y app client que identity_service: el token que emite Identity es el que valida el BFF.
+      COGNITO_REGION: ${COGNITO_REGION:-${AWS_REGION:-us-east-1}}
+      COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
+      COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
       QUOTINGENGINE_SERVICE_URL: ${QUOTINGENGINE_SERVICE_URL:-http://quotingengine_service:8000}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
     depends_on:

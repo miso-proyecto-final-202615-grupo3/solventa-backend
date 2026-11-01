@@ -7,7 +7,9 @@ from httpx import ASGITransport, AsyncClient
 from src.core.config import settings
 from src.infrastructure.gateways.identity_service_gateway import IdentityGatewayError
 from src.main import app
+from src.presentation import dependencies
 from src.presentation.dependencies import get_identity_service_gateway
+from src.presentation.jwt_validator import IdentityLookupUnavailableError
 
 
 PATH = "/api/v1/bff-mobile/activacion/sesiones"
@@ -83,6 +85,21 @@ async def test_sin_token_ni_identidad_demo_responde_401_con_formato_comun(client
         "mensaje": "Se requiere un token Bearer válido.",
         "correlation_id": "corr-9",
     }
+
+
+async def test_cognito_caido_responde_503_y_no_401(client, monkeypatch):
+    http, _ = client
+
+    class ValidadorSinCognito:
+        def validar(self, token):
+            raise IdentityLookupUnavailableError("sin red")
+
+    monkeypatch.setattr(dependencies, "get_cognito_jwt_validator", lambda: ValidadorSinCognito())
+
+    response = await http.post(PATH, json=_payload(), headers={"Authorization": "Bearer x", "X-Correlation-Id": "corr-10"})
+
+    assert response.status_code == 503
+    assert response.json()["codigo"] == "SERVICIO_NO_DISPONIBLE"
 
 
 class VerificacionGatewayFake(GatewayFake):

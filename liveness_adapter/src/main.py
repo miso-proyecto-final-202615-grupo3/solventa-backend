@@ -3,11 +3,13 @@
 Patrones del experimento HA12: cada proveedor es una estrategia (`LivenessProvider`), la fábrica
 las registra y el proveedor activo se cambia en caliente con `PUT /admin/liveness-provider`.
 """
+import asyncio
 import hashlib
 import hmac
 import json
 import logging
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 
 from fastapi import FastAPI, File, Form, Header, HTTPException, Response, UploadFile, status
@@ -30,7 +32,33 @@ from src.infrastructure.session_store import RedisLivenessSessionStore
 
 logger = logging.getLogger("uvicorn.error")
 
-app = FastAPI(title="Solventa Liveness Adapter", version="0.1.0")
+_providers_warm = asyncio.Event()
+
+
+async def warm_up_providers() -> None:
+    """Precarga los modelos de las estrategias; `/ready` no responde 200 hasta terminar."""
+    for name in _factory.registered():
+        warm_up = getattr(_factory.get(name), "warm_up", None)
+        if warm_up is None:
+            continue
+        try:
+            await run_in_threadpool(warm_up)
+        except Exception:
+            logger.exception("liveness_provider_warm_up_failed liveness_provider=%s", name)
+            return
+    _providers_warm.set()
+    logger.info("liveness_providers_ready providers=%s", ",".join(_factory.registered()))
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # En segundo plano: /health responde mientras carga, así la liveness probe no reinicia el pod.
+    task = asyncio.create_task(warm_up_providers())
+    yield
+    task.cancel()
+
+
+app = FastAPI(title="Solventa Liveness Adapter", version="0.1.0", lifespan=lifespan)
 _factory = LivenessProviderFactory(
     [PropioProvider()] + ([DiditProvider()] if settings.DIDIT_ENABLED else [])
 )
@@ -95,7 +123,9 @@ async def health() -> dict:
 
 @app.get("/api/v1/liveness-adapter/ready")
 async def ready() -> dict:
-    """Disponibilidad: Redis es obligatorio para sesiones compartidas entre pods."""
+    """Disponibilidad: modelos cargados y Redis, obligatorio para sesiones compartidas entre pods."""
+    if not _providers_warm.is_set():
+        raise _unavailable()
     try:
         await _redis.ping()
     except Exception as exc:

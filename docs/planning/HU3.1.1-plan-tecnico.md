@@ -315,8 +315,9 @@ Log por operación, como el experimento: `liveness_provider=<nombre> correlation
 - `mediapipe` (wheel `py3-none`, compatible con Python 3.13 de las imágenes), Tasks API `FaceLandmarker`: `output_face_blendshapes=True`, `output_facial_transformation_matrixes=True`, `num_faces=2`, modo `IMAGE`.
 - Parpadeo con los blendshapes `eyeBlinkLeft` / `eyeBlinkRight`; yaw y pitch con la matriz de transformación.
 - El modelo `face_landmarker.task` se descarga en `Dockerfile.liveness_adapter` a `/app/models/` (`PROPIO_MODEL_PATH`); no se versiona.
-- Singleton perezoso con `threading.Lock`; análisis CPU con `run_in_threadpool`; decodificar con Pillow (`ImageOps.exif_transpose`).
-- Error del modelo o `MemoryError` → `ProviderUnavailableError`.
+- Singleton con `threading.Lock`, **precargado al arrancar** (≈6 s con 1 CPU): `/ready` responde `503` hasta tenerlo cargado y `/health` no espera. Análisis CPU con `run_in_threadpool`; decodificar con Pillow (`ImageOps.exif_transpose`).
+- MediaPipe 1.x entrega la matriz de transformación como `numpy.ndarray` 4×4: se lee con `numpy.asarray` (su `.data` es un memoryview multidimensional que no se puede recorrer).
+- Error del modelo o `MemoryError` → `ProviderUnavailableError`, con log `propio_analysis_failed error=<tipo>`. Un gesto rechazado registra `propio_gesture_rejected` con ángulos y parpadeo redondeados, nunca la imagen.
 
 Reglas (`PROPIO_*` en config):
 
@@ -328,7 +329,7 @@ Reglas (`PROPIO_*` en config):
 | Un rostro por frame, `face_width_ratio ≥ 0,2` | `ROSTRO_NO_DETECTADO` / `VARIOS_ROSTROS` |
 | Mismo rostro: `interocular_ratio` con variación < 25 % entre frames | `ROSTRO_INCONSISTENTE` |
 | BLINK: `inicio` y `fin` con ambos `eyeBlink` < 0,35; `gesto` con ambos > 0,55 | `GESTO_NO_DETECTADO` |
-| TURN_LEFT / TURN_RIGHT: `\|yaw\|` < 12° en `inicio` y `fin`; en `gesto` yaw > +20° / < −20° (fijar el signo con una prueba sobre imágenes reales) | `GESTO_NO_DETECTADO` |
+| TURN_LEFT / TURN_RIGHT: `\|yaw\|` < 12° en `inicio` y `fin`; en `gesto` giro > 20° hacia el lado pedido. Signo calibrado en dispositivo real (Android, cámara frontal): girar a la derecha da yaw negativo (`PROPIO_RIGHT_TURN_YAW_SIGN=-1`; medido 3° / −23° / 1°) | `GESTO_NO_DETECTADO` |
 
 ### 4.7 Estrategia `didit` (demostración, desactivada por defecto) — `src/infrastructure/providers/didit_provider.py`
 
@@ -352,7 +353,8 @@ Reglas (`PROPIO_*` en config):
 | `POST` | `/api/v1/liveness-adapter/liveness/verifications` | multipart: `metadata` (`{session_id, customer_id, nonce?, captured_at?, sdk_result?}`) + `frame_*` → `200 {verification_id, status, reason, correlation_id}` |
 | `GET` | `/api/v1/liveness-adapter/admin/liveness-provider` | `{provider}` (igual que el experimento) |
 | `PUT` | `/api/v1/liveness-adapter/admin/liveness-provider` | `{provider}`; `422` si no está registrado en la fábrica (igual que el experimento) |
-| `GET` | `/api/v1/liveness-adapter/health` | probes |
+| `GET` | `/api/v1/liveness-adapter/health` | liveness probe (vida del proceso, sin Redis) |
+| `GET` | `/api/v1/liveness-adapter/ready` | readiness probe (modelo precargado y Redis disponible) |
 
 Detalles:
 - Errores: `404 SESSION_NOT_FOUND`, `409 SESSION_INVALID`, `409 SESSION_CANCELLED`, `413`, `415`, `422`, `502` (proveedor no disponible), `500` (proveedor activo no registrado, como el experimento).
@@ -490,14 +492,15 @@ dispositivos_vinculados
 
 ## 6. BFF Móvil (`bff_mobile`)
 
-### 6.1 Validación del token — `src/infrastructure/security/cognito_jwt_validator.py`
+### 6.1 Validación del token — `src/presentation/jwt_validator.py`
 
 - **Validador:** `CognitoJwtValidator` con `pyjwt[crypto]` y `PyJWKClient` (JWKS del pool, precargado o en `run_in_threadpool`).
 - **Qué verifica:** firma RS256, `exp`, `iss`, `token_use == "access"` y `client_id`. El access token de Cognito no trae `aud`, así que `verify_aud` va en `False`.
 - **`client_id` correcto:** el login lo hace Identity con *su* `COGNITO_CLIENT_ID`, así que el BFF usa **el mismo** pool y client id que Identity (mismo secreto en Helm).
-- **Identidad del cliente:** claim `username`. En el código actual es el correo (`registrar_usuario` usa `Username=correo`). Se valida que sea un correo y, si no, `401`. Se deja una prueba manual con un JWT real por ambiente en las evidencias.
-- **Dependencia:** `get_cliente_autenticado` → `ClienteAutenticado(correo, sub)`; `401` con `WWW-Authenticate: Bearer`.
-- **Modo sin validación:** `AUTH_JWT_VALIDATION_ENABLED=True`. Con `False`, y solo si `ENVIRONMENT == "development"`, se acepta `X-Debug-Correo`. Fallar al arrancar en cualquier otro ambiente.
+- **Identidad del cliente:** el pool usa el correo como alias, así que el access token solo trae `sub` y `username` (UUID), sin correo. El BFF lo obtiene con `GetUser` de Cognito usando el mismo token (API pública, sin credenciales IAM; además rechaza tokens revocados) y lo guarda en caché `sub → correo` acotada (`COGNITO_USERINFO_CACHE_SECONDS=300`, timeout `COGNITO_USERINFO_TIMEOUT_SECONDS=3`). Cognito rechaza el token → `401`; Cognito no responde → `503 SERVICIO_NO_DISPONIBLE`. Validado con JWT reales del pool de dev (E2E local y dispositivo).
+- **Auditoría:** `bff_auth metodo=<cognito_jwt|demo|ninguno> resultado=<aceptado|rechazado|cognito_no_disponible> sub_hash=<sha256 corto> correlation_id=<id>`, sin correo ni token.
+- **Dependencia:** `get_cliente_autenticado` → `ClienteAutenticado(correo, sub)`; `401 NO_AUTENTICADO` con el formato común `{codigo, mensaje, correlation_id}`.
+- **Modo demo sin JWT:** solo si `ENVIRONMENT == "development"` **y** `ALLOW_DEMO_ACTIVATION_WITHOUT_JWT=true` se acepta `X-Demo-Correo`. En dev/qa/prod de EKS `ENVIRONMENT` no es `development`, así que el bypass queda apagado aunque el flag esté en `true` (verificado en local con `ENVIRONMENT=dev`).
 
 ### 6.2 Gateway, router y login
 
@@ -566,7 +569,7 @@ Ambientes:
 | identity | `unit/test_sesion_no_reutilizable.py` | crear otra sesión cancela la anterior en Identity y en el adaptador; la anterior responde `409 SESION_INVALIDA`; si el adaptador no responde al cancelar, la anterior igual queda inválida en Identity. |
 | todos | `unit/test_sin_datos_sensibles_en_logs.py` (con `caplog`) | en un flujo completo, los logs no contienen bytes de frames, el nonce, el token, la API key ni `ADMIN_TOKEN`. |
 | bff_mobile | `contract/test_activacion_contract.py` | las muestras de `docs/contracts/activacion/*.json` validan contra los schemas de respuesta y request. |
-| bff_mobile | `unit/test_cognito_jwt_validator.py` | llaves RSA y JWKS falsos: válido, vencido, `iss`, `token_use`, `client_id`, `username` que no es correo. |
+| bff_mobile | `unit/test_cognito_jwt_validator.py` | llaves RSA y JWKS falsos: válido, vencido, `iss`, `token_use`, `client_id`, sin `sub`; correo por `GetUser` (caché, usuario sin correo válido, token revocado → 401, Cognito caído → 503). |
 | bff_mobile | `integration/test_activacion_api.py` / `test_auth_api.py` (ampliar) | 401; 413 por `Content-Length` y por lectura; 415; 422; el correo sale del token; formato común; login con `cliente` y sin él. |
 | mock_kyc | `mock_kyc/tests/test_didit_mock.py` | sesión, falta de api key, decisión por env y por `vendor_data`, 404. |
 

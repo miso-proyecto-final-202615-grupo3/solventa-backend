@@ -36,6 +36,23 @@ uvicorn src.main:app --reload --app-dir identity_service
 La API queda en `http://localhost:8002` y el health check en
 `http://localhost:8002/health`.
 
+Quoting Engine expone consulta de productos en
+`GET /api/v1/quotingengine-service/productos` y solicitud de cotización en
+`POST /api/v1/quotingengine-service/cotizaciones`. Los BFF Web y Mobile actúan como
+fachada y reenvían esas operaciones. Identity entrega el perfil del cliente por gRPC
+en el puerto interno `50051`, validando el consentimiento antes de consultar Open Finance.
+Open Data se consulta desde Quoting Engine; ambos proveedores degradan de forma controlada.
+
+Para ejecutar Quoting Engine fuera de Compose:
+
+```powershell
+cd quotingengine_service
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements-dev.txt
+uvicorn src.main:app --reload
+```
+
 ## Pruebas (por servicio)
 
 Desde la carpeta del servicio (usa su `pytest.ini`):
@@ -44,6 +61,8 @@ Desde la carpeta del servicio (usa su `pytest.ini`):
 cd identity_service
 python -m pytest -v
 ```
+
+El mismo comando aplica dentro de `quotingengine_service`.
 
 ## Docker
 
@@ -56,8 +75,9 @@ docker build -f docker/services/Dockerfile.identity_service -t solventa/identity
 
 ## CI/CD
 
-- **CI (`ci.yml`):** corre `pytest` por servicio y build de las imágenes en cada push/PR a `dev` y `main`.
-- **Despliegue:**
+- **CI (`ci.yml`):** corre `pytest` con cobertura por servicio y construye sus imágenes en cada
+  push/PR a `dev` y `main`.
+- **Despliegue:** portado del template de referencia (`template-solventa-backend-services`):
   - Workflows manuales de ECR/EKS: `backend-publish-ecr`, `backend-deploy-eks`,
     `service-publish-ecr`, `service-deploy-eks`, `eks-deploy-base-services`.
   - Helm: chart genérico en `deployment/helm/charts/backend-service` con `values` por servicio
@@ -79,8 +99,17 @@ docker compose up --build
 | `bff_mobile` | `http://localhost:8001` (desde el emulador Android: `http://10.0.2.2:8001`) |
 | `identity_service` | `http://localhost:8002` |
 | `quotingengine_service` | `http://localhost:8003` |
-
+| gRPC de Identidad | `localhost:50051` |
 | `mock_kyc` | `http://localhost:8202` |
+| `mock_openfinance` | `http://localhost:8200` |
+| `mock_opendata` | `http://localhost:8201` |
+
+Los mocks locales usan HTTP. En ambientes desplegados, configura `OPEN_FINANCE_URL`
+y `OPEN_DATA_URL` con los endpoints HTTPS de los proveedores.
+
+La consulta de productos queda expuesta por los BFF en `GET /api/v1/bff-web/productos`
+y `GET /api/v1/bff-mobile/productos`; la cotización recibe `producto_codigo`, el
+saldo pendiente del crédito y la ubicación del inmueble.
 
 ## Cognito en local vs. EKS
 

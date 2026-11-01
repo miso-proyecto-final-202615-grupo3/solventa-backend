@@ -1,4 +1,3 @@
-import asyncio
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -93,10 +92,9 @@ class SolicitarCotizacionUseCase:
         strategy = self.strategies.obtener(producto.codigo)
 
         # reglas (BD/caché) y señales externas no dependen entre sí: en paralelo
-        regla, senales = await self._cargar_regla_y_senales(
-            strategy, producto.producto_id, cliente_id
+        regla, parametros, senales = await self._cargar_regla_y_senales(
+            strategy, producto.producto_id, cliente_id, parametros
         )
-        parametros = self._validar_parametros(regla, parametros)
 
         resultado = strategy.calcular(
             ContextoPricing(cliente_id, producto, regla, parametros, senales)
@@ -174,19 +172,14 @@ class SolicitarCotizacionUseCase:
         strategy: PricingStrategy,
         producto_id: uuid.UUID,
         cliente_id: uuid.UUID,
-    ) -> tuple[ReglaRating, SenalesPricing]:
-        regla, senales = await asyncio.gather(
-            self.regla_resolver.obtener_vigente(producto_id),
-            strategy.recolectar_senales(cliente_id),
-            return_exceptions=True,
-        )
-        if isinstance(senales, BaseException):
-            raise senales
-        if isinstance(regla, BaseException):
-            raise regla
+        parametros: dict[str, Any],
+    ) -> tuple[ReglaRating, dict[str, Any], SenalesPricing]:
+        regla = await self.regla_resolver.obtener_vigente(producto_id)
         if regla is None:
             raise ReglaRatingNoDisponibleError(str(producto_id))
-        return regla, senales
+        parametros_validos = self._validar_parametros(regla, parametros)
+        senales = await strategy.recolectar_senales(cliente_id, parametros_validos)
+        return regla, parametros_validos, senales
 
     @staticmethod
     def _validar_parametros(
@@ -197,6 +190,11 @@ class SolicitarCotizacionUseCase:
         for definicion in regla.definicion.get("parametros", []):
             nombre = definicion["nombre"]
             valor = parametros.get(nombre)
+            if definicion.get("tipo") == "object":
+                ubicacion = _validar_ubicacion(valor, nombre, errores)
+                if ubicacion is not None:
+                    validos[nombre] = ubicacion
+                continue
             if valor is None or valor == "":
                 if definicion.get("requerido", True):
                     errores.append(f"El parámetro '{nombre}' es obligatorio.")
@@ -280,4 +278,30 @@ class SolicitarCotizacionUseCase:
 
 
 def _json_seguro(parametros: dict[str, Any]) -> dict[str, Any]:
-    return {k: str(v) for k, v in parametros.items()}
+    return {
+        k: ({nested_key: str(nested_value) for nested_key, nested_value in v.items()}
+            if isinstance(v, dict) else str(v))
+        for k, v in parametros.items()
+    }
+
+
+def _validar_ubicacion(
+    valor: Any, nombre: str, errores: list[str]
+) -> dict[str, Any] | None:
+    if not isinstance(valor, dict):
+        errores.append(f"El parámetro '{nombre}' debe ser un objeto de ubicación.")
+        return None
+    municipio = valor.get("municipio")
+    zona = valor.get("zona")
+    estrato = valor.get("estrato")
+    if not isinstance(municipio, str) or not 2 <= len(municipio.strip()) <= 100:
+        errores.append("El municipio debe tener entre 2 y 100 caracteres.")
+    if not isinstance(zona, str) or zona not in {"URBANA", "RURAL"}:
+        errores.append("La zona debe ser URBANA o RURAL.")
+    if isinstance(estrato, bool) or not isinstance(estrato, int) or not 1 <= estrato <= 6:
+        errores.append("El estrato debe ser un entero entre 1 y 6.")
+    if set(valor) - {"municipio", "zona", "estrato"}:
+        errores.append("La ubicación contiene campos no permitidos.")
+    if errores:
+        return None
+    return {"municipio": municipio.strip(), "zona": zona, "estrato": estrato}

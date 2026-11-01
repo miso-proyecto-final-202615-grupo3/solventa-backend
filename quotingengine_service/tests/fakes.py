@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 
 from redis.exceptions import RedisError
 
@@ -6,6 +7,8 @@ from src.application.ports.perfil_cliente_gateway import (
     PerfilCliente,
     PerfilClienteGateway,
 )
+from src.application.ports.open_data_gateway import OpenDataNoDisponibleError
+from src.domain.open_data import CategoriaOpenData, PerfilTerritorial
 
 
 class FakeRedis:
@@ -57,4 +60,22 @@ class FakePerfilGateway(PerfilClienteGateway):
             pais_residencia="CO",
             telefono="3000000000",
             estado_kyc="VALIDADO",
+            ingreso_mensual=Decimal("8500000"),
+            ahorros_liquidos=Decimal("25500000"),
+            dti_pct=Decimal("28"),
+            sobregiros_12_meses=0,
+            score=820,
         )
+
+
+class FakeOpenDataGateway:
+    def __init__(self, categoria=CategoriaOpenData.BAJO_RIESGO, error=None):
+        self.categoria = categoria
+        self.error = error
+        self.ubicaciones: list[dict] = []
+
+    async def obtener_riesgo(self, ubicacion):
+        self.ubicaciones.append(ubicacion)
+        if self.error is not None:
+            raise self.error
+        return PerfilTerritorial(self.categoria)

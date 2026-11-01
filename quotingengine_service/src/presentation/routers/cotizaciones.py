@@ -2,7 +2,10 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from src.application.ports.perfil_cliente_gateway import ClienteNoEncontradoError
+from src.application.ports.perfil_cliente_gateway import (
+    ClienteNoEncontradoError,
+    ConsentimientoNoOtorgadoError,
+)
 from src.application.pricing.registry import EstrategiaNoRegistradaError
 from src.application.use_cases.consultar_catalogo_use_case import (
     ProductoNoEncontradoError,
@@ -42,6 +45,11 @@ async def solicitar_cotizacion(
     except ClienteNoEncontradoError as exc:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, "Cliente no encontrado."
+        ) from exc
+    except ConsentimientoNoOtorgadoError as exc:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "El consentimiento Open Finance no está activo.",
         ) from exc
     except ParametrosInvalidosError as exc:
         raise HTTPException(

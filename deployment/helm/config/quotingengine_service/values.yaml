@@ -46,11 +46,11 @@ kmsKey:
   enabled: false
 
 config:
-  PROJECT_NAME: Solventa Quoting Engine Service
+  PROJECT_NAME: solventa-quotingengine-service
   VERSION: "0.1.0"
   ENVIRONMENT: dev
   API_PREFIX: /api/v1/quotingengine-service
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://solventa-otel-collector-collector:4317
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://localhost:4317
   OTEL_TRACES_EXPORTER: otlp
   RATING_CACHE_TTL_SECONDS: 300
   COTIZACION_VIGENCIA_DIAS: 15
@@ -60,6 +60,9 @@ config:
   IDENTITY_GRPC_MAX_CONCURRENCY: 50
   IDENTITY_CB_FAILURE_THRESHOLD: 5
   IDENTITY_CB_RECOVERY_SECONDS: 15.0
+  OPEN_DATA_URL: http://mock-opendata:80
+  OPEN_DATA_TIMEOUT_SECONDS: 0.25
+  OPEN_DATA_CACHE_TTL_SECONDS: 300
 
 resources:
   requests:

@@ -1,3 +1,4 @@
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -22,6 +23,8 @@ class Settings(BaseSettings):
     KYC_TIMEOUT_SECONDS: float = 0.7
     GRPC_ENABLED: bool = False
     GRPC_PORT: int = 50051
+    OPEN_FINANCE_URL: str = ""
+    OPEN_FINANCE_TIMEOUT_SECONDS: float = Field(default=0.2, gt=0, le=0.7)
 
     model_config = SettingsConfigDict(
         env_file=".env",

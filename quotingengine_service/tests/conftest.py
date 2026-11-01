@@ -15,10 +15,13 @@ from src.infrastructure.cache.regla_rating_cache import ReglaRatingCache  # noqa
 from src.main import app  # noqa: E402
 from src.presentation.dependencies import (  # noqa: E402
     get_db,
+    get_open_data_cache,
+    get_open_data_gateway,
     get_perfil_cliente_gateway,
     get_regla_rating_cache,
 )
-from tests.fakes import FakePerfilGateway, FakeRedis  # noqa: E402
+from src.infrastructure.cache.open_data_redis_cache import OpenDataRedisCache  # noqa: E402
+from tests.fakes import FakeOpenDataGateway, FakePerfilGateway, FakeRedis  # noqa: E402
 
 
 @pytest.fixture
@@ -57,8 +60,16 @@ def fake_gateway() -> FakePerfilGateway:
 
 
 @pytest.fixture
+def fake_open_data_gateway() -> FakeOpenDataGateway:
+    return FakeOpenDataGateway()
+
+
+@pytest.fixture
 async def api_client(
-    db_session: AsyncSession, fake_redis: FakeRedis, fake_gateway: FakePerfilGateway
+    db_session: AsyncSession,
+    fake_redis: FakeRedis,
+    fake_gateway: FakePerfilGateway,
+    fake_open_data_gateway: FakeOpenDataGateway,
 ) -> AsyncGenerator[AsyncClient, None]:
     """Cliente HTTP con BD sqlite, Redis falso y gateway de identidad falso."""
 
@@ -69,6 +80,10 @@ async def api_client(
     app.dependency_overrides[get_db] = _db
     app.dependency_overrides[get_regla_rating_cache] = lambda: cache
     app.dependency_overrides[get_perfil_cliente_gateway] = lambda: fake_gateway
+    app.dependency_overrides[get_open_data_gateway] = lambda: fake_open_data_gateway
+    app.dependency_overrides[get_open_data_cache] = lambda: OpenDataRedisCache(
+        fake_redis, 300
+    )
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as client:

@@ -6,25 +6,32 @@ services:
     container_name: solventa-identity-service
     ports:
       - "8002:8000"
+      - "50051:50051"
     env_file:
       - .env
     environment:
       PROJECT_NAME: Solventa Identity Service
       ENVIRONMENT: local
-      DATABASE_URL: ${DATABASE_URL:-}
+      DATABASE_URL: "${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@db:5432/identity_db}"
       AWS_REGION: ${AWS_REGION:-}
       COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
       COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
       COGNITO_ENABLED: ${COGNITO_ENABLED:-}
-      REDIS_ENDPOINT: ${REDIS_ENDPOINT:-}
+      REDIS_ENDPOINT: "${REDIS_ENDPOINT:-redis://redis:6379/0}"
       REDIS_AUTH_TOKEN: ${REDIS_AUTH_TOKEN:-}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
       KYC_SERVICE_URL: ${KYC_SERVICE_URL:-http://mock_kyc:8000}
+      OPEN_FINANCE_URL: ${OPEN_FINANCE_URL:-http://mock_openfinance:8000}
+      OPEN_FINANCE_TIMEOUT_SECONDS: ${OPEN_FINANCE_TIMEOUT_SECONDS:-0.2}
+      GRPC_ENABLED: ${GRPC_ENABLED:-true}
+      GRPC_PORT: ${GRPC_PORT:-50051}
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+      mock_openfinance:
+        condition: service_started
       lgtm:
         condition: service_started
 
@@ -40,10 +47,13 @@ services:
     environment:
       PROJECT_NAME: Solventa Quoting Engine Service
       ENVIRONMENT: local
-      DATABASE_URL: ${DATABASE_URL:-}
-      REDIS_ENDPOINT: ${REDIS_ENDPOINT:-}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@db:5432/identity_db}
+      REDIS_ENDPOINT: ${REDIS_ENDPOINT:-redis://redis:6379/0}
       REDIS_AUTH_TOKEN: ${REDIS_AUTH_TOKEN:-}
       IDENTITY_GRPC_ADDRESS: ${IDENTITY_GRPC_ADDRESS:-identity_service:50051}
+      OPEN_DATA_URL: ${OPEN_DATA_URL:-http://mock_opendata:8000}
+      OPEN_DATA_TIMEOUT_SECONDS: ${OPEN_DATA_TIMEOUT_SECONDS:-0.25}
+      OPEN_DATA_CACHE_TTL_SECONDS: ${OPEN_DATA_CACHE_TTL_SECONDS:-300}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
     depends_on:
       db:
@@ -51,6 +61,8 @@ services:
       redis:
         condition: service_healthy
       identity_service:
+        condition: service_started
+      mock_opendata:
         condition: service_started
       lgtm:
         condition: service_started
@@ -66,6 +78,34 @@ services:
       - .env
     environment:
       MOCK_KYC_STATUS: ${MOCK_KYC_STATUS:-PASSED}
+
+  mock_openfinance:
+    build:
+      context: .
+      dockerfile: docker/services/Dockerfile.mock_openfinance
+    container_name: solventa-mock-openfinance
+    ports:
+      - "8200:8000"
+    environment:
+      MOCK_OPENFINANCE_STATUS: ${MOCK_OPENFINANCE_STATUS:-AVAILABLE}
+      MOCK_OPENFINANCE_DELAY_MS: ${MOCK_OPENFINANCE_DELAY_MS:-0}
+      MOCK_OPENFINANCE_INCOME: ${MOCK_OPENFINANCE_INCOME:-8500000}
+      MOCK_OPENFINANCE_SAVINGS: ${MOCK_OPENFINANCE_SAVINGS:-25500000}
+      MOCK_OPENFINANCE_DTI: ${MOCK_OPENFINANCE_DTI:-28}
+      MOCK_OPENFINANCE_OVERDRAFTS: ${MOCK_OPENFINANCE_OVERDRAFTS:-0}
+      MOCK_OPENFINANCE_SCORE: ${MOCK_OPENFINANCE_SCORE:-820}
+
+  mock_opendata:
+    build:
+      context: .
+      dockerfile: docker/services/Dockerfile.mock_opendata
+    container_name: solventa-mock-opendata
+    ports:
+      - "8201:8000"
+    environment:
+      MOCK_OPENDATA_STATUS: ${MOCK_OPENDATA_STATUS:-AVAILABLE}
+      MOCK_OPENDATA_DELAY_MS: ${MOCK_OPENDATA_DELAY_MS:-0}
+      MOCK_OPENDATA_CATEGORY: ${MOCK_OPENDATA_CATEGORY:-}
 
   bff_web:
     build:
@@ -117,15 +157,15 @@ services:
     image: postgres:16-alpine
     container_name: solventa-db
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-appdata}
+      POSTGRES_DB: ${POSTGRES_DB:-identity_db}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d appdata"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-identity_db}"]
       interval: 10s
       timeout: 5s
       retries: 5

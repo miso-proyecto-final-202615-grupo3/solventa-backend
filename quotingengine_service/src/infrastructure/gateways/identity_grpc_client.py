@@ -2,6 +2,7 @@ import asyncio
 import logging
 import uuid
 from datetime import date
+from decimal import Decimal, InvalidOperation
 
 import grpc
 
@@ -108,4 +109,21 @@ def _a_perfil(r: identity_profile_pb2.PerfilClienteResponse) -> PerfilCliente:
         pais_residencia=r.pais_residencia,
         telefono=r.telefono,
         estado_kyc=r.estado_kyc,
+        open_finance_disponible=r.open_finance_disponible,
+        ingreso_mensual=_decimal_or_none(r.ingreso_mensual),
+        ahorros_liquidos=_decimal_or_none(r.ahorros_liquidos),
+        dti_pct=_decimal_or_none(r.dti_pct),
+        sobregiros_12_meses=(
+            r.sobregiros_12_meses if r.open_finance_disponible else None
+        ),
+        score=r.score if r.open_finance_disponible else None,
     )
+
+
+def _decimal_or_none(value: str) -> Decimal | None:
+    if not value:
+        return None
+    try:
+        return Decimal(value)
+    except InvalidOperation:
+        return None

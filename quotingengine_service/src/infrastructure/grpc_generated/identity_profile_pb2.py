@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x16identity_profile.proto\x12\x14solventa.identity.v1\"1\n\x1bObtenerPerfilClienteRequest\x12\x12\n\ncliente_id\x18\x01 \x01(\t\"\xe7\x01\n\x15PerfilClienteResponse\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0f\n\x07nombres\x18\x02 \x01(\t\x12\x11\n\tapellidos\x18\x03 \x01(\t\x12\x16\n\x0etipo_documento\x18\x04 \x01(\t\x12\x1d\n\x15numero_identificacion\x18\x05 \x01(\t\x12\x0e\n\x06\x63orreo\x18\x06 \x01(\t\x12\x18\n\x10\x66\x65\x63ha_nacimiento\x18\x07 \x01(\t\x12\x17\n\x0fpais_residencia\x18\x08 \x01(\t\x12\x10\n\x08telefono\x18\t \x01(\t\x12\x12\n\nestado_kyc\x18\n \x01(\t2\x89\x01\n\x0fIdentityProfile\x12v\n\x14ObtenerPerfilCliente\x12\x31.solventa.identity.v1.ObtenerPerfilClienteRequest\x1a+.solventa.identity.v1.PerfilClienteResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x16identity_profile.proto\x12\x14solventa.identity.v1\"1\n\x1bObtenerPerfilClienteRequest\x12\x12\n\ncliente_id\x18\x01 \x01(\t\"\xf8\x02\n\x15PerfilClienteResponse\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0f\n\x07nombres\x18\x02 \x01(\t\x12\x11\n\tapellidos\x18\x03 \x01(\t\x12\x16\n\x0etipo_documento\x18\x04 \x01(\t\x12\x1d\n\x15numero_identificacion\x18\x05 \x01(\t\x12\x0e\n\x06\x63orreo\x18\x06 \x01(\t\x12\x18\n\x10\x66\x65\x63ha_nacimiento\x18\x07 \x01(\t\x12\x17\n\x0fpais_residencia\x18\x08 \x01(\t\x12\x10\n\x08telefono\x18\t \x01(\t\x12\x12\n\nestado_kyc\x18\n \x01(\t\x12\x1f\n\x17open_finance_disponible\x18\x0b \x01(\x08\x12\x17\n\x0fingreso_mensual\x18\x0c \x01(\t\x12\x18\n\x10\x61horros_liquidos\x18\r \x01(\t\x12\x0f\n\x07\x64ti_pct\x18\x0e \x01(\t\x12\x1b\n\x13sobregiros_12_meses\x18\x0f \x01(\r\x12\r\n\x05score\x18\x10 \x01(\r2\x89\x01\n\x0fIdentityProfile\x12v\n\x14ObtenerPerfilCliente\x12\x31.solventa.identity.v1.ObtenerPerfilClienteRequest\x1a+.solventa.identity.v1.PerfilClienteResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,7 +34,7 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_OBTENERPERFILCLIENTEREQUEST']._serialized_start=48
   _globals['_OBTENERPERFILCLIENTEREQUEST']._serialized_end=97
   _globals['_PERFILCLIENTERESPONSE']._serialized_start=100
-  _globals['_PERFILCLIENTERESPONSE']._serialized_end=331
-  _globals['_IDENTITYPROFILE']._serialized_start=334
-  _globals['_IDENTITYPROFILE']._serialized_end=471
+  _globals['_PERFILCLIENTERESPONSE']._serialized_end=476
+  _globals['_IDENTITYPROFILE']._serialized_start=479
+  _globals['_IDENTITYPROFILE']._serialized_end=616
 # @@protoc_insertion_point(module_scope)

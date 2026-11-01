@@ -136,6 +136,20 @@ curl -X PUT -H "X-Admin-Token: $LIVENESS_ADMIN_TOKEN" -H "Content-Type: applicat
   `POSTGRES_TEST_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/appdata python -m pytest -m postgres identity_service/tests/integration/test_concurrencia_intentos.py`
 - Plan y decisiones: [docs/planning/HU3.1.1-plan-tecnico.md](docs/planning/HU3.1.1-plan-tecnico.md).
 
+## Consentimiento biométrico (HU3.1.3)
+
+- BFF Móvil (JWT; el correo sale del token):
+  - `GET /api/v1/bff-mobile/consentimientos/biometrico` → `{otorgado, version_vigente, version_aceptada, decidido_en}`.
+  - `POST /api/v1/bff-mobile/consentimientos/biometrico` `{decision: ACEPTADO|RECHAZADO, version_terminos, installation_id, decidido_en}`
+    → `201 {decision, version_terminos, registrado_en}`. Errores: `401`, `409 VERSION_TERMINOS_DESACTUALIZADA`,
+    `422` (datos o `decidido_en` fuera de rango: más de 5 min en el futuro o más de 24 h atrás), `503`.
+- Identity guarda **cada decisión, también el rechazo**, en `identity.consentimientos_biometricos` (solo inserción):
+  decisión, versión del texto legal, instalación, canal, `decidido_en` (cliente) y `registrado_en` (servidor).
+  Vale la última decisión, y solo otorga si acepta la versión vigente (`BIOMETRIC_TERMS_VERSION`).
+- Sin consentimiento vigente, `POST /activacion/sesiones` responde `403 CONSENTIMIENTO_BIOMETRICO_REQUERIDO`
+  (`REQUIRE_BIOMETRIC_CONSENT=true` por defecto; `false` solo para demostraciones).
+- Contrato canónico: [docs/contracts/consentimiento-biometrico](docs/contracts/consentimiento-biometrico).
+
 ## Cognito en local vs. EKS
 
 - **Docker (compose):** el contenedor usa `NoopIdentityProvider` (`COGNITO_ENABLED=false`),

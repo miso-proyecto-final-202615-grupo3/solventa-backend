@@ -104,6 +104,28 @@ class AuditoriaConsentimientoModel(Base):
     canal: Mapped[str] = mapped_column(String(20), nullable=False)
 
 
+class ConsentimientoBiometricoModel(Base):
+    """Decisiones de consentimiento biométrico (HU3.1.3). Solo inserción: es el log auditable."""
+
+    __tablename__ = "consentimientos_biometricos"
+    __table_args__ = (
+        Index("ix_consentimiento_biometrico_cliente_registro", "cliente_id", "registrado_en"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    cliente_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("clientes.id"), nullable=False
+    )
+    decision: Mapped[str] = mapped_column(String(10), nullable=False)
+    version_terminos: Mapped[str] = mapped_column(String(40), nullable=False)
+    installation_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    canal: Mapped[str] = mapped_column(String(20), nullable=False)
+    decidido_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    registrado_en: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
 class DispositivoVinculadoModel(Base):
     """Vínculo de una instalación activada; nunca almacena evidencia biométrica."""
 

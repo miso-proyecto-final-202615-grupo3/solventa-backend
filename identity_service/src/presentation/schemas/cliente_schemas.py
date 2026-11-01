@@ -2,10 +2,11 @@ import re
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from src.domain.clientes.value_objects import EstadoKYC, TipoDocumento
 from src.domain.activacion_movil.entities import Plataforma
+from src.domain.consentimiento_biometrico.entities import DecisionBiometrica
 
 _PHONE_PATTERN = re.compile(r"^\+?[0-9][0-9\s\-()]{6,19}$")
 _CEDULA_PATTERN = re.compile(r"^\d{5,10}$")
@@ -114,6 +115,29 @@ class VerificarActivacionMovilResponse(BaseModel):
     dispositivo_vinculado: bool
     vinculado_en: datetime | None = None
     motivo: str | None = None
+
+
+class RegistrarConsentimientoBiometricoRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    correo: EmailStr
+    decision: DecisionBiometrica
+    version_terminos: str = Field(min_length=1, max_length=40)
+    installation_id: UUID
+    decidido_en: AwareDatetime
+
+
+class RegistrarConsentimientoBiometricoResponse(BaseModel):
+    decision: DecisionBiometrica
+    version_terminos: str
+    registrado_en: datetime
+
+
+class EstadoConsentimientoBiometricoResponse(BaseModel):
+    otorgado: bool
+    version_vigente: str
+    version_aceptada: str | None = None
+    decidido_en: datetime | None = None
 
 
 class ResumenMovilResponse(BaseModel):

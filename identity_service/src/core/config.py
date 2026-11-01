@@ -23,7 +23,9 @@ class Settings(BaseSettings):
     KYC_TIMEOUT_SECONDS: float = 0.7
     LIVENESS_ADAPTER_URL: str = "http://localhost:8203"
     LIVENESS_ADAPTER_TIMEOUT_SECONDS: float = 15.0
-    REQUIRE_BIOMETRIC_CONSENT: bool = False
+    # HU3.1.3: sin consentimiento biométrico vigente no se inicia la prueba de vida.
+    REQUIRE_BIOMETRIC_CONSENT: bool = True
+    BIOMETRIC_TERMS_VERSION: str = "1.0"
     GRPC_ENABLED: bool = False
     GRPC_PORT: int = 50051
     OPEN_FINANCE_URL: str = ""

@@ -1,6 +1,7 @@
 import uuid
+from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, EmailStr, Field
 
 
 class LoginRequest(BaseModel):
@@ -63,3 +64,29 @@ class VerificarActivacionResponse(BaseModel):
     dispositivo_vinculado: bool
     vinculado_en: str | None = None
     motivo: str | None = None
+
+
+class EstadoConsentimientoBiometricoResponse(BaseModel):
+    """Contrato 4.3 (HU3.1.3)."""
+
+    otorgado: bool
+    version_vigente: str
+    version_aceptada: str | None = None
+    decidido_en: datetime | None = None
+
+
+class RegistrarConsentimientoBiometricoRequest(BaseModel):
+    """Decisión del cliente; el correo se obtiene exclusivamente del JWT."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    decision: str = Field(pattern="^(ACEPTADO|RECHAZADO)$")
+    version_terminos: str = Field(min_length=1, max_length=40)
+    installation_id: uuid.UUID
+    decidido_en: AwareDatetime
+
+
+class RegistrarConsentimientoBiometricoResponse(BaseModel):
+    decision: str
+    version_terminos: str
+    registrado_en: datetime

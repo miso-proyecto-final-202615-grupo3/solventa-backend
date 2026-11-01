@@ -95,13 +95,13 @@ class LivenessFake(LivenessVerificationPort):
 
     async def start_session(self, customer_id, correlation_id):
         return LivenessSessionInfo(
-            "sesion-nueva", "2026-10-25T12:02:00Z", {"type": "FRAMES", "nonce": "reto"}
+            "sesion-nueva", "2026-10-25T12:02:00Z", {"tipo": "FRAMES", "reto": {"gesto": "BLINK", "nonce": "reto"}}
         )
 
     async def cancel_session(self, session_id, correlation_id):
         self.canceladas.append(session_id)
 
-    async def verify(self, session_id, customer_id, nonce, frames, correlation_id):
+    async def verify(self, *args, **kwargs):
         return LivenessVerification("folio", True)
 
 
@@ -127,7 +127,7 @@ async def test_crea_sesion_nueva_y_reporta_intentos_restantes():
 
     assert result.sesion_id == "sesion-nueva"
     assert result.intentos_restantes == 2
-    assert result.captura == {"type": "FRAMES", "nonce": "reto"}
+    assert result.captura == {"tipo": "FRAMES", "reto": {"gesto": "BLINK", "nonce": "reto"}}
     assert len(activaciones.sesiones) == 1
     assert commits == [True]
 

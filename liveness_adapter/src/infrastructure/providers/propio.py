@@ -12,11 +12,13 @@ class PropioProvider:
     """Proveedor local que emite un reto y aplica validaciones de evidencia básicas."""
 
     name = "propio"
+    capture_type = "FRAMES"
+    requires_budget = False
 
     def __init__(self, analyzer=None) -> None:
         self._analyzer = analyzer or MediaPipeFaceAnalyzer(settings.PROPIO_MODEL_PATH)
 
-    def start_session(self) -> ProviderSessionStarted:
+    def start_session(self, customer_id: str, session_id: str) -> ProviderSessionStarted:
         return ProviderSessionStarted(
             capture={
                 "tipo": "FRAMES",
@@ -27,7 +29,9 @@ class PropioProvider:
             }
         )
 
-    def verify(self, session: dict, frames: dict[str, bytes]) -> ProviderVerificationResult:
+    def verify(
+        self, session: dict, frames: dict[str, bytes], sdk_result: str | None = None
+    ) -> ProviderVerificationResult:
         expected = {"frame_inicio", "frame_gesto", "frame_fin"}
         if set(frames) != expected:
             return ProviderVerificationResult("", False, "CAPTURA_INVALIDA")

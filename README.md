@@ -90,6 +90,26 @@ docker compose --profile observability up --build
 | `mock_kyc` | `http://localhost:8202` |
 | `liveness_adapter` | `http://localhost:8203` |
 
+## Prueba de vida (HU3.1.1)
+
+Diseño del experimento HA12: `liveness_adapter` es el único servicio que conoce a los proveedores
+(Strategy `LivenessProvider` + `LivenessProviderFactory`). El proveedor activo se cambia en caliente:
+
+```bash
+curl -H "X-Admin-Token: $LIVENESS_ADMIN_TOKEN" http://localhost:8203/api/v1/liveness-adapter/admin/liveness-provider
+curl -X PUT -H "X-Admin-Token: $LIVENESS_ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -d '{"provider":"didit"}' http://localhost:8203/api/v1/liveness-adapter/admin/liveness-provider
+```
+
+- `propio` (por defecto): reto del servidor + 3 frames verificados con MediaPipe. Riesgo aceptado: no es PAD certificado.
+- `didit` (demo, `DIDIT_ENABLED=false` por defecto): API real de sesiones de Didit o `mock_kyc`, con topes
+  `DIDIT_MAX_SESIONES_DIA` / `DIDIT_MAX_SESIONES_MES` para no salir de la cuota gratuita.
+- Sin `LIVENESS_ADMIN_TOKEN` en `.env`, `/admin` responde 403. En EKS el servicio no tiene ingress (usar `port-forward`).
+- Logs de trazabilidad: `liveness_provider=<nombre> correlation_id=<id> status=<approved|rejected>`.
+- Prueba de concurrencia en PostgreSQL (criterio de terminado):
+  `POSTGRES_TEST_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/appdata python -m pytest -m postgres identity_service/tests/integration/test_concurrencia_intentos.py`
+- Plan y decisiones: [docs/planning/HU3.1.1-plan-tecnico.md](docs/planning/HU3.1.1-plan-tecnico.md).
+
 ## Cognito en local vs. EKS
 
 - **Docker (compose):** el contenedor usa `NoopIdentityProvider` (`COGNITO_ENABLED=false`),

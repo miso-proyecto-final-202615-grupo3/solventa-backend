@@ -4,7 +4,12 @@ import jwt
 from jwt import PyJWKClient
 from functools import lru_cache
 
+from pydantic import EmailStr, TypeAdapter, ValidationError
+
 from src.core.config import settings
+
+
+_EMAIL = TypeAdapter(EmailStr)
 
 
 class InvalidJwtError(Exception):
@@ -50,6 +55,11 @@ class CognitoJwtValidator:
         subject = claims.get("sub")
         if not isinstance(correo, str) or not isinstance(subject, str):
             raise InvalidJwtError("El token no contiene la identidad del cliente.")
+        try:
+            correo = _EMAIL.validate_python(correo)
+        except ValidationError as exc:
+            # En este pool el username es el correo; si no lo es, el token no sirve para activar.
+            raise InvalidJwtError("La identidad del token no es un correo.") from exc
         return ClienteAutenticado(correo=correo, subject=subject)
 
 

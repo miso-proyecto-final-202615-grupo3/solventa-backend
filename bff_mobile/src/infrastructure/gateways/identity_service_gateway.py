@@ -59,6 +59,7 @@ class IdentityServiceGateway:
             "/api/v1/identity-service/clientes/activacion-movil/sesiones",
             {"correo": correo, **dispositivo},
             headers={"X-Correlation-Id": correlation_id},
+            timeout=settings.ACTIVATION_TIMEOUT_SECONDS,
         )
 
     async def verificar_activacion_movil(self, sesion_id: str, correo: str, metadata: str, frames: dict[str, bytes], correlation_id: str) -> dict:
@@ -66,8 +67,9 @@ class IdentityServiceGateway:
             response = await self._client.post(
                 f"/api/v1/identity-service/clientes/activacion-movil/sesiones/{sesion_id}/verificacion",
                 data={"correo": correo, "metadata": metadata},
-                files={key: (f"{key}.jpg", value, "image/jpeg") for key, value in frames.items()},
+                files={key: (f"{key}.jpg", value, "image/jpeg") for key, value in frames.items()} or None,
                 headers={"X-Correlation-Id": correlation_id},
+                timeout=settings.ACTIVATION_TIMEOUT_SECONDS,
             )
         except httpx.HTTPError as exc:
             raise IdentityGatewayError(503, "El servicio de identidad no está disponible.") from exc
@@ -83,10 +85,16 @@ class IdentityServiceGateway:
         await self._client.aclose()
 
     async def _post(
-        self, path: str, payload: dict, headers: dict[str, str] | None = None
+        self,
+        path: str,
+        payload: dict,
+        headers: dict[str, str] | None = None,
+        timeout: float | None = None,
     ) -> dict:
         try:
-            response = await self._client.post(path, json=payload, headers=headers)
+            response = await self._client.post(
+                path, json=payload, headers=headers, timeout=timeout or self._client.timeout
+            )
         except httpx.HTTPError as exc:
             raise IdentityGatewayError(
                 status_code=503,

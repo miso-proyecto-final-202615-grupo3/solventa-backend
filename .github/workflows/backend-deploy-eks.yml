@@ -35,6 +35,7 @@ jobs:
           - quotingengine_service
           - bff_web
           - bff_mobile
+          - liveness_adapter
           - mock_kyc
     env:
       DEPLOYMENT_ENV: ${{ inputs.target_env }}

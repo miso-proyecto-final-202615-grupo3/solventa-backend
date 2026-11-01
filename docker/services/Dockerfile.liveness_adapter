@@ -1,9 +1,13 @@
 FROM python:3.13-slim
 WORKDIR /app
+# MediaPipe arrastra OpenCV, que necesita estas librerías del sistema aunque no haya pantalla.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgl1 libegl1 libgles2 libgomp1 libglib2.0-0 libxcb1 libx11-6 libxext6 libsm6 libxrender1 \
+    && rm -rf /var/lib/apt/lists/*
 COPY liveness_adapter/requirements.txt ./
-COPY liveness_adapter/src ./src
 RUN pip install --no-cache-dir -r requirements.txt \
     && mkdir -p /app/models \
     && python -c "import urllib.request; urllib.request.urlretrieve('https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task', '/app/models/face_landmarker.task')"
+COPY liveness_adapter/src ./src
 EXPOSE 8000
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]

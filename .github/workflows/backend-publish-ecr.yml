@@ -35,6 +35,7 @@ jobs:
           - quotingengine_service
           - bff_web
           - bff_mobile
+          - liveness_adapter
           - mock_kyc
     env:
       AWS_REGION: ${{ secrets.AWS_REGION }}

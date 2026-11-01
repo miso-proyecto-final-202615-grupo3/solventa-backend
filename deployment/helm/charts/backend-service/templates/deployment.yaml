@@ -31,7 +31,7 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "backend-service.fullname" . }}
-{{ if or .Values.database.enabled .Values.bucket.enabled .Values.cognito.enabled .Values.redis.enabled .Values.kmsKey.enabled }}
+{{ if or .Values.database.enabled .Values.bucket.enabled .Values.cognito.enabled .Values.redis.enabled .Values.kmsKey.enabled .Values.extraSecretEnv }}
           env:
 {{ if .Values.database.enabled }}
             - name: DATABASE_URL
@@ -77,6 +77,14 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.kmsKey.existingSecret }}
                   key: {{ .Values.kmsKey.secretKey }}
+{{- end }}
+{{- range .Values.extraSecretEnv }}
+            - name: {{ .name }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .existingSecret }}
+                  key: {{ .secretKey }}
+                  optional: {{ .optional | default false }}
 {{- end }}
 {{ end }}
           readinessProbe:

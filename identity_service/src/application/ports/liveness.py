@@ -14,6 +14,14 @@ class LivenessSessionConflictError(Exception):
     """La sesión no permite la transición solicitada."""
 
 
+class LivenessInvalidCaptureError(Exception):
+    """El adaptador rechazó la evidencia por formato, tamaño o marcas de tiempo; no consume intento."""
+
+
+class LivenessSessionCancelledError(LivenessSessionConflictError):
+    """La persona canceló la captura del SDK; no consume intento."""
+
+
 @dataclass(frozen=True)
 class LivenessSessionInfo:
     session_id: str
@@ -39,6 +47,13 @@ class LivenessVerificationPort(ABC):
 
     @abstractmethod
     async def verify(
-        self, session_id: str, customer_id: str, nonce: str, frames: dict[str, bytes], captured_at: dict[str, str], correlation_id: str
+        self,
+        session_id: str,
+        customer_id: str,
+        nonce: str | None,
+        frames: dict[str, bytes],
+        captured_at: dict[str, str],
+        correlation_id: str,
+        sdk_result: str | None = None,
     ) -> LivenessVerification:
         raise NotImplementedError

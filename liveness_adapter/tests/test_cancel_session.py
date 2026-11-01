@@ -1,46 +1,34 @@
-import pytest
-from fastapi import HTTPException
-
-import src.main as main
+PREFIX = "/api/v1/liveness-adapter/liveness/sessions"
 
 
-@pytest.fixture
-def sessions(monkeypatch):
-    values = {}
+async def test_cancela_sesion_creada_de_forma_idempotente(adapter, client):
+    adapter["store"].values["sesion-1"] = {"state": "CREATED"}
 
-    async def get(session_id):
-        return values.get(session_id)
+    first = await client.post(f"{PREFIX}/sesion-1/cancel")
+    second = await client.post(f"{PREFIX}/sesion-1/cancel")
 
-    async def save(session_id, session):
-        values[session_id] = session
-
-    monkeypatch.setattr(main, "_get_session", get)
-    monkeypatch.setattr(main, "_save_session", save)
-    return values
+    assert first.status_code == 204
+    assert second.status_code == 204
+    assert adapter["store"].values["sesion-1"]["state"] == "CANCELLED"
 
 
-async def test_cancela_sesion_creada_de_forma_idempotente(sessions):
-    sessions["sesion-1"] = {"state": "CREATED"}
+async def test_rechaza_cancelar_sesion_ya_usada(adapter, client):
+    adapter["store"].values["sesion-usada"] = {"state": "USED"}
 
-    response = await main.cancel_session("sesion-1")
-    repeated_response = await main.cancel_session("sesion-1")
+    response = await client.post(f"{PREFIX}/sesion-usada/cancel")
 
-    assert response.status_code == 204
-    assert repeated_response.status_code == 204
-    assert sessions["sesion-1"]["state"] == "CANCELLED"
+    assert response.status_code == 409
 
 
-async def test_rechaza_cancelar_sesion_ya_usada(sessions):
-    sessions["sesion-usada"] = {"state": "USED"}
+async def test_rechaza_sesion_inexistente(adapter, client):
+    response = await client.post(f"{PREFIX}/desconocida/cancel")
 
-    with pytest.raises(HTTPException) as error:
-        await main.cancel_session("sesion-usada")
-
-    assert error.value.status_code == 409
+    assert response.status_code == 404
 
 
-async def test_rechaza_sesion_inexistente(sessions):
-    with pytest.raises(HTTPException) as error:
-        await main.cancel_session("desconocida")
+async def test_redis_caido_responde_503(adapter, client):
+    adapter["store"].fail = True
 
-    assert error.value.status_code == 404
+    response = await client.post(f"{PREFIX}/sesion-1/cancel")
+
+    assert response.status_code == 503

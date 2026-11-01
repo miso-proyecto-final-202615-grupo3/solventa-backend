@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     DIDIT_BASE_URL: str = "http://mock_kyc:8000"
     DIDIT_API_KEY: str = ""
     DIDIT_WORKFLOW_ID: str = ""
+    DIDIT_TIMEOUT_SECONDS: float = 5.0
     DIDIT_MAX_SESIONES_DIA: int = 5
     DIDIT_MAX_SESIONES_MES: int = 100
 

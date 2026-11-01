@@ -4,6 +4,8 @@ import httpx
 
 from src.application.ports.liveness import (
     LivenessAdapterUnavailableError,
+    LivenessInvalidCaptureError,
+    LivenessSessionCancelledError,
     LivenessSessionConflictError,
     LivenessSessionInfo,
     LivenessSessionNotFoundError,
@@ -52,25 +54,44 @@ class HttpLivenessAdapterClient(LivenessVerificationPort):
         except httpx.HTTPError as exc:
             raise LivenessAdapterUnavailableError() from exc
 
-    async def verify(self, session_id, customer_id, nonce, frames, captured_at, correlation_id) -> LivenessVerification:
+    async def verify(
+        self, session_id, customer_id, nonce, frames, captured_at, correlation_id, sdk_result=None
+    ) -> LivenessVerification:
+        metadata = {"session_id": session_id, "customer_id": customer_id}
+        if sdk_result is None:
+            metadata.update({"nonce": nonce, "capturas": captured_at})
+        else:
+            metadata["resultado_sdk"] = sdk_result
         try:
             response = await self._client.post(
                 "/api/v1/liveness-adapter/liveness/verifications",
-                data={"metadata": json.dumps({"session_id": session_id, "customer_id": customer_id, "nonce": nonce, "capturas": captured_at})},
-                files={name: (f"{name}.jpg", content, "image/jpeg") for name, content in frames.items()},
+                data={"metadata": json.dumps(metadata)},
+                files={name: (f"{name}.jpg", content, "image/jpeg") for name, content in frames.items()} or None,
                 headers={"X-Correlation-Id": correlation_id},
             )
             if response.status_code == 404:
                 raise LivenessSessionNotFoundError()
             if response.status_code == 409:
+                if _codigo(response) == "SESION_CANCELADA":
+                    raise LivenessSessionCancelledError()
                 raise LivenessSessionConflictError()
+            if response.status_code in (413, 415, 422):
+                raise LivenessInvalidCaptureError()
             response.raise_for_status()
             body = response.json()
             return LivenessVerification(body["verification_id"], body["status"] == "approved", body.get("reason"))
-        except (LivenessSessionNotFoundError, LivenessSessionConflictError):
+        except (LivenessSessionNotFoundError, LivenessSessionConflictError, LivenessInvalidCaptureError):
             raise
         except (httpx.HTTPError, KeyError, ValueError) as exc:
             raise LivenessAdapterUnavailableError() from exc
 
     async def aclose(self) -> None:
         await self._client.aclose()
+
+
+def _codigo(response: httpx.Response) -> str | None:
+    try:
+        detail = response.json().get("detail")
+    except ValueError:
+        return None
+    return detail.get("codigo") if isinstance(detail, dict) else None

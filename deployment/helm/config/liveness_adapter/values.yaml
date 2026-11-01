@@ -15,7 +15,7 @@ http:
 
 probes:
   readiness:
-    path: /api/v1/liveness-adapter/health
+    path: /api/v1/liveness-adapter/ready
     port: http
     initialDelaySeconds: 10
     periodSeconds: 10
@@ -33,8 +33,22 @@ cognito:
   enabled: false
 redis:
   enabled: true
+  existingSecret: secret-name
+  secretKey: REDIS_ENDPOINT
+  secretKey2: REDIS_AUTH_TOKEN
 kmsKey:
   enabled: false
+
+# Secretos propios del adaptador (Secrets Manager → secret de Kubernetes de cada ambiente).
+# DIDIT_API_KEY es opcional: solo se usa con DIDIT_ENABLED=true (demostración).
+extraSecretEnv:
+  - name: ADMIN_TOKEN
+    existingSecret: secret-name
+    secretKey: LIVENESS_ADMIN_TOKEN
+  - name: DIDIT_API_KEY
+    existingSecret: secret-name
+    secretKey: DIDIT_API_KEY
+    optional: true
 
 config:
   PROJECT_NAME: Solventa Liveness Adapter
@@ -42,6 +56,10 @@ config:
   LIVENESS_PROVIDER: propio
   LIVENESS_SESSION_TTL_SECONDS: "120"
   MAX_FRAME_BYTES: "524288"
+  DIDIT_ENABLED: "false"
+  DIDIT_BASE_URL: http://mock-kyc:80
+  DIDIT_MAX_SESIONES_DIA: "5"
+  DIDIT_MAX_SESIONES_MES: "100"
 
 resources:
   requests:

@@ -81,3 +81,19 @@ uso, endpoint, BD y cliente no cambian.
 - [ ] Confirmar con el equipo el proveedor objetivo (o el mock definitivo) y su contrato.
 - [ ] Definir reglas del mock: qué documentos devuelven `PASSED`/`FAILED`/`PENDING`
       (hoy: configurable por `MOCK_KYC_STATUS`, default `PASSED`).
+## 7. Prueba de vida (HU3.1.1) · imitación de la API de Didit
+
+`mock_kyc` imita las rutas de sesiones de Didit para que `DiditProvider` (en `liveness_adapter`) use el
+mismo código contra el mock, el sandbox y la demo. Documentación del proveedor:
+<https://docs.didit.me/sessions-api/create-session> y <https://docs.didit.me/sessions-api/retrieve-session>.
+
+| Ruta | Comportamiento del mock |
+| --- | --- |
+| `POST /v3/session/` | Exige `x-api-key` (401 si falta) y `workflow_id`. Responde 201 con `session_id`, `session_token`, `url` y `status: "Not Started"`. |
+| `GET /v3/session/{id}/decision/` | 404 si no existe. `status` según `MOCK_DIDIT_STATUS` (`Approved` por defecto, `Declined`, `In Review`). Si `vendor_data` termina en `0` → `Declined`. |
+
+Reglas de costo cero de Didit real (decisión D9): desactivado por defecto (`DIDIT_ENABLED=false`), app
+sandbox en desarrollo, workflow solo con *passive liveness* para la demo, sin la API directa
+`/v3/passive-liveness/`, topes `DIDIT_MAX_SESIONES_DIA=5` / `DIDIT_MAX_SESIONES_MES=100` en Redis y cuenta
+sin tarjeta. Al superar un tope, o si Didit no responde al crear la sesión, el adaptador usa el
+proveedor `propio`.

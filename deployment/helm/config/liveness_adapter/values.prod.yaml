@@ -1,2 +1,17 @@
 image:
-  repository: 179201404385.dkr.ecr.us-east-1.amazonaws.com/solventa-liveness-adapter
+  repository: 839553328585.dkr.ecr.us-east-1.amazonaws.com/solventa-liveness-adapter
+
+redis:
+  existingSecret: solventa-prod-app-secrets
+
+extraSecretEnv:
+  - name: ADMIN_TOKEN
+    existingSecret: solventa-prod-app-secrets
+    secretKey: LIVENESS_ADMIN_TOKEN
+  - name: DIDIT_API_KEY
+    existingSecret: solventa-prod-app-secrets
+    secretKey: DIDIT_API_KEY
+    optional: true
+
+config:
+  ENVIRONMENT: prod

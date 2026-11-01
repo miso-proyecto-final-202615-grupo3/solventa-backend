@@ -114,3 +114,10 @@ class VerificarActivacionMovilResponse(BaseModel):
     dispositivo_vinculado: bool
     vinculado_en: datetime | None = None
     motivo: str | None = None
+
+
+class ResumenMovilResponse(BaseModel):
+    id: UUID
+    nombre: str
+    estado_kyc: str
+    dispositivo_vinculado: bool

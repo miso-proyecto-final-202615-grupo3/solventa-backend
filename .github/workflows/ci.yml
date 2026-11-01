@@ -20,6 +20,7 @@ jobs:
           - bff_web
           - bff_mobile
           - liveness_adapter
+          - mock_kyc
 
     steps:
       - uses: actions/checkout@v4

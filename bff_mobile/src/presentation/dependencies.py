@@ -1,6 +1,6 @@
 from collections.abc import AsyncGenerator
 
-from fastapi import Header, HTTPException, status
+from fastapi import Header
 
 from src.core.config import settings
 from src.infrastructure.gateways.identity_service_gateway import (
@@ -9,6 +9,7 @@ from src.infrastructure.gateways.identity_service_gateway import (
 from src.infrastructure.gateways.quotingengine_service_gateway import (
     QuotingEngineServiceGateway,
 )
+from src.presentation.errors import ApiError
 from src.presentation.jwt_validator import ClienteAutenticado, InvalidJwtError, get_cognito_jwt_validator
 
 
@@ -23,11 +24,11 @@ def get_cliente_autenticado(
     if demo_sin_jwt_habilitada() and x_demo_correo:
         return ClienteAutenticado(correo=x_demo_correo, subject="demo")
     if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Se requiere un token Bearer válido.")
+        raise ApiError(401, "NO_AUTENTICADO", "Se requiere un token Bearer válido.")
     try:
         return get_cognito_jwt_validator().validar(authorization.removeprefix("Bearer "))
     except InvalidJwtError as exc:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Token inválido o vencido.") from exc
+        raise ApiError(401, "NO_AUTENTICADO", "Token inválido o vencido.") from exc
 
 
 async def get_identity_service_gateway() -> AsyncGenerator[IdentityServiceGateway, None]:

@@ -3,3 +3,6 @@ image:
 
 config:
   ENVIRONMENT: qa
+
+cognito:
+  existingSecret: solventa-qa-app-secrets

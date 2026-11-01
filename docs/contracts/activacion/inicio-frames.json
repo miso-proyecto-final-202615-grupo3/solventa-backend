@@ -1,0 +1,10 @@
+{
+  "dispositivo_vinculado": false,
+  "sesion_id": "0b7e5a42-55d5-45e6-b89e-31c1dfef1f1d",
+  "expira_en": "2026-10-31T12:02:00Z",
+  "intentos_restantes": 3,
+  "captura": {
+    "tipo": "FRAMES",
+    "reto": { "gesto": "BLINK", "nonce": "nonce-de-prueba" }
+  }
+}

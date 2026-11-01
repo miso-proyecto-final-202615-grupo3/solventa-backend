@@ -28,6 +28,16 @@ class ClienteRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def obtener_por_correo(self, correo: str) -> Optional[Cliente]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def bloquear_para_actualizar(
+        self, cliente_id: ClienteId
+    ) -> Optional[Cliente]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def actualizar_estado_kyc(
         self, cliente_id: ClienteId, estado_kyc: EstadoKYC
     ) -> None:

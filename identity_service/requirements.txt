@@ -12,6 +12,7 @@ opentelemetry-instrumentation-fastapi>=0.66b1
 opentelemetry-exporter-otlp>=1.45.1
 prometheus-fastapi-instrumentator>=8.1.0
 httpx>=0.28.1
+python-multipart>=0.0.20
 redis>=8.1.0
 grpcio>=1.84.1
 boto3>=1.43.118

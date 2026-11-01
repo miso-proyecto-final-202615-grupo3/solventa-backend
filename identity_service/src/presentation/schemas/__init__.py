@@ -7,7 +7,14 @@ from src.presentation.schemas.auth_schemas import (
     AutenticarResponse,
     PasswordVerify,
 )
-from src.presentation.schemas.cliente_schemas import ClienteCreate, ClienteResponse
+from src.presentation.schemas.cliente_schemas import (
+    ClienteCreate,
+    ClienteResponse,
+    IniciarActivacionMovilRequest,
+    IniciarActivacionMovilResponse,
+    ResumenMovilResponse,
+    VerificarActivacionMovilResponse,
+)
 from src.presentation.schemas.consentimiento_schemas import (
     ActualizarConsentimientoRequest,
     ConsentimientoResponse,
@@ -22,5 +29,9 @@ __all__ = [
     "ClienteResponse",
     "ConsentimientoResponse",
     "EventoAuditoriaResponse",
+    "IniciarActivacionMovilRequest",
+    "IniciarActivacionMovilResponse",
+    "ResumenMovilResponse",
+    "VerificarActivacionMovilResponse",
     "PasswordVerify",
 ]

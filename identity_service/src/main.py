@@ -7,6 +7,7 @@ import httpx
 from sqlalchemy import text
 
 from src.core.config import settings
+from src.core.correlation import CorrelationIdMiddleware
 from src.core.database import Base, engine
 from src.core.telemetry import setup_telemetry
 from src.infrastructure.gateways.open_finance_http_client import OpenFinanceHttpClient
@@ -33,6 +34,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.warning(
             "No se pudo crear el esquema en el arranque.",
             exc_info=True,
+        )
+    if settings.ENVIRONMENT.lower() in {"qa", "prod", "production"} and not settings.REQUIRE_BIOMETRIC_CONSENT:
+        logger.warning(
+            "REQUIRE_BIOMETRIC_CONSENT=false: excepción transitoria hasta HU3.1.3 (responsable asr88)."
         )
     grpc_server = None
     if settings.GRPC_ENABLED:
@@ -65,6 +70,7 @@ app = FastAPI(
 )
 
 setup_telemetry(app)
+app.add_middleware(CorrelationIdMiddleware, service="identity_service")
 
 
 @app.middleware("http")

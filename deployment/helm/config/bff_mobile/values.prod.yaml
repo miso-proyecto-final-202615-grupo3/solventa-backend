@@ -3,3 +3,6 @@ image:
 
 config:
   ENVIRONMENT: prod
+
+cognito:
+  existingSecret: solventa-prod-app-secrets

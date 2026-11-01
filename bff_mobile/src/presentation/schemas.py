@@ -1,3 +1,5 @@
+import uuid
+
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
@@ -8,6 +10,14 @@ class LoginRequest(BaseModel):
 
     correo: EmailStr
     password: str = Field(min_length=1, max_length=128)
+    installation_id: uuid.UUID | None = None
+
+
+class ClienteMovil(BaseModel):
+    id: uuid.UUID
+    nombre: str
+    estado_kyc: str
+    dispositivo_vinculado: bool
 
 
 class LoginResponse(BaseModel):
@@ -23,3 +33,33 @@ class LoginResponse(BaseModel):
     expires_in: int | None = None
     token_type: str = "Bearer"
     correo: EmailStr | None = None
+    cliente: ClienteMovil | None = None
+
+
+class IniciarActivacionRequest(BaseModel):
+    """Datos del dispositivo; el correo se obtiene exclusivamente del JWT."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    installation_id: uuid.UUID
+    plataforma: str = Field(pattern="^(ANDROID|IOS)$")
+    modelo: str = Field(min_length=1, max_length=100)
+    version_so: str = Field(min_length=1, max_length=20)
+
+
+class IniciarActivacionResponse(BaseModel):
+    dispositivo_vinculado: bool
+    sesion_id: str | None = None
+    expira_en: str | None = None
+    captura: dict | None = None
+    intentos_restantes: int | None = None
+
+
+class VerificarActivacionResponse(BaseModel):
+    resultado: str
+    folio: str | None = None
+    intento: int
+    intentos_restantes: int
+    dispositivo_vinculado: bool
+    vinculado_en: str | None = None
+    motivo: str | None = None

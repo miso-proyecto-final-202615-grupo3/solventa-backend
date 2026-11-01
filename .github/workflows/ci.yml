@@ -19,6 +19,7 @@ jobs:
           - bff_mobile
           - identity_service
           - quotingengine_service
+          - liveness_adapter
           - mock_kyc
           - mock_opendata
           - mock_openfinance
@@ -73,6 +74,7 @@ jobs:
           - mock_kyc
           - mock_opendata
           - mock_openfinance
+          - liveness_adapter
 
     steps:
       - uses: actions/checkout@v4

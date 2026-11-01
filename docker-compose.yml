@@ -21,6 +21,9 @@ services:
       REDIS_AUTH_TOKEN: ${REDIS_AUTH_TOKEN:-}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
       KYC_SERVICE_URL: ${KYC_SERVICE_URL:-http://mock_kyc:8000}
+      LIVENESS_ADAPTER_URL: ${LIVENESS_ADAPTER_URL:-http://liveness_adapter:8000}
+      AWS_PROFILE: ${AWS_PROFILE:-default}
+      AWS_SDK_LOAD_CONFIG: "1"
       OPEN_FINANCE_URL: ${OPEN_FINANCE_URL:-http://mock_openfinance:8000}
       OPEN_FINANCE_TIMEOUT_SECONDS: ${OPEN_FINANCE_TIMEOUT_SECONDS:-0.2}
       GRPC_ENABLED: ${GRPC_ENABLED:-true}
@@ -30,9 +33,36 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      liveness_adapter:
+        condition: service_started
       mock_openfinance:
         condition: service_started
       lgtm:
+        condition: service_started
+
+  liveness_adapter:
+    build:
+      context: .
+      dockerfile: docker/services/Dockerfile.liveness_adapter
+    container_name: solventa-liveness-adapter
+    ports:
+      - "8203:8000"
+    environment:
+      ENVIRONMENT: development
+      REDIS_ENDPOINT: ${LIVENESS_REDIS_ENDPOINT:-redis://redis:6379/1}
+      REDIS_AUTH_TOKEN: ${REDIS_AUTH_TOKEN:-}
+      LIVENESS_PROVIDER: ${LIVENESS_PROVIDER:-propio}
+      ADMIN_TOKEN: ${LIVENESS_ADMIN_TOKEN:-}
+      DIDIT_ENABLED: ${DIDIT_ENABLED:-false}
+      DIDIT_BASE_URL: ${DIDIT_BASE_URL:-http://mock_kyc:8000}
+      DIDIT_API_KEY: ${DIDIT_API_KEY:-mock}
+      DIDIT_WORKFLOW_ID: ${DIDIT_WORKFLOW_ID:-00000000-0000-0000-0000-000000000000}
+      DIDIT_MAX_SESIONES_DIA: ${DIDIT_MAX_SESIONES_DIA:-5}
+      DIDIT_MAX_SESIONES_MES: ${DIDIT_MAX_SESIONES_MES:-100}
+    depends_on:
+      redis:
+        condition: service_healthy
+      mock_kyc:
         condition: service_started
 
   quotingengine_service:
@@ -78,6 +108,7 @@ services:
       - .env
     environment:
       MOCK_KYC_STATUS: ${MOCK_KYC_STATUS:-PASSED}
+      MOCK_DIDIT_STATUS: ${MOCK_DIDIT_STATUS:-Approved}
 
   mock_openfinance:
     build:
@@ -127,8 +158,6 @@ services:
         condition: service_started
       quotingengine_service:
         condition: service_started
-      lgtm:
-        condition: service_started
 
   bff_mobile:
     build:
@@ -141,16 +170,20 @@ services:
       - .env
     environment:
       PROJECT_NAME: Solventa BFF Mobile
-      ENVIRONMENT: local
+      # El bypass de demostración solo se permite en development.
+      ENVIRONMENT: ${BFF_MOBILE_ENVIRONMENT:-development}
       IDENTITY_SERVICE_URL: ${IDENTITY_SERVICE_URL:-http://identity_service:8000}
+      ALLOW_DEMO_ACTIVATION_WITHOUT_JWT: ${ALLOW_DEMO_ACTIVATION_WITHOUT_JWT:-false}
+      # Mismo pool y app client que identity_service: el token que emite Identity es el que valida el BFF.
+      COGNITO_REGION: ${COGNITO_REGION:-${AWS_REGION:-us-east-1}}
+      COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
+      COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
       QUOTINGENGINE_SERVICE_URL: ${QUOTINGENGINE_SERVICE_URL:-http://quotingengine_service:8000}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
     depends_on:
       identity_service:
         condition: service_started
       quotingengine_service:
-        condition: service_started
-      lgtm:
         condition: service_started
 
   db:

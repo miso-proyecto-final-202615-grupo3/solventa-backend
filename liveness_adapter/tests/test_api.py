@@ -45,7 +45,7 @@ async def _verify(client, session_id, nonce="nonce-1", customer_id="cliente-1", 
 async def test_health_no_depende_de_redis(adapter, client):
     adapter["store"].fail = True
 
-    response = await client.get(f"{BASE}/health")
+    response = await client.get(f"/health")
 
     assert response.status_code == 200
 

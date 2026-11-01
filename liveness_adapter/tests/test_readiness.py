@@ -6,8 +6,8 @@ from src import main
 from src.infrastructure.provider_factory import LivenessProviderFactory
 from src.infrastructure.providers.propio import PropioProvider
 
-READY = "/api/v1/liveness-adapter/ready"
-HEALTH = "/api/v1/liveness-adapter/health"
+READY = "/ready"
+HEALTH = "/health"
 
 
 class FakeRedis:

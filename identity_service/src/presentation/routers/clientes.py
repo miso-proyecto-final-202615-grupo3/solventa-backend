@@ -45,11 +45,18 @@ from src.application.use_cases.verificar_activacion_movil_use_case import (
     VerificacionPruebaVidaNoDisponibleError,
     VerificarActivacionMovilUseCase,
 )
+from src.application.use_cases.consentimiento_biometrico_use_case import (
+    ClienteConsentimientoNoEncontradoError,
+    FechaDecisionInvalidaError,
+    GestionarConsentimientoBiometricoUseCase,
+    VersionTerminosDesactualizadaError,
+)
 from src.domain.activacion_movil.entities import DatosDispositivo
 from src.domain.clientes.entities import Cliente
 from src.presentation.dependencies import (
     get_autenticar_cliente_use_case,
     get_consultar_resumen_movil_use_case,
+    get_gestionar_consentimiento_biometrico_use_case,
     get_gestionar_consentimiento_use_case,
     get_registrar_cliente_use_case,
     get_verificar_kyc_use_case,
@@ -62,7 +69,10 @@ from src.presentation.schemas import (
     ClienteCreate,
     ClienteResponse,
     ConsentimientoResponse,
+    EstadoConsentimientoBiometricoResponse,
     PasswordVerify,
+    RegistrarConsentimientoBiometricoRequest,
+    RegistrarConsentimientoBiometricoResponse,
     IniciarActivacionMovilRequest,
     IniciarActivacionMovilResponse,
     VerificarActivacionMovilResponse,
@@ -192,6 +202,63 @@ async def iniciar_activacion_movil(
         expira_en=resultado.expira_en,
         captura=resultado.captura,
         intentos_restantes=resultado.intentos_restantes,
+    )
+
+
+@router.get("/consentimiento-biometrico", response_model=EstadoConsentimientoBiometricoResponse)
+async def consultar_consentimiento_biometrico(
+    correo: str = Query(..., max_length=254),
+    use_case: GestionarConsentimientoBiometricoUseCase = Depends(
+        get_gestionar_consentimiento_biometrico_use_case
+    ),
+) -> EstadoConsentimientoBiometricoResponse:
+    """Consulta interna del BFF (HU3.1.3); la autenticación del usuario ocurre en el BFF."""
+    try:
+        estado = await use_case.consultar(correo)
+    except ClienteConsentimientoNoEncontradoError as exc:
+        raise _error(404, "CLIENTE_NO_REGISTRADO", "Cliente no registrado.") from exc
+    return EstadoConsentimientoBiometricoResponse(
+        otorgado=estado.otorgado,
+        version_vigente=estado.version_vigente,
+        version_aceptada=estado.version_aceptada,
+        decidido_en=estado.decidido_en,
+    )
+
+
+@router.post(
+    "/consentimiento-biometrico",
+    response_model=RegistrarConsentimientoBiometricoResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def registrar_consentimiento_biometrico(
+    payload: RegistrarConsentimientoBiometricoRequest,
+    correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
+    use_case: GestionarConsentimientoBiometricoUseCase = Depends(
+        get_gestionar_consentimiento_biometrico_use_case
+    ),
+) -> RegistrarConsentimientoBiometricoResponse:
+    """Registra la decisión (también el rechazo) con fecha, hora y versión del texto legal."""
+    try:
+        registro = await use_case.registrar(
+            str(payload.correo),
+            payload.decision,
+            payload.version_terminos,
+            payload.installation_id,
+            payload.decidido_en,
+            correlation_id or str(uuid4()),
+        )
+    except ClienteConsentimientoNoEncontradoError as exc:
+        raise _error(404, "CLIENTE_NO_REGISTRADO", "Cliente no registrado.") from exc
+    except VersionTerminosDesactualizadaError as exc:
+        raise _error(
+            409, "VERSION_TERMINOS_DESACTUALIZADA", "La versión de los términos no es la vigente."
+        ) from exc
+    except FechaDecisionInvalidaError as exc:
+        raise _error(422, "DATOS_INVALIDOS", "La fecha de la decisión no es válida.") from exc
+    return RegistrarConsentimientoBiometricoResponse(
+        decision=registro.decision,
+        version_terminos=registro.version_terminos,
+        registrado_en=registro.registrado_en,
     )
 
 

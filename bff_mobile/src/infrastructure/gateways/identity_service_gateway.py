@@ -81,6 +81,30 @@ class IdentityServiceGateway:
             raise IdentityGatewayError(response.status_code, body.get("detail", "El servicio de identidad devolvió un error."))
         return body
 
+    async def consultar_consentimiento_biometrico(self, correo: str, correlation_id: str) -> dict:
+        try:
+            response = await self._client.get(
+                "/api/v1/identity-service/clientes/consentimiento-biometrico",
+                params={"correo": correo},
+                headers={"X-Correlation-Id": correlation_id},
+            )
+        except httpx.HTTPError as exc:
+            raise IdentityGatewayError(503, "El servicio de identidad no está disponible.") from exc
+        try:
+            body = response.json()
+        except ValueError:
+            body = {}
+        if not response.is_success:
+            raise IdentityGatewayError(response.status_code, body.get("detail", "El servicio de identidad devolvió un error."))
+        return body
+
+    async def registrar_consentimiento_biometrico(self, correo: str, decision: dict, correlation_id: str) -> dict:
+        return await self._post(
+            "/api/v1/identity-service/clientes/consentimiento-biometrico",
+            {"correo": correo, **decision},
+            headers={"X-Correlation-Id": correlation_id},
+        )
+
     async def aclose(self) -> None:
         await self._client.aclose()
 

@@ -37,7 +37,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
     if settings.ENVIRONMENT.lower() in {"qa", "prod", "production"} and not settings.REQUIRE_BIOMETRIC_CONSENT:
         logger.warning(
-            "REQUIRE_BIOMETRIC_CONSENT=false: excepción transitoria hasta HU3.1.3 (responsable asr88)."
+            "REQUIRE_BIOMETRIC_CONSENT=false: la activación no exige consentimiento biométrico (HU3.1.3)."
         )
     grpc_server = None
     if settings.GRPC_ENABLED:

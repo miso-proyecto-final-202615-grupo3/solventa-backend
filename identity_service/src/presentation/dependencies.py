@@ -17,6 +17,9 @@ from src.application.use_cases.iniciar_activacion_movil_use_case import (
     IniciarActivacionMovilUseCase,
 )
 from src.application.use_cases.consultar_resumen_movil_use_case import ConsultarResumenMovilUseCase
+from src.application.use_cases.consentimiento_biometrico_use_case import (
+    GestionarConsentimientoBiometricoUseCase,
+)
 from src.application.use_cases.verificar_activacion_movil_use_case import VerificarActivacionMovilUseCase
 from src.application.use_cases.gestionar_consentimiento_use_case import (
     GestionarConsentimientoUseCase,
@@ -32,8 +35,11 @@ from src.domain.clientes.repositories import ClienteRepository
 from src.infrastructure.gateways.cognito_identity_provider import CognitoIdentityProvider
 from src.infrastructure.gateways.kyc_http_client import KycHttpClient
 from src.infrastructure.gateways.noop_identity_provider import NoopIdentityProvider
-from src.infrastructure.gateways.consentimiento_biometrico_permisivo import (
-    ConsentimientoBiometricoPermisivo,
+from src.infrastructure.gateways.consentimiento_biometrico_registrado import (
+    ConsentimientoBiometricoRegistrado,
+)
+from src.infrastructure.persistence.consentimiento_biometrico_repository_impl import (
+    SqlAlchemyConsentimientoBiometricoRepository,
 )
 from src.infrastructure.gateways.http_liveness_adapter_client import (
     HttpLivenessAdapterClient,
@@ -142,8 +148,23 @@ async def get_liveness_verifier() -> AsyncGenerator[LivenessVerificationPort, No
         await client.aclose()
 
 
-def get_consentimiento_biometrico() -> ConsentimientoBiometricoPort:
-    return ConsentimientoBiometricoPermisivo(settings.REQUIRE_BIOMETRIC_CONSENT)
+def get_consentimiento_biometrico(db: AsyncSession = Depends(get_db)) -> ConsentimientoBiometricoPort:
+    return ConsentimientoBiometricoRegistrado(
+        SqlAlchemyConsentimientoBiometricoRepository(db),
+        settings.BIOMETRIC_TERMS_VERSION,
+        settings.REQUIRE_BIOMETRIC_CONSENT,
+    )
+
+
+def get_gestionar_consentimiento_biometrico_use_case(
+    db: AsyncSession = Depends(get_db),
+) -> GestionarConsentimientoBiometricoUseCase:
+    return GestionarConsentimientoBiometricoUseCase(
+        SqlAlchemyClienteRepository(db),
+        SqlAlchemyConsentimientoBiometricoRepository(db),
+        settings.BIOMETRIC_TERMS_VERSION,
+        db.commit,
+    )
 
 
 def get_iniciar_activacion_movil_use_case(

@@ -13,4 +13,4 @@ prometheus-fastapi-instrumentator>=8.1.0
 httpx>=0.28.1
 redis>=8.1.0
 grpcio>=1.84.1
-protobuf>=7.36.2
+protobuf>=6.33.5,<7.0.0

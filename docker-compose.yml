@@ -10,8 +10,6 @@ services:
     env_file:
       - .env
     environment:
-      PROJECT_NAME: Solventa Identity Service
-      ENVIRONMENT: local
       DATABASE_URL: "${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@db:5432/identity_db}"
       AWS_REGION: ${AWS_REGION:-}
       COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
@@ -75,8 +73,6 @@ services:
     env_file:
       - .env
     environment:
-      PROJECT_NAME: Solventa Quoting Engine Service
-      ENVIRONMENT: local
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@db:5432/identity_db}
       REDIS_ENDPOINT: ${REDIS_ENDPOINT:-redis://redis:6379/0}
       REDIS_AUTH_TOKEN: ${REDIS_AUTH_TOKEN:-}
@@ -148,8 +144,6 @@ services:
     env_file:
       - .env
     environment:
-      PROJECT_NAME: Solventa BFF Web
-      ENVIRONMENT: local
       IDENTITY_SERVICE_URL: ${IDENTITY_SERVICE_URL:-http://identity_service:8000}
       QUOTINGENGINE_SERVICE_URL: ${QUOTINGENGINE_SERVICE_URL:-http://quotingengine_service:8000}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
@@ -169,7 +163,6 @@ services:
     env_file:
       - .env
     environment:
-      PROJECT_NAME: Solventa BFF Mobile
       # El bypass de demostración solo se permite en development.
       ENVIRONMENT: ${BFF_MOBILE_ENVIRONMENT:-development}
       IDENTITY_SERVICE_URL: ${IDENTITY_SERVICE_URL:-http://identity_service:8000}

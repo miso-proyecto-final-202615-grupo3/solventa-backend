@@ -17,4 +17,4 @@ redis>=8.1.0
 grpcio>=1.84.1
 boto3>=1.43.118
 botocore[crt]>=1.43.118
-protobuf>=7.36.2
+protobuf>=6.33.5,<7.0.0

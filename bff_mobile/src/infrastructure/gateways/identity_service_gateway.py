@@ -4,7 +4,7 @@ from src.core.config import settings
 
 
 class IdentityGatewayError(Exception):
-    def __init__(self, status_code: int, detail: str) -> None:
+    def __init__(self, status_code: int, detail: str | dict) -> None:
         self.status_code = status_code
         self.detail = detail
         super().__init__(detail)
@@ -31,12 +31,94 @@ class IdentityServiceGateway:
             {"correo": correo, "password": password},
         )
 
+    async def obtener_resumen_movil(
+        self, correo: str, installation_id: str | None
+    ) -> dict:
+        try:
+            response = await self._client.get(
+                "/api/v1/identity-service/clientes/resumen-movil",
+                params={"correo": correo, "installation_id": installation_id},
+            )
+        except httpx.HTTPError as exc:
+            raise IdentityGatewayError(503, "El servicio de identidad no está disponible.") from exc
+        try:
+            body = response.json()
+        except ValueError:
+            body = {}
+        if not response.is_success:
+            raise IdentityGatewayError(response.status_code, body.get("detail", "El servicio de identidad devolvió un error."))
+        return body
+
+    async def iniciar_activacion_movil(
+        self,
+        correo: str,
+        dispositivo: dict,
+        correlation_id: str,
+    ) -> dict:
+        return await self._post(
+            "/api/v1/identity-service/clientes/activacion-movil/sesiones",
+            {"correo": correo, **dispositivo},
+            headers={"X-Correlation-Id": correlation_id},
+            timeout=settings.ACTIVATION_TIMEOUT_SECONDS,
+        )
+
+    async def verificar_activacion_movil(self, sesion_id: str, correo: str, metadata: str, frames: dict[str, bytes], correlation_id: str) -> dict:
+        try:
+            response = await self._client.post(
+                f"/api/v1/identity-service/clientes/activacion-movil/sesiones/{sesion_id}/verificacion",
+                data={"correo": correo, "metadata": metadata},
+                files={key: (f"{key}.jpg", value, "image/jpeg") for key, value in frames.items()} or None,
+                headers={"X-Correlation-Id": correlation_id},
+                timeout=settings.ACTIVATION_TIMEOUT_SECONDS,
+            )
+        except httpx.HTTPError as exc:
+            raise IdentityGatewayError(503, "El servicio de identidad no está disponible.") from exc
+        try:
+            body = response.json()
+        except ValueError:
+            body = {}
+        if not response.is_success:
+            raise IdentityGatewayError(response.status_code, body.get("detail", "El servicio de identidad devolvió un error."))
+        return body
+
+    async def consultar_consentimiento_biometrico(self, correo: str, correlation_id: str) -> dict:
+        try:
+            response = await self._client.get(
+                "/api/v1/identity-service/clientes/consentimiento-biometrico",
+                params={"correo": correo},
+                headers={"X-Correlation-Id": correlation_id},
+            )
+        except httpx.HTTPError as exc:
+            raise IdentityGatewayError(503, "El servicio de identidad no está disponible.") from exc
+        try:
+            body = response.json()
+        except ValueError:
+            body = {}
+        if not response.is_success:
+            raise IdentityGatewayError(response.status_code, body.get("detail", "El servicio de identidad devolvió un error."))
+        return body
+
+    async def registrar_consentimiento_biometrico(self, correo: str, decision: dict, correlation_id: str) -> dict:
+        return await self._post(
+            "/api/v1/identity-service/clientes/consentimiento-biometrico",
+            {"correo": correo, **decision},
+            headers={"X-Correlation-Id": correlation_id},
+        )
+
     async def aclose(self) -> None:
         await self._client.aclose()
 
-    async def _post(self, path: str, payload: dict) -> dict:
+    async def _post(
+        self,
+        path: str,
+        payload: dict,
+        headers: dict[str, str] | None = None,
+        timeout: float | None = None,
+    ) -> dict:
         try:
-            response = await self._client.post(path, json=payload)
+            response = await self._client.post(
+                path, json=payload, headers=headers, timeout=timeout or self._client.timeout
+            )
         except httpx.HTTPError as exc:
             raise IdentityGatewayError(
                 status_code=503,

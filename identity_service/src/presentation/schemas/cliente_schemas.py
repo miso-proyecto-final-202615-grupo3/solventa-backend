@@ -2,9 +2,11 @@ import re
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from src.domain.clientes.value_objects import EstadoKYC, TipoDocumento
+from src.domain.activacion_movil.entities import Plataforma
+from src.domain.consentimiento_biometrico.entities import DecisionBiometrica
 
 _PHONE_PATTERN = re.compile(r"^\+?[0-9][0-9\s\-()]{6,19}$")
 _CEDULA_PATTERN = re.compile(r"^\d{5,10}$")
@@ -85,3 +87,61 @@ class ClienteResponse(BaseModel):
     estado_kyc: EstadoKYC
     fecha_creacion: datetime
     fecha_actualizacion: datetime
+
+
+class IniciarActivacionMovilRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    correo: EmailStr
+    installation_id: UUID
+    plataforma: Plataforma
+    modelo: str = Field(min_length=1, max_length=100)
+    version_so: str = Field(min_length=1, max_length=20)
+
+
+class IniciarActivacionMovilResponse(BaseModel):
+    dispositivo_vinculado: bool
+    sesion_id: str | None = None
+    expira_en: datetime | None = None
+    captura: dict | None = None
+    intentos_restantes: int | None = None
+
+
+class VerificarActivacionMovilResponse(BaseModel):
+    resultado: str
+    folio: str | None = None
+    intento: int
+    intentos_restantes: int
+    dispositivo_vinculado: bool
+    vinculado_en: datetime | None = None
+    motivo: str | None = None
+
+
+class RegistrarConsentimientoBiometricoRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    correo: EmailStr
+    decision: DecisionBiometrica
+    version_terminos: str = Field(min_length=1, max_length=40)
+    installation_id: UUID
+    decidido_en: AwareDatetime
+
+
+class RegistrarConsentimientoBiometricoResponse(BaseModel):
+    decision: DecisionBiometrica
+    version_terminos: str
+    registrado_en: datetime
+
+
+class EstadoConsentimientoBiometricoResponse(BaseModel):
+    otorgado: bool
+    version_vigente: str
+    version_aceptada: str | None = None
+    decidido_en: datetime | None = None
+
+
+class ResumenMovilResponse(BaseModel):
+    id: UUID
+    nombre: str
+    estado_kyc: str
+    dispositivo_vinculado: bool

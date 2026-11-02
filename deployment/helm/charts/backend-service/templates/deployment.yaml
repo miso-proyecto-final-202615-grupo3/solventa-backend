@@ -20,13 +20,18 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
-            - name: {{ .Values.network.portName }}
-              containerPort: {{ .Values.network.containerPort }}
-              protocol: {{ .Values.network.protocol }}
+            - name: http
+              containerPort: {{ .Values.http.containerPort }}
+              protocol: TCP
+            {{- if and .Values.grpc .Values.grpc.enabled }}
+            - name: grpc
+              containerPort: {{ .Values.grpc.containerPort }}
+              protocol: TCP
+            {{- end }}
           envFrom:
             - configMapRef:
                 name: {{ include "backend-service.fullname" . }}
-{{ if or .Values.database.enabled .Values.bucket.enabled .Values.cognito.enabled .Values.redis.enabled .Values.kmsKey.enabled }}
+{{ if or .Values.database.enabled .Values.bucket.enabled .Values.cognito.enabled .Values.redis.enabled .Values.kmsKey.enabled .Values.extraSecretEnv }}
           env:
 {{ if .Values.database.enabled }}
             - name: DATABASE_URL
@@ -72,6 +77,14 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.kmsKey.existingSecret }}
                   key: {{ .Values.kmsKey.secretKey }}
+{{- end }}
+{{- range .Values.extraSecretEnv }}
+            - name: {{ .name }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .existingSecret }}
+                  key: {{ .secretKey }}
+                  optional: {{ .optional | default false }}
 {{- end }}
 {{ end }}
           readinessProbe:

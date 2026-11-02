@@ -9,10 +9,9 @@ image:
   pullPolicy: Always
   tag: "latest"
 
-network:
-  portName: http
+http:
   containerPort: 8000
-  protocol: TCP
+  servicePort: 80
 
 probes:
   readiness:
@@ -25,11 +24,6 @@ probes:
     port: http
     initialDelaySeconds: 20
     periodSeconds: 20
-
-service:
-  type: ClusterIP
-  port: 80
-  targetPort: 8000
 
 database:
   enabled: false
@@ -47,13 +41,14 @@ kmsKey:
   enabled: false
 
 config:
-  PROJECT_NAME: Solventa BFF Web
+  PROJECT_NAME: solventa-bff-web
   VERSION: "0.1.0"
   ENVIRONMENT: dev
   API_PREFIX: /api/v1/bff-web
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://solventa-otel-collector-collector:4317
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://cloudwatch-agent.amazon-cloudwatch.svc.cluster.local:4315
   OTEL_TRACES_EXPORTER: otlp
   IDENTITY_SERVICE_URL: http://identity-service:80
+  QUOTINGENGINE_SERVICE_URL: http://quotingengine-service:80
 
 resources:
   requests:

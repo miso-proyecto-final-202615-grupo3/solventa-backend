@@ -1,4 +1,5 @@
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from fastapi import Depends
 from redis.asyncio import Redis
@@ -10,6 +11,16 @@ from src.application.use_cases.autenticar_cliente_use_case import (
     AutenticarClienteUseCase,
 )
 from src.application.ports.consentimiento_cache import ConsentimientoCachePort
+from src.application.ports.consentimiento_biometrico import ConsentimientoBiometricoPort
+from src.application.ports.liveness import LivenessVerificationPort
+from src.application.use_cases.iniciar_activacion_movil_use_case import (
+    IniciarActivacionMovilUseCase,
+)
+from src.application.use_cases.consultar_resumen_movil_use_case import ConsultarResumenMovilUseCase
+from src.application.use_cases.consentimiento_biometrico_use_case import (
+    GestionarConsentimientoBiometricoUseCase,
+)
+from src.application.use_cases.verificar_activacion_movil_use_case import VerificarActivacionMovilUseCase
 from src.application.use_cases.gestionar_consentimiento_use_case import (
     GestionarConsentimientoUseCase,
 )
@@ -24,6 +35,15 @@ from src.domain.clientes.repositories import ClienteRepository
 from src.infrastructure.gateways.cognito_identity_provider import CognitoIdentityProvider
 from src.infrastructure.gateways.kyc_http_client import KycHttpClient
 from src.infrastructure.gateways.noop_identity_provider import NoopIdentityProvider
+from src.infrastructure.gateways.consentimiento_biometrico_registrado import (
+    ConsentimientoBiometricoRegistrado,
+)
+from src.infrastructure.persistence.consentimiento_biometrico_repository_impl import (
+    SqlAlchemyConsentimientoBiometricoRepository,
+)
+from src.infrastructure.gateways.http_liveness_adapter_client import (
+    HttpLivenessAdapterClient,
+)
 from src.infrastructure.cache.consentimiento_cache import ConsentimientoCache
 from src.infrastructure.persistence.auditoria_consentimiento_repository_impl import (
     SqlAlchemyAuditoriaConsentimientoRepository,
@@ -33,6 +53,9 @@ from src.infrastructure.persistence.cliente_repository_impl import (
 )
 from src.infrastructure.persistence.consentimiento_repository_impl import (
     SqlAlchemyConsentimientoRepository,
+)
+from src.infrastructure.persistence.activacion_movil_repository_impl import (
+    SqlAlchemyActivacionMovilRepository,
 )
 
 _redis_client = Redis.from_url(
@@ -117,8 +140,78 @@ def get_kyc_verifier() -> KycVerifier:
     return KycHttpClient()
 
 
+async def get_liveness_verifier() -> AsyncGenerator[LivenessVerificationPort, None]:
+    client = HttpLivenessAdapterClient()
+    try:
+        yield client
+    finally:
+        await client.aclose()
+
+
+def get_consentimiento_biometrico(db: AsyncSession = Depends(get_db)) -> ConsentimientoBiometricoPort:
+    return ConsentimientoBiometricoRegistrado(
+        SqlAlchemyConsentimientoBiometricoRepository(db),
+        settings.BIOMETRIC_TERMS_VERSION,
+        settings.REQUIRE_BIOMETRIC_CONSENT,
+    )
+
+
+def get_gestionar_consentimiento_biometrico_use_case(
+    db: AsyncSession = Depends(get_db),
+) -> GestionarConsentimientoBiometricoUseCase:
+    return GestionarConsentimientoBiometricoUseCase(
+        SqlAlchemyClienteRepository(db),
+        SqlAlchemyConsentimientoBiometricoRepository(db),
+        settings.BIOMETRIC_TERMS_VERSION,
+        db.commit,
+    )
+
+
+def get_iniciar_activacion_movil_use_case(
+    db: AsyncSession = Depends(get_db),
+    consentimiento: ConsentimientoBiometricoPort = Depends(get_consentimiento_biometrico),
+    liveness: LivenessVerificationPort = Depends(get_liveness_verifier),
+) -> IniciarActivacionMovilUseCase:
+    return IniciarActivacionMovilUseCase(
+        SqlAlchemyClienteRepository(db),
+        SqlAlchemyActivacionMovilRepository(db),
+        consentimiento,
+        liveness,
+        db.commit,
+    )
+
+
+def get_verificar_activacion_movil_use_case(
+    db: AsyncSession = Depends(get_db), liveness: LivenessVerificationPort = Depends(get_liveness_verifier),
+) -> VerificarActivacionMovilUseCase:
+    return VerificarActivacionMovilUseCase(
+        SqlAlchemyClienteRepository(db), SqlAlchemyActivacionMovilRepository(db), liveness, db.commit,
+        rollback=db.rollback,
+    )
+
+
+def get_consultar_resumen_movil_use_case(
+    db: AsyncSession = Depends(get_db),
+) -> ConsultarResumenMovilUseCase:
+    return ConsultarResumenMovilUseCase(
+        SqlAlchemyClienteRepository(db), SqlAlchemyActivacionMovilRepository(db)
+    )
+
+
 def get_verificar_kyc_use_case(
     repository: ClienteRepository = Depends(get_cliente_repository),
     kyc_verifier: KycVerifier = Depends(get_kyc_verifier),
 ) -> VerificarKycUseCase:
     return VerificarKycUseCase(repository, kyc_verifier)
+@asynccontextmanager
+async def abrir_gestionar_consentimiento_use_case() -> AsyncGenerator[
+    GestionarConsentimientoUseCase, None
+]:
+    """Use case con sesión propia, para entradas fuera de FastAPI (gRPC)."""
+    async with SessionLocal() as session:
+        yield GestionarConsentimientoUseCase(
+            SqlAlchemyConsentimientoRepository(session),
+            SqlAlchemyClienteRepository(session),
+            _consentimiento_cache,
+            settings.CONSENT_TERMS_VERSION,
+        )

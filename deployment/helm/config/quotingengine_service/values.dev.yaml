@@ -1,0 +1,8 @@
+image:
+  repository: 179201404385.dkr.ecr.us-east-1.amazonaws.com/solventa-quotingengine-service
+
+database:
+  existingSecret: solventa-dev-app-secrets
+
+redis:
+  existingSecret: solventa-dev-app-secrets

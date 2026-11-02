@@ -56,6 +56,12 @@ class InMemoryKycRepository(ClienteRepository):
             (c for c in self.clientes if c.id == cliente_id), None
         )
 
+    async def obtener_por_correo(self, correo: str) -> Cliente | None:
+        return next((c for c in self.clientes if c.correo == correo), None)
+
+    async def bloquear_para_actualizar(self, cliente_id: ClienteId) -> Cliente | None:
+        return await self.obtener_por_id(cliente_id)
+
     async def actualizar_estado_kyc(
         self, cliente_id: ClienteId, estado_kyc: EstadoKYC
     ) -> None:

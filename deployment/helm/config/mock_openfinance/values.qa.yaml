@@ -1,0 +1,5 @@
+image:
+  repository: mock-openfinance
+
+config:
+  ENVIRONMENT: qa

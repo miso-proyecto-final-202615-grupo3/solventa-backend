@@ -1,0 +1,74 @@
+import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from sqlalchemy import text
+
+from src.core.config import settings
+from src.core.database import Base, SessionLocal, engine
+from src.core.telemetry import setup_telemetry
+from src.infrastructure.persistence import models  # noqa: F401
+from src.infrastructure.persistence.seed import sembrar_catalogo
+from src.presentation.dependencies import cerrar_recursos, inicializar_recursos
+from src.presentation.routers import cotizaciones, health, productos
+
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("CREATE SCHEMA IF NOT EXISTS quotingengine"))
+            await conn.run_sync(Base.metadata.create_all)
+    except Exception:
+        logger.warning(
+            "No se pudo crear el esquema en el arranque.",
+            exc_info=True,
+        )
+    if settings.SEED_ON_STARTUP:
+        try:
+            async with SessionLocal() as session:
+                await sembrar_catalogo(session)
+        except Exception:
+            logger.warning("No se pudo cargar el catálogo inicial.", exc_info=True)
+    await inicializar_recursos(app)
+    try:
+        yield
+    finally:
+        await cerrar_recursos(app)
+
+
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    version=settings.VERSION,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    lifespan=lifespan,
+)
+
+setup_telemetry(app)
+
+
+@app.middleware("http")
+async def log_internal_errors(request, call_next):
+    try:
+        return await call_next(request)
+    except Exception:
+        logger.exception(
+            "Error interno al procesar %s %s",
+            request.method,
+            request.url.path,
+        )
+        raise
+
+
+app.include_router(health.router)
+app.include_router(productos.router, prefix=settings.API_PREFIX)
+app.include_router(cotizaciones.router, prefix=settings.API_PREFIX)
+
+
+@app.get("/")
+async def root() -> dict[str, str]:
+    return {"message": "Solventa Quoting Engine Service"}

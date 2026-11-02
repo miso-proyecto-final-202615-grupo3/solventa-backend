@@ -6,18 +6,16 @@ serviceAccountName: solventa-app-sa
 
 image:
   repository: bff-mobile
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
   tag: "latest"
 
-network:
-  portName: http
+http:
   containerPort: 8000
-  protocol: TCP
+  servicePort: 80
 
-# El health check del servicio vive bajo el prefijo de la API.
 probes:
   readiness:
-    path: /api/v1/bff-mobile/health
+    path: /health
     port: http
     initialDelaySeconds: 10
     periodSeconds: 10
@@ -26,11 +24,6 @@ probes:
     port: http
     initialDelaySeconds: 20
     periodSeconds: 20
-
-service:
-  type: ClusterIP
-  port: 80
-  targetPort: 8000
 
 database:
   enabled: false
@@ -42,19 +35,25 @@ redis:
   enabled: false
 
 cognito:
-  enabled: false
+  enabled: true
+  existingSecret: secret-name
+  secretKey: COGNITO_USER_POOL_ID
+  secretKey2: COGNITO_CLIENT_ID
 
 kmsKey:
   enabled: false
 
 config:
-  PROJECT_NAME: Solventa BFF Mobile
+  PROJECT_NAME: solventa-bff-mobile
   VERSION: "0.1.0"
   ENVIRONMENT: dev
   API_PREFIX: /api/v1/bff-mobile
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://solventa-otel-collector:4317
-  OTEL_TRACES_EXPORTER: none
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://cloudwatch-agent.amazon-cloudwatch.svc.cluster.local:4315
+  OTEL_TRACES_EXPORTER: otlp
   IDENTITY_SERVICE_URL: http://identity-service:80
+  COGNITO_REGION: us-east-1
+  ACTIVATION_TIMEOUT_SECONDS: "20"
+  QUOTINGENGINE_SERVICE_URL: http://quotingengine-service:80
 
 resources:
   requests:

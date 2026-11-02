@@ -3,13 +3,20 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+import httpx
 from sqlalchemy import text
 
 from src.core.config import settings
+from src.core.correlation import CorrelationIdMiddleware
 from src.core.database import Base, engine
 from src.core.telemetry import setup_telemetry
+from src.infrastructure.gateways.open_finance_http_client import OpenFinanceHttpClient
 from src.infrastructure.persistence import models  # noqa: F401
-from src.presentation.dependencies import cerrar_consentimiento_cache
+from src.presentation.dependencies import (
+    abrir_gestionar_consentimiento_use_case,
+    cerrar_consentimiento_cache,
+)
+from src.presentation.grpc.server import iniciar_servidor_grpc
 from src.presentation.routers import clientes, consentimientos, health
 
 logger = logging.getLogger(__name__)
@@ -28,6 +35,26 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             "No se pudo crear el esquema en el arranque.",
             exc_info=True,
         )
+    if settings.ENVIRONMENT.lower() in {"qa", "prod", "production"} and not settings.REQUIRE_BIOMETRIC_CONSENT:
+        logger.warning(
+            "REQUIRE_BIOMETRIC_CONSENT=false: la activación no exige consentimiento biométrico (HU3.1.3)."
+        )
+    grpc_server = None
+    if settings.GRPC_ENABLED:
+        async with httpx.AsyncClient(
+            timeout=settings.OPEN_FINANCE_TIMEOUT_SECONDS
+        ) as http_client:
+            grpc_server = await iniciar_servidor_grpc(
+                abrir_gestionar_consentimiento_use_case,
+                OpenFinanceHttpClient(http_client),
+                settings.GRPC_PORT,
+            )
+            try:
+                yield
+            finally:
+                await grpc_server.stop(grace=2)
+                await cerrar_consentimiento_cache()
+        return
     try:
         yield
     finally:
@@ -43,6 +70,7 @@ app = FastAPI(
 )
 
 setup_telemetry(app)
+app.add_middleware(CorrelationIdMiddleware, service="identity_service")
 
 
 @app.middleware("http")

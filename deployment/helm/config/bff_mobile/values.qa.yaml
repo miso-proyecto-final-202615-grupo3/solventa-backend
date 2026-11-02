@@ -1,2 +1,8 @@
 image:
   repository: bff-mobile
+
+config:
+  ENVIRONMENT: qa
+
+cognito:
+  existingSecret: solventa-qa-app-secrets

@@ -1,0 +1,9 @@
+{
+  "resultado": "APROBADO",
+  "folio": "propio-01234567-89ab-cdef-0123-456789abcdef",
+  "intento": 1,
+  "intentos_restantes": 2,
+  "dispositivo_vinculado": true,
+  "vinculado_en": "2026-10-31T12:01:01Z",
+  "motivo": null
+}

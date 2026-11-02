@@ -1,2 +1,8 @@
 image:
   repository: 839553328585.dkr.ecr.us-east-1.amazonaws.com/solventa-bff-mobile
+
+config:
+  ENVIRONMENT: prod
+
+cognito:
+  existingSecret: solventa-prod-app-secrets

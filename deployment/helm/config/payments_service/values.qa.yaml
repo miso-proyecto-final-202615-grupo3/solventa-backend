@@ -1,0 +1,8 @@
+image:
+  repository: payments-service
+
+database:
+  existingSecret: solventa-qa-app-secrets
+
+config:
+  ENVIRONMENT: qa

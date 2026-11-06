@@ -1,0 +1,30 @@
+from httpx import AsyncClient
+
+
+async def test_health_check(async_client: AsyncClient):
+    response = await async_client.get("/health", headers={"X-Correlation-Id": "test-123"})
+    assert response.status_code == 200
+    assert response.json() == {"status": "healthy", "version": "0.1.0"}
+    assert response.headers["X-Correlation-Id"] == "test-123"
+
+
+async def test_root(async_client: AsyncClient):
+    response = await async_client.get("/")
+    assert response.status_code == 200
+    assert response.json() == {"message": "Solventa Payments Service"}
+
+
+async def test_metricas(async_client: AsyncClient):
+    await async_client.get("/health")
+    response = await async_client.get("/metrics")
+    assert response.status_code == 200
+    assert "http_requests_total" in response.text
+
+
+async def test_docs_y_no_expone_endpoints_de_negocio(async_client: AsyncClient):
+    schema = await async_client.get("/openapi.json")
+    assert schema.status_code == 200
+    assert set(schema.json()["paths"]) == {"/", "/health", "/metrics"}
+    assert (await async_client.get("/api/v1/payments-service/pagos")).status_code == 404
+    assert (await async_client.get("/docs")).status_code == 200
+    assert (await async_client.get("/redoc")).status_code == 200

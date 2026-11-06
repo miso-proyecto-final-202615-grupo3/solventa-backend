@@ -12,6 +12,9 @@ ambiente y su imagen Docker. Cada servicio se despliega como un pod independient
 | `bff_mobile` | Backend For Frontend de la app móvil Android | `/api/v1/bff-mobile` |
 | `identity_service` | Identidad y registro de clientes | `/api/v1/identity-service` |
 | `quotingengine_service` | Motor de cotización y suscripción | `/api/v1/quotingengine-service` |
+| `insurancepolicies_service` | Gestión de pólizas (solo `/health` por ahora) | `/api/v1/insurancepolicies-service` |
+| `insuranceclaims_service` | Gestión de siniestros (solo `/health` por ahora) | `/api/v1/insuranceclaims-service` |
+| `payments_service` | Pagos y recaudo (sin endpoints de negocio por ahora) | `/api/v1/payments-service` |
 | `liveness_adapter` | Adaptador de retos y verificación de prueba de vida | `/api/v1/liveness-adapter` |
 
 ## Requisitos
@@ -63,7 +66,6 @@ cd identity_service
 python -m pytest -v
 ```
 
-El mismo comando aplica dentro de `quotingengine_service`.
 
 ## Docker
 
@@ -100,11 +102,17 @@ docker compose up --build
 | `bff_mobile` | `http://localhost:8001` (desde el emulador Android: `http://10.0.2.2:8001`) |
 | `identity_service` | `http://localhost:8002` |
 | `quotingengine_service` | `http://localhost:8003` |
+| `insurancepolicies_service` | `http://localhost:8004` |
+| `insuranceclaims_service` | `http://localhost:8005` |
+| `payments_service` | `http://localhost:8006` |
 | gRPC de Identidad | `localhost:50051` |
-| `mock_kyc` | `http://localhost:8202` |
 | `mock_openfinance` | `http://localhost:8200` |
 | `mock_opendata` | `http://localhost:8201` |
+| `mock_kyc` | `http://localhost:8202` |
 | `liveness_adapter` | `http://localhost:8203` |
+
+Payments expone `GET /`, `GET /health` y métricas Prometheus en `GET /metrics`;
+todavía no expone endpoints de negocio.
 
 Los mocks locales usan HTTP. En ambientes desplegados, configura `OPEN_FINANCE_URL`
 y `OPEN_DATA_URL` con los endpoints HTTPS de los proveedores.

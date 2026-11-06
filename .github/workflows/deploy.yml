@@ -28,6 +28,9 @@ jobs:
           - bff_mobile
           - identity_service
           - quotingengine_service
+          - insurancepolicies_service
+          - insuranceclaims_service
+          - payments_service
           - liveness_adapter
           - mock_kyc
           - mock_opendata
@@ -93,6 +96,9 @@ jobs:
           - bff_mobile
           - identity_service
           - quotingengine_service
+          - insurancepolicies_service
+          - insuranceclaims_service
+          - payments_service
           - liveness_adapter
           - mock_kyc
           - mock_opendata

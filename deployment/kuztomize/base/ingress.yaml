@@ -58,3 +58,10 @@ spec:
                 name: quotingengine-service
                 port:
                   number: 80
+          - path: /api/v1/insurancepolicies-service
+            pathType: Prefix
+            backend:
+              service:
+                name: insurancepolicies-service
+                port:
+                  number: 80

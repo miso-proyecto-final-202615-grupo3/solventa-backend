@@ -12,6 +12,7 @@ ambiente y su imagen Docker. Cada servicio se despliega como un pod independient
 | `bff_mobile` | Backend For Frontend de la app móvil Android | `/api/v1/bff-mobile` |
 | `identity_service` | Identidad y registro de clientes | `/api/v1/identity-service` |
 | `quotingengine_service` | Motor de cotización y suscripción | `/api/v1/quotingengine-service` |
+| `insurancepolicies_service` | Gestión de pólizas (solo `/health` por ahora) | `/api/v1/insurancepolicies-service` |
 | `liveness_adapter` | Adaptador de retos y verificación de prueba de vida | `/api/v1/liveness-adapter` |
 
 ## Requisitos
@@ -100,6 +101,7 @@ docker compose up --build
 | `bff_mobile` | `http://localhost:8001` (desde el emulador Android: `http://10.0.2.2:8001`) |
 | `identity_service` | `http://localhost:8002` |
 | `quotingengine_service` | `http://localhost:8003` |
+| `insurancepolicies_service` | `http://localhost:8004` |
 | gRPC de Identidad | `localhost:50051` |
 | `mock_kyc` | `http://localhost:8202` |
 | `mock_openfinance` | `http://localhost:8200` |

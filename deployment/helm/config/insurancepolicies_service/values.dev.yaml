@@ -1,0 +1,5 @@
+image:
+  repository: 179201404385.dkr.ecr.us-east-1.amazonaws.com/solventa-insurancepolicies-service
+
+database:
+  existingSecret: solventa-dev-app-secrets

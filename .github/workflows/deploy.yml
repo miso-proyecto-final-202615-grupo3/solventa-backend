@@ -29,6 +29,7 @@ jobs:
           - identity_service
           - quotingengine_service
           - insurancepolicies_service
+          - insuranceclaims_service
           - liveness_adapter
           - mock_kyc
           - mock_opendata
@@ -95,6 +96,7 @@ jobs:
           - identity_service
           - quotingengine_service
           - insurancepolicies_service
+          - insuranceclaims_service
           - liveness_adapter
           - mock_kyc
           - mock_opendata

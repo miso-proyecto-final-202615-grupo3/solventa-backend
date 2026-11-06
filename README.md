@@ -13,6 +13,7 @@ ambiente y su imagen Docker. Cada servicio se despliega como un pod independient
 | `identity_service` | Identidad y registro de clientes | `/api/v1/identity-service` |
 | `quotingengine_service` | Motor de cotización y suscripción | `/api/v1/quotingengine-service` |
 | `insurancepolicies_service` | Gestión de pólizas (solo `/health` por ahora) | `/api/v1/insurancepolicies-service` |
+| `insuranceclaims_service` | Gestión de siniestros (solo `/health` por ahora) | `/api/v1/insuranceclaims-service` |
 | `liveness_adapter` | Adaptador de retos y verificación de prueba de vida | `/api/v1/liveness-adapter` |
 
 ## Requisitos
@@ -102,10 +103,11 @@ docker compose up --build
 | `identity_service` | `http://localhost:8002` |
 | `quotingengine_service` | `http://localhost:8003` |
 | `insurancepolicies_service` | `http://localhost:8004` |
+| `insuranceclaims_service` | `http://localhost:8005` |
 | gRPC de Identidad | `localhost:50051` |
-| `mock_kyc` | `http://localhost:8202` |
 | `mock_openfinance` | `http://localhost:8200` |
 | `mock_opendata` | `http://localhost:8201` |
+| `mock_kyc` | `http://localhost:8202` |
 | `liveness_adapter` | `http://localhost:8203` |
 
 Los mocks locales usan HTTP. En ambientes desplegados, configura `OPEN_FINANCE_URL`

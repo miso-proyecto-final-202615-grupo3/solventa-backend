@@ -1,0 +1,8 @@
+image:
+  repository: insuranceclaims-service
+
+database:
+  existingSecret: solventa-qa-app-secrets
+
+config:
+  ENVIRONMENT: qa

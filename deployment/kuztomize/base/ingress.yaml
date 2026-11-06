@@ -65,3 +65,10 @@ spec:
                 name: insurancepolicies-service
                 port:
                   number: 80
+          - path: /api/v1/insuranceclaims-service
+            pathType: Prefix
+            backend:
+              service:
+                name: insuranceclaims-service
+                port:
+                  number: 80

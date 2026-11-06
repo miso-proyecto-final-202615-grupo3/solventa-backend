@@ -20,6 +20,7 @@ jobs:
           - identity_service
           - quotingengine_service
           - insurancepolicies_service
+          - insuranceclaims_service
           - liveness_adapter
           - mock_kyc
           - mock_opendata
@@ -60,9 +61,41 @@ jobs:
           path: ${{ matrix.service }}/coverage-results/
           if-no-files-found: warn
 
+  test-claims-postgres:
+    name: Test insuranceclaims_service PostgreSQL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: claims_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d claims_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: insuranceclaims_service/requirements-dev.txt
+      - name: Install dependencies
+        run: pip install -r insuranceclaims_service/requirements-dev.txt
+      - name: Run PostgreSQL integration test
+        env:
+          POSTGRES_TEST_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/claims_test
+          OTEL_SDK_DISABLED: "true"
+        run: python -m pytest insuranceclaims_service/tests/integration/test_postgres.py -c insuranceclaims_service/pytest.ini
+
   build:
     name: Docker Build ${{ matrix.service }}
-    needs: test
+    needs: [test, test-claims-postgres]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -73,6 +106,7 @@ jobs:
           - identity_service
           - quotingengine_service
           - insurancepolicies_service
+          - insuranceclaims_service
           - mock_kyc
           - mock_opendata
           - mock_openfinance

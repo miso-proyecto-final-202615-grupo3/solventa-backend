@@ -129,6 +129,24 @@ services:
       lgtm:
         condition: service_started
 
+  payments_service:
+    build:
+      context: .
+      dockerfile: docker/services/Dockerfile.payments_service
+    container_name: solventa-payments-service
+    ports:
+      - "8006:8000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@db:5432/identity_db}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+    depends_on:
+      db:
+        condition: service_healthy
+      lgtm:
+        condition: service_started
+
   mock_kyc:
     build:
       context: .

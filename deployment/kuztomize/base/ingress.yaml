@@ -72,3 +72,10 @@ spec:
                 name: insuranceclaims-service
                 port:
                   number: 80
+          - path: /api/v1/payments-service
+            pathType: Prefix
+            backend:
+              service:
+                name: payments-service
+                port:
+                  number: 80

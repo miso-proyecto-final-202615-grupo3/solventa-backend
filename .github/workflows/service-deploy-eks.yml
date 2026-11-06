@@ -23,6 +23,7 @@ on:
           - quotingengine_service
           - insurancepolicies_service
           - insuranceclaims_service
+          - payments_service
           - liveness_adapter
           - mock_kyc
           - mock_opendata

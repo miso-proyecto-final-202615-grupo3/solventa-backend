@@ -25,6 +25,7 @@ def _poliza(cliente_id: uuid.UUID = CLIENTE_ID) -> Poliza:
         vigencia_desde=creada,
         vigencia_hasta=creada + timedelta(days=365),
         emitida_en=creada,
+        ramo="VIAJE",
         coberturas=[
             PolizaCobertura(
                 poliza_id=POLIZA_ID,
@@ -64,6 +65,7 @@ async def test_lista_solo_las_polizas_del_cliente(async_client, repository):
     assert response.status_code == 200
     assert response.json()[0]["numero"] == "POL-0001"
     assert response.json()[0]["prima_total"] == "12000.50"
+    assert response.json()[0]["ramo"] == "VIAJE"
 
 
 async def test_cliente_no_puede_consultar_poliza_de_otro_cliente(async_client, repository):

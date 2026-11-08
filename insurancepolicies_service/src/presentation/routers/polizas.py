@@ -21,6 +21,7 @@ def _response(poliza: Poliza) -> PolizaResponse:
         vigencia_desde=poliza.vigencia_desde,
         vigencia_hasta=poliza.vigencia_hasta,
         emitida_en=poliza.emitida_en,
+        ramo=poliza.ramo,
         prima_total=sum((c.prima for c in poliza.coberturas), start=0),
         coberturas=[PolizaCoberturaResponse.model_validate(c) for c in poliza.coberturas],
     )

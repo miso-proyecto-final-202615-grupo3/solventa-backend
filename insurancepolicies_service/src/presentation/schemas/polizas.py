@@ -26,6 +26,7 @@ class PolizaResponse(BaseModel):
     vigencia_desde: datetime
     vigencia_hasta: datetime
     emitida_en: datetime | None
+    ramo: str
     prima_total: Decimal
     coberturas: list[PolizaCoberturaResponse]
     documento_url: str | None = None

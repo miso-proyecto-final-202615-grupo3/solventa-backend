@@ -26,3 +26,4 @@ class Poliza:
     emitida_en: datetime | None = None
     poliza_id: uuid.UUID = field(default_factory=uuid.uuid4)
     coberturas: list[PolizaCobertura] = field(default_factory=list)
+    ramo: str = "SEGURO"

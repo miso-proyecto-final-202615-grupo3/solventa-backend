@@ -21,6 +21,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         async with engine.begin() as conn:
             await conn.execute(text("CREATE SCHEMA IF NOT EXISTS insurancepolicies"))
             await conn.run_sync(Base.metadata.create_all)
+            await conn.execute(
+                text(
+                    "ALTER TABLE insurancepolicies.poliza "
+                    "ADD COLUMN IF NOT EXISTS ramo VARCHAR(80) NOT NULL DEFAULT 'SEGURO'"
+                )
+            )
     except Exception:
         logger.warning(
             "No se pudo crear el esquema en el arranque.",

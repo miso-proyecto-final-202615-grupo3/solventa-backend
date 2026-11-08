@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 PAIS = "CO"
 VERSION_REGLAS = "1.0"
+VERSION_CONDICIONES = "1.0"
 _AVISO = (
     " Solventa consultará a través de {fuentes} la información necesaria para "
     "calcular la prima, únicamente con su consentimiento vigente. Si alguna fuente "
@@ -216,6 +217,153 @@ CATALOGO: list[dict[str, Any]] = [
 ]
 
 
+# Descripciones provisionales del catálogo; requieren aprobación jurídica antes de
+# utilizarse como clausulado contractual.
+# Textos provisionales; requieren aprobación jurídica antes de utilizarse como
+# clausulado contractual. Cualquier cambio debe publicarse con una nueva versión.
+
+_CLAUSULAS_COMUNES = (
+    "DECLARACIÓN DEL RIESGO: El tomador debe declarar con sinceridad los hechos y "
+    "circunstancias que determinan el estado del riesgo. La inexactitud o reticencia "
+    "puede dar lugar a la nulidad relativa del contrato o a la reducción de la "
+    "indemnización, conforme a la ley aplicable.\n"
+    "PRIMA: El tomador debe pagar la prima en la forma y oportunidad indicadas en las "
+    "condiciones particulares. La mora en el pago puede ocasionar la terminación del "
+    "contrato en los términos de la ley.\n"
+    "VIGENCIA Y TERMINACIÓN: La cobertura rige durante la vigencia indicada en las "
+    "condiciones particulares y termina por vencimiento, por cancelación conforme a la "
+    "ley, por pago de la indemnización máxima o por las causas legales aplicables. "
+    "La cotización es informativa, tiene vigencia limitada y no constituye cobertura "
+    "hasta la emisión de la póliza.\n"
+    "AVISO Y RECLAMACIÓN: El asegurado o beneficiario debe avisar el siniestro dentro "
+    "del plazo establecido en las condiciones particulares o, en su defecto, en la ley, "
+    "y presentar los documentos que acrediten la ocurrencia y la cuantía de la pérdida. "
+    "La aseguradora podrá solicitar información adicional razonable para evaluar la "
+    "reclamación.\n"
+    "FRAUDE: La presentación de información o documentos falsos en la contratación o en "
+    "una reclamación libera a la aseguradora de su obligación, sin perjuicio de las "
+    "acciones legales que correspondan.\n"
+    "TRATAMIENTO DE DATOS: Solventa tratará los datos personales conforme a la "
+    "autorización otorgada y a la política de tratamiento aplicable. La consulta de "
+    "información en Open Finance u Open Data requiere consentimiento vigente y es "
+    "independiente de la aceptación de estas condiciones.\n"
+    "LÍMITES Y DEDUCIBLES: Los límites asegurados, deducibles y la prima total son los "
+    "indicados en las condiciones particulares de la cotización aceptada."
+)
+
+
+def _condiciones(
+    objeto: str, coberturas: str, exclusiones: str, obligaciones: str
+) -> str:
+    return (
+        f"OBJETO: {objeto}\n"
+        f"COBERTURAS: {coberturas}\n"
+        f"EXCLUSIONES: {exclusiones}\n"
+        f"OBLIGACIONES DEL ASEGURADO: {obligaciones}\n"
+        f"{_CLAUSULAS_COMUNES}"
+    )
+
+
+CONDICIONES_GENERALES = {
+    "VIDA_HIPOTECARIO": _condiciones(
+        "Proteger al asegurado y a su familia frente a la deuda de un crédito hipotecario, "
+        "pagando a la entidad acreedora, hasta el límite asegurado, el saldo pendiente "
+        "cuando ocurra un evento amparado.",
+        "(i) Fallecimiento del asegurado por cualquier causa no excluida; (ii) invalidez "
+        "total y permanente, entendida como la pérdida de capacidad laboral en el grado "
+        "definido en las condiciones particulares y debidamente calificada por la "
+        "autoridad competente. La indemnización se calcula sobre el saldo del crédito "
+        "reportado a la fecha del evento, sin exceder el límite asegurado.",
+        "Suicidio dentro del periodo de carencia previsto en las condiciones particulares; "
+        "enfermedades o condiciones preexistentes no declaradas; participación en actos "
+        "delictivos; guerra, terrorismo o actividades de alto riesgo no declaradas; "
+        "lesiones autoinfligidas; y saldos correspondientes a mora o intereses no "
+        "cubiertos según las condiciones particulares.",
+        "Mantener actualizada la información del crédito, informar cambios de la "
+        "obligación hipotecaria y de su estado de salud cuando sea relevante, y colaborar "
+        "con la aseguradora en la verificación del siniestro.",
+    ),
+    "PROTECCION_PAGOS": _condiciones(
+        "Respaldar el pago de las cuotas de un crédito de consumo o tarjeta cuando el "
+        "asegurado no pueda atenderlas por un evento amparado.",
+        "(i) Desempleo involuntario, para asegurados con vínculo laboral dependiente "
+        "debidamente acreditado; (ii) incapacidad temporal certificada por la entidad "
+        "competente; (iii) fallecimiento del asegurado. La cobertura se limita al valor "
+        "de las cuotas y al número máximo indicados en las condiciones particulares, sin "
+        "exceder el límite asegurado.",
+        "Renuncia, terminación por justa causa, vencimiento de contrato a término fijo o "
+        "retiro voluntario; desempleo o incapacidad anteriores al inicio de la cobertura "
+        "o dentro del periodo de carencia; trabajadores independientes en la cobertura de "
+        "desempleo; incapacidades derivadas de hechos no declarados, actos delictivos o "
+        "lesiones autoinfligidas; y cuotas ya vencidas antes del evento.",
+        "Continuar el esfuerzo de búsqueda de empleo cuando aplique, presentar "
+        "certificaciones periódicas del evento y avisar de inmediato su cese o "
+        "recuperación.",
+    ),
+    "SEGURO_VIAJE": _condiciones(
+        "Proteger al viajero frente a imprevistos ocurridos durante el viaje asegurado "
+        "descrito en las condiciones particulares.",
+        "(i) Asistencia médica en el extranjero por enfermedad o accidente sobrevenidos "
+        "durante el viaje; (ii) cancelación de vuelos por causas amparadas, con reembolso "
+        "de gastos no recuperables y sujeto a deducible; (iii) pérdida de equipaje "
+        "documentada, sujeta a deducible. Cada cobertura opera hasta su límite asegurado.",
+        "Enfermedades o condiciones preexistentes no declaradas; viajes contra "
+        "recomendación médica; actividades deportivas de alto riesgo no contratadas; "
+        "cancelaciones por decisión voluntaria sin causa amparada; objetos de valor "
+        "dejados sin custodia; y destinos o eventos expresamente excluidos en las "
+        "condiciones particulares.",
+        "Contactar a la línea de asistencia antes de incurrir en gastos médicos, conservar "
+        "facturas, tiquetes y reportes de la aerolínea o autoridad, y reportar la pérdida "
+        "de equipaje ante el transportador.",
+    ),
+    "PROTECCION_DISPOSITIVOS": _condiciones(
+        "Proteger el dispositivo electrónico identificado en las condiciones particulares "
+        "frente a eventos amparados, mediante reparación, reposición o indemnización.",
+        "(i) Daño accidental, como caída o contacto con líquidos; (ii) robo, con "
+        "denuncia previa ante la autoridad competente; (iii) fallas fuera de garantía del "
+        "fabricante. Cada evento está sujeto a deducible y no excede el límite asegurado.",
+        "Desgaste normal, daños estéticos, pérdida o extravío sin robo, daños "
+        "intencionales, uso indebido, modificaciones no autorizadas, fallas cubiertas por "
+        "la garantía del fabricante, hurto sin violencia o sin denuncia, y dispositivos "
+        "con numeración alterada.",
+        "Mantener el dispositivo en uso conforme a las instrucciones del fabricante, "
+        "informar sus datos de identificación, presentar la denuncia en caso de robo y "
+        "permitir su inspección o peritaje.",
+    ),
+    "MICROSEGURO_VIDA": _condiciones(
+        "Brindar protección económica básica a los beneficiarios designados mediante el "
+        "pago de la suma asegurada y de un auxilio funerario cuando ocurra un evento "
+        "amparado.",
+        "(i) Fallecimiento del asegurado, con pago de la suma asegurada a los "
+        "beneficiarios; (ii) auxilio funerario, para atender gastos exequiales hasta su "
+        "límite asegurado.",
+        "Suicidio dentro del periodo de carencia indicado en las condiciones particulares; "
+        "fallecimiento por actos delictivos del asegurado o beneficiario, guerra, "
+        "terrorismo o actividades de alto riesgo no declaradas; y eventos ocurridos antes "
+        "del inicio de la cobertura.",
+        "Designar y mantener actualizados los beneficiarios, informar cambios en sus datos "
+        "de contacto, y presentar el registro de defunción y demás documentos solicitados.",
+    ),
+    "SEGURO_PARAMETRICO": _condiciones(
+        "Entregar una compensación predefinida cuando un índice objetivo, como la "
+        "precipitación medida o el retraso de un vuelo, alcance el umbral pactado, sin "
+        "necesidad de demostrar la pérdida efectivamente sufrida.",
+        "(i) Lluvia extrema, cuando la medición oficial de la fuente de datos designada, "
+        "en la ubicación y periodo definidos, supere el umbral de las condiciones "
+        "particulares; (ii) retraso de vuelo, cuando la fuente de datos designada "
+        "registre una demora superior al umbral pactado. La compensación es la indicada "
+        "en las condiciones particulares y no excede el límite asegurado.",
+        "Eventos medidos fuera de la ubicación, periodo o vuelo asegurado; retrasos o "
+        "lluvias que no alcancen el umbral; cancelaciones o eventos no cubiertos por el "
+        "índice; y fallas de la fuente de datos, caso en el cual se aplicará la fuente "
+        "alterna o el procedimiento descrito en las condiciones particulares.",
+        "Verificar que la información de ubicación, fechas o vuelo sea correcta, y "
+        "conservar los datos necesarios para recibir la compensación, que se determina "
+        "con la fuente designada y no con la valoración de daños.",
+    ),
+}
+
+
 async def sembrar_catalogo(session: AsyncSession) -> int:
     """Crea los productos faltantes con coberturas y regla de rating. Retorna cuántos creó."""
     productos = SqlAlchemyProductoSeguroRepository(session)
@@ -223,7 +371,11 @@ async def sembrar_catalogo(session: AsyncSession) -> int:
     reglas = SqlAlchemyReglaRatingRepository(session)
     creados = 0
     for item in CATALOGO:
-        if await productos.obtener_por_codigo(item["codigo"]) is not None:
+        existente = await productos.obtener_por_codigo(item["codigo"])
+        if existente is not None:
+            await productos.inicializar_condiciones(
+                existente.producto_id, CONDICIONES_GENERALES[item["codigo"]], VERSION_CONDICIONES
+            )
             continue
         producto = await productos.guardar(
             ProductoSeguro(
@@ -231,6 +383,8 @@ async def sembrar_catalogo(session: AsyncSession) -> int:
                 nombre=item["nombre"],
                 ramo=item["ramo"],
                 pais=PAIS,
+                condiciones_generales=CONDICIONES_GENERALES[item["codigo"]],
+                version_condiciones_generales=VERSION_CONDICIONES,
             )
         )
         for c in item["coberturas"]:

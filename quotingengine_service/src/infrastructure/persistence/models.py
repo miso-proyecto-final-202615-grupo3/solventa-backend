@@ -9,6 +9,7 @@ from sqlalchemy import (
     ForeignKey,
     Numeric,
     String,
+    Text,
     UniqueConstraint,
     Uuid,
     func,
@@ -37,6 +38,8 @@ class ProductoSeguroModel(Base):
     ramo: Mapped[str] = mapped_column(String(50), nullable=False)
     estado: Mapped[str] = mapped_column(String(20), nullable=False)
     pais: Mapped[str] = mapped_column(String(60), nullable=False)
+    condiciones_generales: Mapped[str | None] = mapped_column(Text, nullable=True)
+    version_condiciones_generales: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
     coberturas: Mapped[list["CoberturaModel"]] = relationship(
         back_populates="producto"
@@ -194,3 +197,31 @@ class AuditoriaDecisionModel(Base):
 
     cotizacion: Mapped[CotizacionModel] = relationship(back_populates="auditorias")
     regla_rating: Mapped[ReglaRatingModel] = relationship()
+
+
+class CondicionesCotizacionModel(Base):
+    __tablename__ = "condiciones_cotizacion"
+
+    condiciones_cotizacion_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    cotizacion_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey(_fk("cotizacion.cotizacion_id")), nullable=False, index=True
+    )
+    version_condiciones_generales: Mapped[str] = mapped_column(String(20), nullable=False)
+    condiciones_generales: Mapped[str] = mapped_column(Text, nullable=False)
+    condiciones_particulares: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    creada_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class DecisionCondicionesModel(Base):
+    __tablename__ = "decision_condiciones"
+
+    decision_condiciones_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    condiciones_cotizacion_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey(_fk("condiciones_cotizacion.condiciones_cotizacion_id")),
+        nullable=False,
+        index=True,
+    )
+    cliente_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    decision: Mapped[str] = mapped_column(String(20), nullable=False)
+    decidida_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

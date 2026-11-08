@@ -50,6 +50,22 @@ class QuotingEngineServiceGateway:
             f"/api/v1/quotingengine-service/cotizaciones/{cotizacion_id}",
         )
 
+    async def obtener_condiciones(self, cotizacion_id: str) -> dict[str, Any]:
+        return await self._request(
+            "GET",
+            f"/api/v1/quotingengine-service/cotizaciones/{cotizacion_id}/condiciones",
+        )
+
+    async def registrar_decision_condiciones(
+        self, cotizacion_id: str, payload: bytes, content_type: str = "application/json"
+    ) -> dict[str, Any]:
+        return await self._request(
+            "POST",
+            f"/api/v1/quotingengine-service/cotizaciones/{cotizacion_id}/condiciones/decisiones",
+            payload,
+            content_type,
+        )
+
     async def aclose(self) -> None:
         await self._client.aclose()
 

@@ -20,8 +20,6 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
       KYC_SERVICE_URL: ${KYC_SERVICE_URL:-http://mock_kyc:8000}
       LIVENESS_ADAPTER_URL: ${LIVENESS_ADAPTER_URL:-http://liveness_adapter:8000}
-      AWS_PROFILE: ${AWS_PROFILE:-default}
-      AWS_SDK_LOAD_CONFIG: "1"
       OPEN_FINANCE_URL: ${OPEN_FINANCE_URL:-http://mock_openfinance:8000}
       OPEN_FINANCE_TIMEOUT_SECONDS: ${OPEN_FINANCE_TIMEOUT_SECONDS:-0.2}
       GRPC_ENABLED: ${GRPC_ENABLED:-true}

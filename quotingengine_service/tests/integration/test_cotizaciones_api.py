@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 
 import pytest
 from httpx import AsyncClient
@@ -38,6 +39,18 @@ def _payload(**extra):
     }
 
 
+def _verificar_vigencia(particulares, cotizacion, anos):
+    assert set(particulares) == {"prima_total", "moneda", "vigencia_propuesta", "coberturas"}
+    vigencia = particulares["vigencia_propuesta"]
+    assert set(vigencia) == {"desde", "hasta"}
+    creada_en = datetime.fromisoformat(cotizacion["creada_en"])
+    if creada_en.tzinfo is None:
+        creada_en = creada_en.replace(tzinfo=timezone.utc)
+    assert datetime.fromisoformat(vigencia["desde"]) == creada_en
+    dia = 28 if creada_en.month == 2 and creada_en.day == 29 else creada_en.day
+    assert datetime.fromisoformat(vigencia["hasta"]) == creada_en.replace(year=creada_en.year + anos, day=dia)
+
+
 async def test_cotiza_vida_hipotecario(
     api_client: AsyncClient, fake_gateway: FakePerfilGateway
 ):
@@ -62,6 +75,14 @@ async def test_cotiza_vida_hipotecario(
     assert len(data["coberturas"]) == 2
     assert sum(float(c["prima"]) for c in data["coberturas"]) == pytest.approx(48046.25)
     assert fake_gateway.llamadas == [uuid.UUID(payload["cliente_id"])]
+    condiciones = await api_client.get(
+        f"{BASE}/{data['cotizacion_id']}/condiciones",
+    )
+    assert condiciones.status_code == 200
+    particulares = condiciones.json()["condiciones_particulares"]
+    _verificar_vigencia(particulares, data, 10)
+    assert len(particulares["coberturas"]) == 2
+    assert all(set(c) == {"prima", "limite_asegurado", "deducible"} for c in particulares["coberturas"])
 
 
 async def test_open_data_usa_cache_territorial_si_proveedor_no_disponible(
@@ -152,17 +173,17 @@ async def test_cliente_inexistente(
 
 
 @pytest.mark.parametrize(
-    "producto, parametro",
+    "producto, parametro, anos",
     [
-        ("PROTECCION_PAGOS", "valor_cuota_mensual"),
-        ("SEGURO_VIAJE", "valor_viaje"),
-        ("PROTECCION_DISPOSITIVOS", "valor_dispositivo"),
-        ("MICROSEGURO_VIDA", "suma_asegurada"),
-        ("SEGURO_PARAMETRICO", "monto_compensacion"),
+        ("PROTECCION_PAGOS", "valor_cuota_mensual", 10),
+        ("SEGURO_VIAJE", "valor_viaje", 1),
+        ("PROTECCION_DISPOSITIVOS", "valor_dispositivo", 1),
+        ("MICROSEGURO_VIDA", "suma_asegurada", 10),
+        ("SEGURO_PARAMETRICO", "monto_compensacion", 1),
     ],
 )
 async def test_cotiza_otros_ramos_sin_consultar_perfil(
-    api_client: AsyncClient, fake_gateway: FakePerfilGateway, producto, parametro
+    api_client: AsyncClient, fake_gateway: FakePerfilGateway, producto, parametro, anos
 ):
     response = await api_client.post(
         BASE,
@@ -172,6 +193,17 @@ async def test_cotiza_otros_ramos_sin_consultar_perfil(
     assert response.status_code == 201
     assert float(response.json()["prima_total"]) > 0
     assert fake_gateway.llamadas == []
+    data = response.json()
+    condiciones = await api_client.get(
+        f"{BASE}/{data['cotizacion_id']}/condiciones",
+    )
+    assert condiciones.status_code == 200
+    assert condiciones.json()["condiciones_generales"]
+    particulares = condiciones.json()["condiciones_particulares"]
+    _verificar_vigencia(particulares, data, anos)
+    assert particulares["prima_total"] == data["prima_total"]
+    assert len(particulares["coberturas"]) == len(data["coberturas"])
+    assert all(set(c) == {"prima", "limite_asegurado", "deducible"} for c in particulares["coberturas"])
 
 
 @pytest.mark.parametrize(

@@ -47,6 +47,18 @@ fachada y reenvían esas operaciones. Identity entrega el perfil del cliente por
 en el puerto interno `50051`, validando el consentimiento antes de consultar Open Finance.
 Open Data se consulta desde Quoting Engine; ambos proveedores degradan de forma controlada.
 
+El BFF Web también reenvía las condiciones de una cotización:
+
+- `GET /api/v1/bff-web/cotizaciones/{cotizacion_id}/condiciones`.
+- `POST /api/v1/bff-web/cotizaciones/{cotizacion_id}/condiciones/decisiones`,
+  con el body `{"condiciones_cotizacion_id": "<uuid>", "decision": "ACEPTADA"}`;
+  también se admite `RECHAZADA`. La respuesta conserva el `cliente_id` asociado
+  a la cotización. El cliente no debe enviarlo en el body.
+
+Estos endpoints no autentican ni autorizan al solicitante. Antes de exponerlos a
+usuarios finales se debe implementar autenticación y comprobación de propiedad
+de la cotización; conocer los identificadores no demuestra autorización.
+
 Para ejecutar Quoting Engine fuera de Compose:
 
 ```powershell

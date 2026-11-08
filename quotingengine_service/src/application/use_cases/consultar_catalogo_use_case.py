@@ -3,10 +3,8 @@ from typing import Any
 
 from src.application.services.regla_rating_resolver import ReglaRatingResolver
 from src.domain.productos.entities import Cobertura, EstadoProducto, ProductoSeguro
-from src.domain.productos.repositories import (
-    CoberturaRepository,
-    ProductoSeguroRepository,
-)
+from src.domain.productos.cobertura_repository import CoberturaRepository
+from src.domain.productos.producto_seguro_repository import ProductoSeguroRepository
 
 
 class ProductoNoEncontradoError(Exception):

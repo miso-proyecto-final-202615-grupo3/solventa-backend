@@ -88,6 +88,8 @@ URL_AUTENTICAR = f"{IDENTITY_SERVICE_URL}/clientes/autenticar"
 URL_PRODUCTO = f"{QUOTINGENGINE_SERVICE_URL}/productos/VIDA_HIPOTECARIO"
 URL_COTIZACIONES = f"{QUOTINGENGINE_SERVICE_URL}/cotizaciones"
 URL_COTIZACION = f"{URL_COTIZACIONES}/{{cotizacion_id}}"
+URL_CONDICIONES = f"{URL_COTIZACION}/condiciones"
+URL_DECISIONES = f"{URL_CONDICIONES}/decisiones"
 VERIFICACIONES_ACTIVAS = True
 TIMEOUT_SEGUNDOS = 15
 CODIGO_PRODUCTO = "VIDA_HIPOTECARIO"
@@ -97,6 +99,7 @@ CLIENTE_REGISTRADO = None
 TOKEN_ACCESO = None
 COTIZACION_CREADA = None
 ID_COTIZACION = None
+ID_CONDICIONES = None
 
 
 def _ocultar_datos(valor):
@@ -291,6 +294,75 @@ def test_case_3_consultar_cotizacion_almacenada():
     )
 
 
+def test_case_4_consultar_condiciones_cotizacion():
+    """Consulta y almacena las condiciones de la cotización del cliente."""
+    global ID_CONDICIONES
+
+    _verificar(ID_COTIZACION is not None, "existe una cotización creada")
+    _verificar(
+        COTIZACION_CREADA["cliente_id"] == CLIENTE_REGISTRADO["id"],
+        "la cotización pertenece al cliente autenticado",
+    )
+    _verificar(
+        COTIZACION_CREADA["producto_codigo"] == CODIGO_PRODUCTO,
+        "la cotización corresponde a VIDA_HIPOTECARIO",
+    )
+    response = _enviar(
+        "GET",
+        URL_CONDICIONES.format(cotizacion_id=ID_COTIZACION),
+        headers=_cabeceras_autorizacion(),
+    )
+    _verificar(
+        response.status_code == 200,
+        "la consulta de condiciones responde HTTP 200",
+    )
+    if response.status_code != 200:
+        return
+
+    condiciones = response.json()
+    _verificar(
+        condiciones.get("cotizacion_id") == ID_COTIZACION,
+        "las condiciones corresponden a la cotización creada",
+    )
+    ID_CONDICIONES = condiciones.get("condiciones_cotizacion_id")
+    _verificar(bool(ID_CONDICIONES), "la respuesta incluye el ID de condiciones")
+
+
+def test_case_5_decidir_condiciones_cotizacion():
+    """Acepta y luego rechaza las condiciones consultadas."""
+    _verificar(bool(ID_CONDICIONES), "existen condiciones consultadas")
+    for decision in ("ACEPTADA", "RECHAZADA"):
+        response = _enviar(
+            "POST",
+            URL_DECISIONES.format(cotizacion_id=ID_COTIZACION),
+            json={
+                "condiciones_cotizacion_id": ID_CONDICIONES,
+                "decision": decision,
+            },
+            headers=_cabeceras_autorizacion(),
+        )
+        _verificar(
+            response.status_code == 201,
+            f"la decisión {decision} responde HTTP 201",
+        )
+        if response.status_code != 201:
+            return
+
+        resultado = response.json()
+        _verificar(
+            resultado.get("decision") == decision,
+            f"la respuesta registra la decisión {decision}",
+        )
+        _verificar(
+            resultado.get("condiciones_cotizacion_id") == ID_CONDICIONES,
+            f"la decisión {decision} corresponde a las condiciones consultadas",
+        )
+        _verificar(
+            resultado.get("cliente_id") == CLIENTE_REGISTRADO["id"],
+            f"la decisión {decision} corresponde al cliente autenticado",
+        )
+
+
 def _ejecutar_caso(nombre, caso):
     print(f"\n{'=' * 72}\n{nombre}\n{'=' * 72}")
     try:
@@ -323,6 +395,17 @@ if __name__ == "__main__":
                 test_case_3_consultar_cotizacion_almacenada,
             ),
         ]
+        if SERVICIO == "quotingengine-service":
+            resultados.extend([
+                _ejecutar_caso(
+                    "Test Case 4: consultar condiciones de la cotización",
+                    test_case_4_consultar_condiciones_cotizacion,
+                ),
+                _ejecutar_caso(
+                    "Test Case 5: aceptar y rechazar condiciones",
+                    test_case_5_decidir_condiciones_cotizacion,
+                ),
+            ])
 
     if VERIFICACIONES_ACTIVAS and (
         not precondicion_exitosa or not all(resultados)

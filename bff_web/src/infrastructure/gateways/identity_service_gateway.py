@@ -3,6 +3,10 @@ import httpx
 from src.core.config import settings
 
 
+# Subida de documentos: identity almacena en S3 y llama al proveedor KYC/AML.
+UPLOAD_TIMEOUT_SECONDS = 30.0
+
+
 class IdentityGatewayError(Exception):
     def __init__(self, status_code: int, detail: str) -> None:
         self.status_code = status_code
@@ -56,6 +60,36 @@ class IdentityServiceGateway:
             f"/api/v1/identity-service/clientes/{cliente_id}/perfil",
         )
 
+    async def iniciar_verificacion_kyc_aml(
+        self,
+        cliente_id: str,
+        payload: bytes,
+        content_type: str,
+        headers: dict[str, str] | None = None,
+    ) -> dict:
+        return await self._request(
+            "POST",
+            f"/api/v1/identity-service/clientes/{cliente_id}/verificaciones-kyc-aml",
+            payload,
+            content_type,
+            headers=headers,
+            timeout=UPLOAD_TIMEOUT_SECONDS,
+        )
+
+    async def consultar_verificacion_kyc_aml(
+        self,
+        cliente_id: str,
+        verificacion_id: str,
+        headers: dict[str, str] | None = None,
+    ) -> dict:
+        return await self._request(
+            "GET",
+            f"/api/v1/identity-service/clientes/{cliente_id}"
+            f"/verificaciones-kyc-aml/{verificacion_id}",
+            headers=headers,
+            timeout=UPLOAD_TIMEOUT_SECONDS,
+        )
+
     async def consultar_auditoria_consentimiento(
         self, params: dict[str, str]
     ) -> dict:
@@ -78,18 +112,19 @@ class IdentityServiceGateway:
         payload: bytes | None = None,
         content_type: str = "application/json",
         params: dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
+        timeout: float | None = None,
     ) -> dict:
         try:
-            kwargs = (
-                {
-                    "content": payload,
-                    "headers": {"content-type": content_type},
-                }
-                if payload is not None
-                else {}
-            )
+            request_headers = dict(headers or {})
+            kwargs: dict = {}
+            if payload is not None:
+                kwargs["content"] = payload
+                request_headers["content-type"] = content_type
+            if timeout is not None:
+                kwargs["timeout"] = timeout
             response = await self._client.request(
-                method, path, params=params, **kwargs
+                method, path, params=params, headers=request_headers, **kwargs
             )
         except httpx.HTTPError as exc:
             raise IdentityGatewayError(

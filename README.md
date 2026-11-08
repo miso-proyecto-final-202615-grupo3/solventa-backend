@@ -129,6 +129,10 @@ todavía no expone endpoints de negocio.
 Los mocks locales usan HTTP. En ambientes desplegados, configura `OPEN_FINANCE_URL`
 y `OPEN_DATA_URL` con los endpoints HTTPS de los proveedores.
 
+Para las fotos de las verificaciones KYC/AML, `identity_service` usa S3 por defecto (`KYC_DOCUMENT_STORAGE=s3`); configura `S3_BUCKET_NAME`. Para desarrollo local se puede establecer
+`KYC_DOCUMENT_STORAGE=local`: los archivos se guardan bajo
+`/tmp/verificaciones-kyc-aml/{cliente_id}/{verificacion_id}/` y sus referencias persistidas son rutas locales absolutas.
+
 La consulta de productos queda expuesta por los BFF en `GET /api/v1/bff-web/productos`
 y `GET /api/v1/bff-mobile/productos`; la cotización recibe `producto_codigo`, el
 saldo pendiente del crédito y la ubicación del inmueble.

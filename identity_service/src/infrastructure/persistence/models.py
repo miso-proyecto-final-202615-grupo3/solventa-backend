@@ -7,7 +7,10 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     Index,
+    Integer,
+    JSON,
     String,
+    Text,
     Uuid,
     UniqueConstraint,
     func,
@@ -211,3 +214,39 @@ class IntentoPruebaVidaModel(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     resuelto_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class VerificacionKycAmlModel(Base):
+    """Auditoría de cada intento de validación KYC/AML; solo guarda referencias a S3, no las fotos."""
+
+    __tablename__ = "verificaciones_kyc_aml"
+    __table_args__ = (
+        UniqueConstraint(
+            "cliente_id", "idempotency_key", name="uq_verificacion_kyc_aml_cliente_idempotency"
+        ),
+        Index("ix_verificacion_kyc_aml_cliente_inicio", "cliente_id", "iniciada_en"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    cliente_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("clientes.id"), nullable=False
+    )
+    proveedor: Mapped[str] = mapped_column(String(40), nullable=False)
+    proveedor_verificacion_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    idempotency_key: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    huella_documentos: Mapped[str] = mapped_column(String(64), nullable=False)
+    estado: Mapped[str] = mapped_column(String(20), nullable=False)
+    resultado_kyc: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    resultado_aml: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    ruta_documento_frontal: Mapped[str] = mapped_column(String(512), nullable=False)
+    ruta_documento_reverso: Mapped[str] = mapped_column(String(512), nullable=False)
+    respuesta_inicio: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    respuesta_resultado: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    error_codigo: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    error_detalle: Mapped[str | None] = mapped_column(Text, nullable=True)
+    correlation_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    iniciada_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    resultado_en: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)

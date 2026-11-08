@@ -1,4 +1,5 @@
 from collections.abc import AsyncGenerator
+from functools import lru_cache
 from contextlib import asynccontextmanager
 
 from fastapi import Depends
@@ -6,7 +7,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.ports.identity_provider import IdentityProvider
-from src.application.ports.kyc import KycVerifier
+from src.application.ports.kyc_aml import KycAmlProvider
 from src.application.use_cases.autenticar_cliente_use_case import (
     AutenticarClienteUseCase,
 )
@@ -28,12 +29,18 @@ from src.application.use_cases.consultar_auditoria_consentimiento_use_case impor
     ConsultarAuditoriaConsentimientoUseCase,
 )
 from src.application.use_cases.registrar_cliente_use_case import RegistrarClienteUseCase
-from src.application.use_cases.verificar_kyc_use_case import VerificarKycUseCase
+from src.application.use_cases.consultar_verificacion_kyc_aml_use_case import (
+    ConsultarVerificacionKycAmlUseCase,
+)
+from src.application.use_cases.iniciar_verificacion_kyc_aml_use_case import (
+    IniciarVerificacionKycAmlUseCase,
+)
 from src.core.config import settings
 from src.core.database import SessionLocal
 from src.domain.clientes.repositories import ClienteRepository
 from src.infrastructure.gateways.cognito_identity_provider import CognitoIdentityProvider
-from src.infrastructure.gateways.kyc_http_client import KycHttpClient
+from src.domain.verificaciones_kyc_aml.repositories import DocumentoVerificacionRepository
+from src.infrastructure.gateways.kyc_aml_http_client import KycAmlHttpClient
 from src.infrastructure.gateways.noop_identity_provider import NoopIdentityProvider
 from src.infrastructure.gateways.consentimiento_biometrico_registrado import (
     ConsentimientoBiometricoRegistrado,
@@ -56,6 +63,15 @@ from src.infrastructure.persistence.consentimiento_repository_impl import (
 )
 from src.infrastructure.persistence.activacion_movil_repository_impl import (
     SqlAlchemyActivacionMovilRepository,
+)
+from src.infrastructure.persistence.verificacion_kyc_aml_repository_impl import (
+    SqlAlchemyVerificacionKycAmlRepository,
+)
+from src.infrastructure.storage.documento_verificacion_s3_repository import (
+    S3DocumentoVerificacionRepository,
+)
+from src.infrastructure.storage.documento_verificacion_local_repository import (
+    LocalDocumentoVerificacionRepository,
 )
 
 _redis_client = Redis.from_url(
@@ -136,8 +152,21 @@ def get_autenticar_cliente_use_case(
     return AutenticarClienteUseCase(identity_provider)
 
 
-def get_kyc_verifier() -> KycVerifier:
-    return KycHttpClient()
+async def get_kyc_aml_provider() -> AsyncGenerator[KycAmlProvider, None]:
+    client = KycAmlHttpClient()
+    try:
+        yield client
+    finally:
+        await client.aclose()
+
+
+@lru_cache(maxsize=1)
+def get_documento_verificacion_repository() -> DocumentoVerificacionRepository:
+    if settings.KYC_DOCUMENT_STORAGE == "local":
+        return LocalDocumentoVerificacionRepository()
+    if settings.KYC_DOCUMENT_STORAGE == "s3":
+        return S3DocumentoVerificacionRepository()
+    raise ValueError("Tipo de almacenamiento de documentos KYC/AML no válido.")
 
 
 async def get_liveness_verifier() -> AsyncGenerator[LivenessVerificationPort, None]:
@@ -198,11 +227,35 @@ def get_consultar_resumen_movil_use_case(
     )
 
 
-def get_verificar_kyc_use_case(
-    repository: ClienteRepository = Depends(get_cliente_repository),
-    kyc_verifier: KycVerifier = Depends(get_kyc_verifier),
-) -> VerificarKycUseCase:
-    return VerificarKycUseCase(repository, kyc_verifier)
+def get_iniciar_verificacion_kyc_aml_use_case(
+    db: AsyncSession = Depends(get_db),
+    documentos: DocumentoVerificacionRepository = Depends(get_documento_verificacion_repository),
+    proveedor: KycAmlProvider = Depends(get_kyc_aml_provider),
+) -> IniciarVerificacionKycAmlUseCase:
+    return IniciarVerificacionKycAmlUseCase(
+        SqlAlchemyClienteRepository(db),
+        SqlAlchemyVerificacionKycAmlRepository(db),
+        documentos,
+        proveedor,
+        db.commit,
+        db.rollback,
+        settings.KYC_DOCUMENT_MAX_BYTES,
+    )
+
+
+def get_consultar_verificacion_kyc_aml_use_case(
+    db: AsyncSession = Depends(get_db),
+    proveedor: KycAmlProvider = Depends(get_kyc_aml_provider),
+) -> ConsultarVerificacionKycAmlUseCase:
+    return ConsultarVerificacionKycAmlUseCase(
+        SqlAlchemyClienteRepository(db),
+        SqlAlchemyVerificacionKycAmlRepository(db),
+        proveedor,
+        db.commit,
+        db.rollback,
+    )
+
+
 @asynccontextmanager
 async def abrir_gestionar_consentimiento_use_case() -> AsyncGenerator[
     GestionarConsentimientoUseCase, None

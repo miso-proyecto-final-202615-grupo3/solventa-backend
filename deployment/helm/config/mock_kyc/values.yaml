@@ -45,6 +45,7 @@ config:
   VERSION: "0.1.0"
   ENVIRONMENT: dev
   MOCK_KYC_STATUS: PASSED
+  MOCK_AML_STATUS: PASSED
 
 resources:
   requests:

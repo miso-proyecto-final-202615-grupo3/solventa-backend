@@ -22,10 +22,6 @@ from src.application.use_cases.registrar_cliente_use_case import (
     DuplicateClienteError,
     RegistrarClienteUseCase,
 )
-from src.application.use_cases.verificar_kyc_use_case import (
-    KycClienteNoEncontradoError,
-    VerificarKycUseCase,
-)
 from src.application.use_cases.iniciar_activacion_movil_use_case import (
     ClienteNoRegistradoError,
     ConsentimientoBiometricoRequeridoError,
@@ -59,7 +55,6 @@ from src.presentation.dependencies import (
     get_gestionar_consentimiento_biometrico_use_case,
     get_gestionar_consentimiento_use_case,
     get_registrar_cliente_use_case,
-    get_verificar_kyc_use_case,
     get_iniciar_activacion_movil_use_case,
     get_verificar_activacion_movil_use_case,
 )
@@ -406,23 +401,3 @@ async def obtener_perfil_cliente(
             detail="El cliente indicado no existe.",
         ) from exc
     return ClienteResponse.model_validate(perfil)
-
-
-@router.post(
-    "/{cliente_id}/verificar-kyc",
-    response_model=ClienteResponse,
-    status_code=status.HTTP_200_OK,
-)
-async def verificar_kyc(
-    cliente_id: uuid.UUID,
-    use_case: VerificarKycUseCase = Depends(get_verificar_kyc_use_case),
-) -> ClienteResponse:
-    try:
-        cliente = await use_case.ejecutar(cliente_id)
-    except KycClienteNoEncontradoError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="El cliente indicado no existe.",
-        ) from exc
-
-    return _cliente_response(cliente)

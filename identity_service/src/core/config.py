@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -20,7 +22,13 @@ class Settings(BaseSettings):
     REDIS_ENDPOINT: str = "redis://localhost:6379/0"
     REDIS_AUTH_TOKEN: str = ""
     KYC_SERVICE_URL: str = "http://localhost:8202"
-    KYC_TIMEOUT_SECONDS: float = 0.7
+    KYC_TIMEOUT_SECONDS: float = 5.0
+    KYC_PROVIDER_NAME: str = "mock_kyc"
+    KYC_DOCUMENT_MAX_BYTES: int = 5 * 1024 * 1024
+    KYC_DOCUMENT_STORAGE: Literal["local", "s3"] = "s3"
+    # Bucket S3 privado; las credenciales salen de la cadena por defecto de boto3 (Pod Identity o AWS_*).
+    S3_BUCKET_NAME: str = ""
+    KMS_KEY_ARN: str = ""
     LIVENESS_ADAPTER_URL: str = "http://localhost:8203"
     LIVENESS_ADAPTER_TIMEOUT_SECONDS: float = 15.0
     # HU3.1.3: sin consentimiento biométrico vigente no se inicia la prueba de vida.

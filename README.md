@@ -12,7 +12,7 @@ ambiente y su imagen Docker. Cada servicio se despliega como un pod independient
 | `bff_mobile` | Backend For Frontend de la app móvil Android | `/api/v1/bff-mobile` |
 | `identity_service` | Identidad y registro de clientes | `/api/v1/identity-service` |
 | `quotingengine_service` | Motor de cotización y suscripción | `/api/v1/quotingengine-service` |
-| `insurancepolicies_service` | Gestión de pólizas (solo `/health` por ahora) | `/api/v1/insurancepolicies-service` |
+| `insurancepolicies_service` | Consulta de pólizas y coberturas | `/api/v1/insurancepolicies-service` |
 | `insuranceclaims_service` | Gestión de siniestros (solo `/health` por ahora) | `/api/v1/insuranceclaims-service` |
 | `payments_service` | Pagos y recaudo (sin endpoints de negocio por ahora) | `/api/v1/payments-service` |
 | `liveness_adapter` | Adaptador de retos y verificación de prueba de vida | `/api/v1/liveness-adapter` |
@@ -58,6 +58,16 @@ El BFF Web también reenvía las condiciones de una cotización:
 Estos endpoints no autentican ni autorizan al solicitante. Antes de exponerlos a
 usuarios finales se debe implementar autenticación y comprobación de propiedad
 de la cotización; conocer los identificadores no demuestra autorización.
+
+La consulta de pólizas del cliente queda expuesta por el BFF Web:
+
+- `GET /api/v1/bff-web/polizas/mis-polizas`.
+- `GET /api/v1/bff-web/polizas/{poliza_id}`.
+
+Ambos endpoints requieren el encabezado interno `X-Client-Id`. El MS de pólizas
+valida que la póliza pertenezca al cliente indicado y responde `403` si no coincide.
+La sustitución de este encabezado por el principal del JWT queda pendiente de la
+integración de autenticación del BFF.
 
 Para ejecutar Quoting Engine fuera de Compose:
 

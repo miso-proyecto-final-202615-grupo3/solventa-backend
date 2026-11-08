@@ -10,7 +10,7 @@ from src.core.correlation import CorrelationIdMiddleware
 from src.core.database import Base, engine
 from src.core.telemetry import setup_telemetry
 from src.infrastructure.persistence import models  # noqa: F401
-from src.presentation.routers import health
+from src.presentation.routers import health, polizas
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +55,7 @@ async def log_internal_errors(request, call_next):
 
 
 app.include_router(health.router)
+app.include_router(polizas.router)
 
 
 @app.get("/")

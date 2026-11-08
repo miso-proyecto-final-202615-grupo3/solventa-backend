@@ -14,8 +14,9 @@ services:
       AWS_REGION: ${AWS_REGION:-}
       COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
       COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
-      # Compose base usa NoopIdentityProvider; Cognito real va en docker-compose.cognito.yml.
-      COGNITO_ENABLED: "false"
+      COGNITO_ENABLED: "${COGNITO_ENABLED:-true}"
+      AWS_SHARED_CREDENTIALS_FILE: /root/.aws/credentials
+      AWS_CONFIG_FILE: /root/.aws/config
       REDIS_ENDPOINT: "${REDIS_ENDPOINT:-redis://redis:6379/0}"
       REDIS_AUTH_TOKEN: ${REDIS_AUTH_TOKEN:-}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
@@ -25,6 +26,8 @@ services:
       OPEN_FINANCE_TIMEOUT_SECONDS: ${OPEN_FINANCE_TIMEOUT_SECONDS:-0.2}
       GRPC_ENABLED: ${GRPC_ENABLED:-true}
       GRPC_PORT: ${GRPC_PORT:-50051}
+    volumes:
+      - ${USERPROFILE}/.aws:/root/.aws:ro
     depends_on:
       db:
         condition: service_healthy

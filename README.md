@@ -12,7 +12,7 @@ ambiente y su imagen Docker. Cada servicio se despliega como un pod independient
 | `bff_mobile` | Backend For Frontend de la app móvil Android | `/api/v1/bff-mobile` |
 | `identity_service` | Identidad y registro de clientes | `/api/v1/identity-service` |
 | `quotingengine_service` | Motor de cotización y suscripción | `/api/v1/quotingengine-service` |
-| `insurancepolicies_service` | Gestión de pólizas (solo `/health` por ahora) | `/api/v1/insurancepolicies-service` |
+| `insurancepolicies_service` | Gestión de pólizas y firma digital manuscrita (HU1.3.5) | `/api/v1/insurancepolicies-service` |
 | `insuranceclaims_service` | Gestión de siniestros (solo `/health` por ahora) | `/api/v1/insuranceclaims-service` |
 | `payments_service` | Pagos y recaudo (sin endpoints de negocio por ahora) | `/api/v1/payments-service` |
 | `liveness_adapter` | Adaptador de retos y verificación de prueba de vida | `/api/v1/liveness-adapter` |
@@ -136,6 +136,46 @@ Para las fotos de las verificaciones KYC/AML, `identity_service` usa S3 por defe
 La consulta de productos queda expuesta por los BFF en `GET /api/v1/bff-web/productos`
 y `GET /api/v1/bff-mobile/productos`; la cotización recibe `producto_codigo`, el
 saldo pendiente del crédito y la ubicación del inmueble.
+
+## Firma digital (HU1.3.5)
+
+`insurancepolicies_service` captura la firma manuscrita (imagen PNG o JPEG del canvas) con
+`POST /api/v1/insurancepolicies-service/cotizaciones/{cotizacion_id}/firma-digital`
+(`multipart/form-data` con `cliente_id`, `producto_id` y un único archivo `firma`; header
+`Idempotency-Key` obligatorio) y la consulta con `GET` sobre la misma ruta. La auditoría queda en
+`insurancepolicies.firma_digital` (hash de la firma, fingerprint del contrato, fecha/hora del servidor y
+ruta relativa de la imagen, sin IP ni user agent). Una nueva firma reemplaza a la `CAPTURADA` de la cotización.
+
+El BFF Web enruta ambas operaciones en
+`/api/v1/bff-web/cotizaciones/{cotizacion_id}/firma-digital`. Reenvía el multipart,
+`Idempotency-Key`, `X-Correlation-Id` y `Authorization`, y conserva el código de respuesta
+del servicio (incluidos `201` para creación y `200` para un reintento). La dirección del
+servicio se configura con `INSURANCEPOLICIES_SERVICE_URL`. El límite del multipart completo
+en el BFF es `FIRMA_MAX_REQUEST_BYTES` (2 MiB por defecto); ajústalo si cambia
+`FIRMA_MAX_BYTES` en el servicio de pólizas, dejando espacio para el multipart.
+El reenvío de `Authorization` no implica validación de identidad ni de propiedad de la
+cotización: esas verificaciones aún no están implementadas en estas rutas.
+
+El almacenamiento se elige con `FIRMA_STORAGE`: `s3` (por defecto; bucket privado `S3_BUCKET_NAME`, SSE-S3,
+credenciales por la cadena por defecto de boto3) o `local` (bajo `FIRMA_LOCAL_BASE_DIR`, por defecto `/tmp`).
+En ambos casos la ruta es `firma-digital/{cliente_id}/{firma_id}/firma.{png|jpg}`. `FIRMA_MAX_BYTES`
+(1 MiB por defecto) limita el tamaño.
+
+Para ejecutar la prueba de sistema del proceso de adquisición, instala `requirements-dev.txt`,
+copia `tests/system/.env.example` a `tests/system/.env` y configura las URLs de identidad,
+cotización y pólizas. Con los servicios y sus dependencias disponibles, ejecuta:
+
+```bash
+python tests/system/test_insurance_policy_acquiring_process.py local insurancepolicies-service
+python tests/system/test_insurance_policy_acquiring_process.py local bff-web
+```
+
+El argumento `insurancepolicies-service` accede directamente a identidad, cotización y pólizas;
+`bff-web` enruta los seis casos a través del BFF Web usando `SYSTEM_TESTS_BFF_WEB_BASE_URL`.
+También se admiten los entornos `dev` y `prod`, usando sus URLs base configuradas. La prueba
+registra un cliente y crea datos reales en el entorno elegido; utiliza imágenes simuladas y espera
+que el proveedor KYC/AML apruebe ambas verificaciones. Para pruebas locales, configura el
+almacenamiento de documentos y firmas (`KYC_DOCUMENT_STORAGE` y `FIRMA_STORAGE`) y el proveedor.
 
 ## Prueba de vida (HU3.1.1)
 

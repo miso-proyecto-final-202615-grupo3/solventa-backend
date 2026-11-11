@@ -107,6 +107,8 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@db:5432/identity_db}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+      FIRMA_STORAGE: ${FIRMA_STORAGE:-s3}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-}
     depends_on:
       db:
         condition: service_healthy
@@ -203,11 +205,14 @@ services:
     environment:
       IDENTITY_SERVICE_URL: ${IDENTITY_SERVICE_URL:-http://identity_service:8000}
       QUOTINGENGINE_SERVICE_URL: ${QUOTINGENGINE_SERVICE_URL:-http://quotingengine_service:8000}
+      INSURANCEPOLICIES_SERVICE_URL: ${INSURANCEPOLICIES_SERVICE_URL:-http://insurancepolicies_service:8000}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
     depends_on:
       identity_service:
         condition: service_started
       quotingengine_service:
+        condition: service_started
+      insurancepolicies_service:
         condition: service_started
 
   bff_mobile:

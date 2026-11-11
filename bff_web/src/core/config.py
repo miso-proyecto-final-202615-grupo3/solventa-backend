@@ -1,3 +1,4 @@
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -7,7 +8,9 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     API_PREFIX: str = "/api/v1/bff-web"
     IDENTITY_SERVICE_URL: str = "http://localhost:8000"
-    QUOTINGENGINE_SERVICE_URL: str = "http://localhost:8003"
+    QUOTINGENGINE_SERVICE_URL: str = "http://localhost:8000"
+    INSURANCEPOLICIES_SERVICE_URL: str = "http://localhost:8000"
+    FIRMA_MAX_REQUEST_BYTES: int = Field(default=2 * 1024 * 1024, gt=0)
     OTEL_EXPORTER_OTLP_ENDPOINT: str = "http://localhost:4317"
 
     model_config = SettingsConfigDict(

@@ -59,6 +59,16 @@ Estos endpoints no autentican ni autorizan al solicitante. Antes de exponerlos a
 usuarios finales se debe implementar autenticación y comprobación de propiedad
 de la cotización; conocer los identificadores no demuestra autorización.
 
+La consulta de pólizas del cliente queda expuesta por el BFF Web:
+
+- `GET /api/v1/bff-web/polizas/mis-polizas`.
+- `GET /api/v1/bff-web/polizas/{poliza_id}`.
+
+Ambos endpoints requieren el encabezado interno `X-Client-Id`. El MS de pólizas
+valida que la póliza pertenezca al cliente indicado y responde `403` si no coincide.
+La sustitución de este encabezado por el principal del JWT queda pendiente de la
+integración de autenticación del BFF.
+
 Para ejecutar Quoting Engine fuera de Compose:
 
 ```powershell

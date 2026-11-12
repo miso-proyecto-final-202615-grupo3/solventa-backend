@@ -46,6 +46,9 @@ class PolizaModel(Base):
     emitida_en: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    ramo: Mapped[str] = mapped_column(
+        String(80), nullable=False, default="SEGURO", server_default="SEGURO"
+    )
 
     coberturas: Mapped[list["PolizaCoberturaModel"]] = relationship(
         back_populates="poliza"

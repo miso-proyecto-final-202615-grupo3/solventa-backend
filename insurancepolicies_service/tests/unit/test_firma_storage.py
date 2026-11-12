@@ -27,8 +27,9 @@ async def test_local_guarda_con_permisos_privados(tmp_path):
 
     destino = tmp_path / ruta
     assert destino.read_bytes() == ARCHIVO.contenido
-    assert stat.S_IMODE(destino.stat().st_mode) == 0o600
-    assert stat.S_IMODE(destino.parent.stat().st_mode) == 0o700
+    if os.name != "nt":
+        assert stat.S_IMODE(destino.stat().st_mode) == 0o600
+        assert stat.S_IMODE(destino.parent.stat().st_mode) == 0o700
     assert ruta.startswith("firma-digital/")
 
 
@@ -49,6 +50,8 @@ async def test_local_rechaza_rutas_fuera_del_directorio(tmp_path):
 
 
 async def test_local_no_sigue_enlaces_simbolicos(tmp_path):
+    if os.name == "nt":
+        pytest.skip("Windows requiere privilegios para crear enlaces simbólicos.")
     base = tmp_path / "base"
     base.mkdir()
     fuera = tmp_path / "fuera"

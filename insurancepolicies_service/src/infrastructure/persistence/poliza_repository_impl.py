@@ -31,6 +31,7 @@ def _a_entidad(model: PolizaModel) -> Poliza:
         vigencia_desde=model.vigencia_desde,
         vigencia_hasta=model.vigencia_hasta,
         emitida_en=model.emitida_en,
+        ramo=model.ramo,
         coberturas=[_cobertura_a_entidad(c) for c in model.coberturas],
     )
 
@@ -51,6 +52,7 @@ class SqlAlchemyPolizaRepository(PolizaRepository):
                 vigencia_desde=poliza.vigencia_desde,
                 vigencia_hasta=poliza.vigencia_hasta,
                 emitida_en=poliza.emitida_en,
+                ramo=poliza.ramo,
             )
         )
         await self.session.flush()

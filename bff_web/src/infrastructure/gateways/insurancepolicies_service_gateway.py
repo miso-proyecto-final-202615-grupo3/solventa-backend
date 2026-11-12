@@ -14,7 +14,7 @@ class InsurancePoliciesGatewayError(Exception):
 
 
 class InsurancePoliciesServiceGateway:
-    """Cliente HTTP hacia el servicio de pólizas."""
+    """Cliente HTTP para consulta de pólizas y firma digital."""
 
     def __init__(
         self,
@@ -27,23 +27,49 @@ class InsurancePoliciesServiceGateway:
             transport=transport,
         )
 
+    async def listar_mis_polizas(self, client_id: str) -> list[dict[str, Any]]:
+        body = await self._request_poliza(
+            "GET", "/polizas/mis-polizas", {"X-Client-Id": client_id}
+        )
+        return body
+
+    async def obtener_poliza(self, poliza_id: str, client_id: str) -> dict[str, Any]:
+        return await self._request_poliza(
+            "GET", f"/polizas/{poliza_id}", {"X-Client-Id": client_id}
+        )
+
     async def capturar_firma(
         self,
         cotizacion_id: UUID,
         payload: bytes,
         headers: dict[str, str],
     ) -> tuple[int, dict[str, Any]]:
-        return await self._request("POST", cotizacion_id, headers, payload)
+        return await self._request_firma("POST", cotizacion_id, headers, payload)
 
     async def consultar_firma(
         self, cotizacion_id: UUID, headers: dict[str, str]
     ) -> tuple[int, dict[str, Any]]:
-        return await self._request("GET", cotizacion_id, headers)
+        return await self._request_firma("GET", cotizacion_id, headers)
 
     async def aclose(self) -> None:
         await self._client.aclose()
 
-    async def _request(
+    async def _request_poliza(
+        self, method: str, path: str, headers: dict[str, str]
+    ) -> Any:
+        try:
+            response = await self._client.request(method, path, headers=headers)
+        except httpx.HTTPError as exc:
+            raise InsurancePoliciesGatewayError(
+                503, "El servicio de pólizas no está disponible."
+            ) from exc
+
+        body = self._parse_body(response)
+        if not response.is_success:
+            self._raise_response_error(response, body)
+        return body
+
+    async def _request_firma(
         self,
         method: str,
         cotizacion_id: UUID,
@@ -63,24 +89,31 @@ class InsurancePoliciesServiceGateway:
                 503, "El servicio de pólizas no está disponible."
             ) from exc
 
-        try:
-            body = response.json()
-        except ValueError as exc:
-            if response.is_success:
-                raise InsurancePoliciesGatewayError(
-                    502, "El servicio de pólizas devolvió una respuesta inválida."
-                ) from exc
-            body = None
-
+        body = self._parse_body(response)
         if not response.is_success:
-            detail = (
-                body.get("detail", "El servicio de pólizas devolvió un error.")
-                if isinstance(body, dict)
-                else "El servicio de pólizas devolvió un error."
-            )
-            raise InsurancePoliciesGatewayError(response.status_code, detail)
+            self._raise_response_error(response, body)
         if not isinstance(body, dict):
             raise InsurancePoliciesGatewayError(
                 502, "El servicio de pólizas devolvió una respuesta inválida."
             )
         return response.status_code, body
+
+    @staticmethod
+    def _parse_body(response: httpx.Response) -> Any:
+        try:
+            return response.json()
+        except ValueError as exc:
+            if response.is_success:
+                raise InsurancePoliciesGatewayError(
+                    502, "El servicio de pólizas devolvió una respuesta inválida."
+                ) from exc
+            return None
+
+    @staticmethod
+    def _raise_response_error(response: httpx.Response, body: Any) -> None:
+        detail = (
+            body.get("detail", "El servicio de pólizas devolvió un error.")
+            if isinstance(body, dict)
+            else body or "El servicio de pólizas devolvió un error."
+        )
+        raise InsurancePoliciesGatewayError(response.status_code, detail)

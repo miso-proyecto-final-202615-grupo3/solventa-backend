@@ -48,6 +48,9 @@ class LocalDocumentoVerificacionRepository(DocumentoVerificacionRepository):
         frontal: ArchivoDocumento,
         reverso: ArchivoDocumento,
     ) -> RutasDocumentos:
+        if os.name == "nt":
+            return self._guardar_windows(cliente_id, verificacion_id, frontal, reverso)
+
         rutas = [
             Path(
                 construir_ruta(
@@ -93,4 +96,46 @@ class LocalDocumentoVerificacionRepository(DocumentoVerificacionRepository):
         return RutasDocumentos(
             frontal=str(self.directorio_base / rutas[0]),
             reverso=str(self.directorio_base / rutas[1]),
+        )
+
+    def _guardar_windows(
+        self,
+        cliente_id: uuid.UUID,
+        verificacion_id: uuid.UUID,
+        frontal: ArchivoDocumento,
+        reverso: ArchivoDocumento,
+    ) -> RutasDocumentos:
+        rutas = [
+            Path(
+                construir_ruta(
+                    cliente_id, verificacion_id, f"documento-{lado}.{archivo.extension}"
+                )
+            )
+            for lado, archivo in (("frontal", frontal), ("reverso", reverso))
+        ]
+        base = self.directorio_base
+        if not base.exists() or base.is_symlink() or not base.is_dir():
+            raise OSError("El directorio de documentos no es válido.")
+        if os.name != "nt" and stat.S_IMODE(base.stat().st_mode) & 0o077:
+            raise PermissionError("El directorio de documentos no es privado.")
+
+        directorio = base
+        for componente in rutas[0].parent.parts:
+            directorio /= componente
+            if directorio.is_symlink():
+                raise OSError("El directorio de documentos no puede ser un enlace simbólico.")
+            directorio.mkdir(mode=0o700, exist_ok=True)
+            if os.name != "nt" and stat.S_IMODE(directorio.stat().st_mode) & 0o077:
+                raise PermissionError("El directorio de documentos no es privado.")
+
+        for ruta, archivo in zip(rutas, (frontal, reverso)):
+            destino = base / ruta
+            if destino.is_symlink():
+                raise OSError("El destino de documentos no puede ser un enlace simbólico.")
+            destino.write_bytes(archivo.contenido)
+            destino.chmod(0o600)
+
+        return RutasDocumentos(
+            frontal=str(base / rutas[0]),
+            reverso=str(base / rutas[1]),
         )

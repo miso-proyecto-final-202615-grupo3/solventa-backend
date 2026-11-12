@@ -37,6 +37,9 @@ class LocalAlmacenamientoFirmaRepository(AlmacenamientoFirmaRepository):
     def _guardar(self, ruta: PurePosixPath, archivo: ArchivoFirma) -> None:
         if ruta.is_absolute() or ".." in ruta.parts:
             raise OSError("Ruta de firma no válida.")
+        if os.name == "nt":
+            self._guardar_windows(ruta, archivo)
+            return
         with ExitStack() as stack:
             directorio = os.open(
                 self.directorio_base, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
@@ -66,3 +69,25 @@ class LocalAlmacenamientoFirmaRepository(AlmacenamientoFirmaRepository):
             )
             with os.fdopen(fd, "wb") as destino:
                 destino.write(archivo.contenido)
+
+    def _guardar_windows(self, ruta: PurePosixPath, archivo: ArchivoFirma) -> None:
+        base = self.directorio_base
+        if not base.exists() or base.is_symlink() or not base.is_dir():
+            raise OSError("El directorio de firmas no es válido.")
+        if os.name != "nt" and stat.S_IMODE(base.stat().st_mode) & 0o077:
+            raise PermissionError("El directorio de firmas no es privado.")
+
+        directorio = base
+        for componente in ruta.parent.parts:
+            directorio /= componente
+            if directorio.is_symlink():
+                raise OSError("El directorio de firmas no puede ser un enlace simbólico.")
+            directorio.mkdir(mode=0o700, exist_ok=True)
+            if os.name != "nt" and stat.S_IMODE(directorio.stat().st_mode) & 0o077:
+                raise PermissionError("El directorio de firmas no es privado.")
+
+        destino = base / Path(ruta)
+        if destino.exists() or destino.is_symlink():
+            raise FileExistsError(destino)
+        destino.write_bytes(archivo.contenido)
+        destino.chmod(0o600)

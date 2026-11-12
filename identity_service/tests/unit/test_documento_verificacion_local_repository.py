@@ -1,5 +1,6 @@
 import stat
 import uuid
+import os
 from pathlib import Path
 
 import pytest
@@ -31,10 +32,11 @@ async def test_guarda_documentos_con_rutas_y_permisos_privados(tmp_path):
     assert rutas.reverso == str(reverso)
     assert frontal.read_bytes() == JPEG.contenido
     assert reverso.read_bytes() == PNG.contenido
-    for directorio in (base, base.parent, base.parent.parent):
-        assert stat.S_IMODE(directorio.stat().st_mode) == 0o700
-    assert stat.S_IMODE(frontal.stat().st_mode) == 0o600
-    assert stat.S_IMODE(reverso.stat().st_mode) == 0o600
+    if os.name != "nt":
+        for directorio in (base, base.parent, base.parent.parent):
+            assert stat.S_IMODE(directorio.stat().st_mode) == 0o700
+        assert stat.S_IMODE(frontal.stat().st_mode) == 0o600
+        assert stat.S_IMODE(reverso.stat().st_mode) == 0o600
 
 
 async def test_reintento_sobrescribe_los_mismos_archivos(tmp_path):
@@ -69,6 +71,8 @@ async def test_error_de_almacenamiento_se_traduce(tmp_path):
 
 
 async def test_rechaza_directorio_que_no_es_privado(tmp_path):
+    if os.name == "nt":
+        pytest.skip("Windows administra permisos mediante ACL, no bits POSIX.")
     base = tmp_path / "verificaciones-kyc-aml"
     base.mkdir(mode=0o755)
     base.chmod(0o755)
@@ -80,6 +84,8 @@ async def test_rechaza_directorio_que_no_es_privado(tmp_path):
 
 
 async def test_rechaza_directorio_simbolico(tmp_path):
+    if os.name == "nt":
+        pytest.skip("Windows requiere privilegios para crear enlaces simbólicos.")
     destino = tmp_path / "destino"
     destino.mkdir()
     (tmp_path / "verificaciones-kyc-aml").symlink_to(destino, target_is_directory=True)
@@ -93,6 +99,8 @@ async def test_rechaza_directorio_simbolico(tmp_path):
 
 
 async def test_rechaza_archivo_simbolico_en_reintento(tmp_path):
+    if os.name == "nt":
+        pytest.skip("Windows requiere privilegios para crear enlaces simbólicos.")
     repo = LocalDocumentoVerificacionRepository(tmp_path)
     cliente_id, verificacion_id = uuid.uuid4(), uuid.uuid4()
     rutas = await repo.guardar(cliente_id, verificacion_id, JPEG, PNG)

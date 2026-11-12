@@ -31,7 +31,9 @@ database:
   secretKey: DATABASE_URL
 
 bucket:
-  enabled: false
+  enabled: true
+  existingSecret: secret-name
+  secretKey: S3_BUCKET_NAME
 
 cognito:
   enabled: false
@@ -49,6 +51,8 @@ config:
   API_PREFIX: /api/v1/insurancepolicies-service
   OTEL_EXPORTER_OTLP_ENDPOINT: http://cloudwatch-agent.amazon-cloudwatch.svc.cluster.local:4315
   OTEL_TRACES_EXPORTER: otlp
+  AWS_REGION: us-east-1
+  FIRMA_STORAGE: s3
 
 resources:
   requests:

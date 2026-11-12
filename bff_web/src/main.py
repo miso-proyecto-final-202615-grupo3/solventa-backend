@@ -4,7 +4,14 @@ from fastapi import FastAPI
 
 from src.core.config import settings
 from src.core.telemetry import setup_telemetry
-from src.presentation.routers import clientes, consentimientos, health, polizas, quotingengine
+from src.presentation.routers import (
+    clientes,
+    consentimientos,
+    health,
+    insurancepolicies,
+    polizas,
+    quotingengine,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +42,7 @@ app.include_router(clientes.router, prefix=settings.API_PREFIX)
 app.include_router(consentimientos.router, prefix=settings.API_PREFIX)
 app.include_router(quotingengine.router, prefix=settings.API_PREFIX)
 app.include_router(polizas.router, prefix=settings.API_PREFIX)
+app.include_router(insurancepolicies.router, prefix=settings.API_PREFIX)
 
 
 @app.get("/")

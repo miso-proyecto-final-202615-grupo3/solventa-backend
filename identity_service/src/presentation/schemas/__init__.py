@@ -22,8 +22,18 @@ from src.presentation.schemas.consentimiento_schemas import (
     ActualizarConsentimientoRequest,
     ConsentimientoResponse,
 )
+from src.presentation.schemas.verificacion_kyc_aml_schemas import (
+    EstadoResultadoVerificacion,
+    EstadoValidacion,
+    IniciarVerificacionKycAmlResponse,
+    VerificacionKycAmlResponse,
+)
 
 __all__ = [
+    "EstadoResultadoVerificacion",
+    "EstadoValidacion",
+    "IniciarVerificacionKycAmlResponse",
+    "VerificacionKycAmlResponse",
     "AuditoriaConsentimientoResponse",
     "AutenticarResponse",
     "ActualizarConsentimientoRequest",

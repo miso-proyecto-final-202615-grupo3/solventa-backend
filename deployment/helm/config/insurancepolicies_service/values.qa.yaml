@@ -4,5 +4,11 @@ image:
 database:
   existingSecret: solventa-qa-app-secrets
 
+sqs:
+  existingSecret: solventa-qa-app-secrets
+
+bucket:
+  existingSecret: solventa-qa-app-secrets
+
 config:
   ENVIRONMENT: qa

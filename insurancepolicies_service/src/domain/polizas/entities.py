@@ -2,6 +2,15 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
+from enum import StrEnum
+from typing import Any
+
+ESTADO_POLIZA_EMITIDA = "EMITIDA"
+
+
+class EstadoCertificado(StrEnum):
+    PENDIENTE = "PENDIENTE"
+    GENERADO = "GENERADO"
 
 
 @dataclass
@@ -27,3 +36,22 @@ class Poliza:
     poliza_id: uuid.UUID = field(default_factory=uuid.uuid4)
     coberturas: list[PolizaCobertura] = field(default_factory=list)
     ramo: str = "SEGURO"
+    titular_nombre: str = ""
+    estado_certificado: EstadoCertificado = EstadoCertificado.PENDIENTE
+    ruta_certificado: str | None = None
+
+    @property
+    def prima_total(self) -> Decimal:
+        return sum((c.prima for c in self.coberturas), start=Decimal("0"))
+
+
+@dataclass
+class ContratoPoliza:
+    """Instantánea de lo contratado (titular, producto, coberturas, prima y condiciones aceptadas).
+
+    Se guarda al emitir la póliza para que el certificado no dependa de que otros servicios
+    estén disponibles —ni sigan igual— cuando se genera.
+    """
+
+    poliza_id: uuid.UUID
+    datos: dict[str, Any]

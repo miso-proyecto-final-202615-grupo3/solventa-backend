@@ -12,7 +12,7 @@ ambiente y su imagen Docker. Cada servicio se despliega como un pod independient
 | `bff_mobile` | Backend For Frontend de la app móvil Android | `/api/v1/bff-mobile` |
 | `identity_service` | Identidad y registro de clientes | `/api/v1/identity-service` |
 | `quotingengine_service` | Motor de cotización y suscripción | `/api/v1/quotingengine-service` |
-| `insurancepolicies_service` | Gestión de pólizas y firma digital manuscrita (HU1.3.5) | `/api/v1/insurancepolicies-service` |
+| `insurancepolicies_service` | Gestión de pólizas, firma digital manuscrita (HU1.3.5), emisión de la póliza y certificado PDF (HU1.3.6) | `/api/v1/insurancepolicies-service` |
 | `insuranceclaims_service` | Gestión de siniestros (solo `/health` por ahora) | `/api/v1/insuranceclaims-service` |
 | `payments_service` | Pago de la prima inicial con PayPal o tarjeta de crédito (HU1.3.4) | `/api/v1/payments-service` |
 | `liveness_adapter` | Adaptador de retos y verificación de prueba de vida | `/api/v1/liveness-adapter` |
@@ -133,7 +133,7 @@ docker compose up --build
 | `mock_kyc` | `http://localhost:8202` |
 | `liveness_adapter` | `http://localhost:8203` |
 | `mock_paymentprovider` | `http://localhost:8204` |
-| `localstack` (SQS) | `http://localhost:4566` |
+| `localstack` (SQS, opcional) | `http://localhost:4566`; su servicio está comentado en `docker-compose.yml` |
 
 Los mocks locales usan HTTP. En ambientes desplegados, configura `OPEN_FINANCE_URL`
 y `OPEN_DATA_URL` con los endpoints HTTPS de los proveedores.
@@ -206,9 +206,12 @@ ni webhooks, y sin guardar estado. La documentación interactiva está en `/docs
 | `POST /credit-card/tokens` | Tokeniza los datos enviados por `payments_service`; devuelve `tok_<MARCA>_<últimos4>` |
 | `POST /credit-card/charges` | Últimos 4 del token: `0002` → `card_declined`, `9995` → `insufficient_funds`, `0069` → `expired_card`; otro → `succeeded` |
 
-Con `docker compose up`, el contenedor `localstack` (`localhost:4566`) crea la cola `solventa-pago-aprobado` y su DLQ
-con `scripts/localstack/init-sqs.sh`. La imagen `localstack/localstack:latest` exige `LOCALSTACK_AUTH_TOKEN` (token de
-una cuenta de LocalStack); también se puede fijar otra imagen con `LOCALSTACK_IMAGE`. Para ver los eventos:
+Por defecto los servicios usan el **SQS remoto** de AWS: define las URL de las colas existentes en `.env`
+(`PAGO_APROBADO_QUEUE_URL` y `POLIZA_EMITIDA_QUEUE_URL`) y credenciales `AWS_*` con permisos sobre ellas; sin URL, el
+proceso que depende de esa cola no se inicia. Para probar SQS en local, descomenta el servicio `localstack` y sus
+`depends_on` en `docker-compose.yml` y usa las variables comentadas de `.env.example`. `scripts/localstack/init-sqs.sh`
+crea las colas `solventa-pago-aprobado` y `solventa-poliza-emitida`, cada una con su DLQ (5 recepciones). La imagen
+`localstack/localstack:latest` exige `LOCALSTACK_AUTH_TOKEN` (token de una cuenta de LocalStack). Para ver los eventos:
 
 ```bash
 AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test aws --endpoint-url http://localhost:4566 --region us-east-1 \
@@ -217,6 +220,52 @@ AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test aws --endpoint-url http://loca
 
 En ambientes desplegados la cola SQS, los permisos del servicio y el repositorio ECR de `mock-paymentprovider`
 no los crea este repositorio.
+
+## Emisión de la póliza y certificado (HU1.3.6)
+
+`insurancepolicies_service` emite la póliza cuando el pago de la prima fue aprobado y genera su certificado PDF de
+forma asíncrona. Todo ocurre dentro del mismo servicio, con tres procesos en segundo plano que se inician con la API:
+
+1. **Emisión.** Consume `PAGO_APROBADO_QUEUE_URL` (mensaje `PagoAprobado` de `payments_service`). Exige la firma
+   digital vigente del cliente, verifica que el pago coincida con la cotización (cliente, moneda e importe) y toma
+   de `quotingengine_service` las coberturas, la prima, el producto y las condiciones aceptadas, y de `identity_service`
+   el nombre y el documento del titular (`GET /clientes/{id}/perfil`, que exige el consentimiento vigente del cliente).
+   En una sola transacción crea la póliza (`EMITIDA`, `estado_certificado=PENDIENTE`), guarda una instantánea del
+   contrato (`poliza_contrato`), pasa la firma a `VINCULADA` y escribe `PolizaEmitida` en el outbox
+   (`evento_outbox`). La vigencia es la de las condiciones particulares aceptadas (`vigencia_propuesta`).
+   Es idempotente: `poliza.cotizacion_id` es único, así que un mensaje duplicado no emite otra póliza.
+2. **Outbox relay.** Publica en `POLIZA_EMITIDA_QUEUE_URL` los eventos pendientes. Cada evento se publica bajo
+   `pg_advisory_xact_lock`, que se libera al confirmar o revertir, así que varias réplicas no publican a la vez;
+   la entrega es "al menos una vez".
+3. **Certificado.** Consume `POLIZA_EMITIDA_QUEUE_URL`, renderiza `infrastructure/pdf/templates/certificado_poliza.html`
+   con WeasyPrint (una sola página A4: titular, ID y número de póliza, producto, condiciones específicas, prima, vigencia
+   sin hora y la firma manuscrita al final), lo guarda y marca la póliza como `GENERADO` con su `ruta_certificado`.
+
+Un mensaje que falla (servicio caído, firma ausente, PDF inválido) no se borra: SQS lo reentrega y, superado
+`maxReceiveCount`, lo mueve a la DLQ de la cola. El certificado se guarda en
+`certificados-poliza/{cliente_id}/{poliza_id}/certificado-poliza.pdf` (ruta relativa): `CERTIFICADO_STORAGE=s3`
+(por defecto; bucket privado `S3_BUCKET_NAME`, SSE-S3 y credenciales por la cadena por defecto de boto3) o `local`
+(bajo `CERTIFICADO_LOCAL_BASE_DIR`, por defecto `/tmp`). Las fechas del PDF se muestran en `CERTIFICADO_ZONA_HORARIA`
+(`America/Bogota`). Cada intento deja una fila en `generacion_certificado` (estado `EN_PROCESO`, `GENERADO` o
+`FALLIDO`, inicio, fin, ruta, plantilla y los datos usados en JSON, sin la imagen de la firma). Un intento `EN_PROCESO`
+de más de `CERTIFICADO_EN_PROCESO_TTL_SECONDS` se considera abandonado y se reintenta.
+
+Endpoints, bajo `/api/v1/insurancepolicies-service`; todos exigen el header `X-Client-Id` y responden `403` si la
+póliza es de otro cliente:
+
+- `GET /cotizaciones/{cotizacion_id}/poliza`: resumen (`poliza_id`, `numero`, `titular_nombre`, `vigencia_desde`,
+  `vigencia_hasta`, `prima`, `moneda`, `estado_certificado`); `404` mientras no se haya emitido.
+- `GET /polizas/{poliza_id}/certificado`: `estado_certificado`, `disponible` y el último intento de generación.
+- `GET /polizas/{poliza_id}/certificado/descarga`: el PDF; `409 CERTIFICADO_NO_GENERADO` si aún no está listo.
+
+El BFF Web los expone con las mismas rutas bajo `/api/v1/bff-web` (`/cotizaciones/{id}/poliza`,
+`/polizas/{id}/certificado` y `/polizas/{id}/certificado/descarga`). Como en `/polizas/{id}`, el cliente se identifica
+con el header `X-Client-Id` que envía quien llama: aún no se valida contra el token de sesión.
+
+`create_all` crea las tablas nuevas (`poliza_contrato`, `generacion_certificado`, `evento_outbox`), pero no altera
+tablas existentes. Antes de desplegar sobre una base de datos existente, se debe actualizar el esquema de `poliza`
+por separado para incluir `ramo`, `titular_nombre`, `estado_certificado`, `ruta_certificado` y la restricción de
+unicidad por cotización. La imagen Docker instala Pango y fuentes para WeasyPrint.
 
 ## Firma digital (HU1.3.5)
 
@@ -252,12 +301,14 @@ python tests/system/test_insurance_policy_acquiring_process.py local bff-web
 ```
 
 El argumento `insurancepolicies-service` accede directamente a identidad, cotización y pólizas,
-y a pagos mediante `SYSTEM_TESTS_PAYMENTS_SERVICE_BASE_URL`; `bff-web` enruta los cinco casos
+y a pagos mediante `SYSTEM_TESTS_PAYMENTS_SERVICE_BASE_URL`; `bff-web` enruta los diez casos
 a través del BFF Web usando `SYSTEM_TESTS_BFF_WEB_BASE_URL`.
 También se admiten los entornos `dev` y `prod`, usando sus URLs base configuradas. La prueba
 registra un cliente y crea datos reales en el entorno elegido; utiliza imágenes simuladas y espera
-que el proveedor apruebe los resultados de KYC y AML. Para pruebas locales, configura el
-almacenamiento de documentos y firmas (`KYC_DOCUMENT_STORAGE` y `FIRMA_STORAGE`) y el proveedor.
+que el proveedor apruebe los resultados de KYC y AML. Después del pago consulta la emisión de la
+póliza y la generación del certificado con hasta tres intentos cada una, separados por 5 y 10 segundos
+respectivamente, y descarga el PDF en memoria. Para pruebas locales, configura el almacenamiento
+de documentos, firmas y certificados, además del proveedor y los consumidores de eventos.
 
 ## Prueba de vida (HU3.1.1)
 

@@ -32,8 +32,18 @@ class FirmaDigitalRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def obtener_por_poliza(self, poliza_id: uuid.UUID) -> FirmaDigital | None:
+        """Firma vinculada a la póliza al emitirla."""
+        raise NotImplementedError
+
+    @abstractmethod
     async def reemplazar_capturada(self, cotizacion_id: uuid.UUID) -> None:
         """Pasa a REEMPLAZADA la firma CAPTURADA de la cotización, si existe."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def vincular_a_poliza(self, firma_id: uuid.UUID, poliza_id: uuid.UUID) -> bool:
+        """Pasa la firma CAPTURADA a VINCULADA; False si ya no está CAPTURADA."""
         raise NotImplementedError
 
 
@@ -41,6 +51,11 @@ class AlmacenamientoFirmaRepository(ABC):
     @abstractmethod
     async def guardar(self, ruta: str, archivo: ArchivoFirma) -> None:
         """Guarda la imagen en la ruta relativa dada (firma-digital/{cliente}/{firma}/...)."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def leer(self, ruta: str) -> bytes:
+        """Lee la imagen; lanza AlmacenamientoFirmaError si no existe o no se pudo leer."""
         raise NotImplementedError
 
     @abstractmethod

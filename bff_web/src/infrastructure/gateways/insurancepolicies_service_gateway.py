@@ -5,6 +5,9 @@ import httpx
 
 from src.core.config import settings
 
+_PREFIJO = "/api/v1/insurancepolicies-service"
+MAX_CERTIFICADO_BYTES = 10 * 1024 * 1024
+
 
 class InsurancePoliciesGatewayError(Exception):
     def __init__(self, status_code: int, detail: Any) -> None:
@@ -50,6 +53,46 @@ class InsurancePoliciesServiceGateway:
         self, cotizacion_id: UUID, headers: dict[str, str]
     ) -> tuple[int, dict[str, Any]]:
         return await self._request_firma("GET", cotizacion_id, headers)
+
+    async def consultar_poliza_por_cotizacion(
+        self, cotizacion_id: UUID, headers: dict[str, str]
+    ) -> dict[str, Any]:
+        return await self._request_poliza(
+            "GET", f"{_PREFIJO}/cotizaciones/{cotizacion_id}/poliza", headers
+        )
+
+    async def consultar_estado_certificado(
+        self, poliza_id: UUID, headers: dict[str, str]
+    ) -> dict[str, Any]:
+        return await self._request_poliza(
+            "GET", f"{_PREFIJO}/polizas/{poliza_id}/certificado", headers
+        )
+
+    async def descargar_certificado(
+        self, poliza_id: UUID, headers: dict[str, str]
+    ) -> tuple[bytes, str | None]:
+        """PDF del certificado y el Content-Disposition que propone el servicio de pólizas."""
+        try:
+            response = await self._client.get(
+                f"{_PREFIJO}/polizas/{poliza_id}/certificado/descarga", headers=headers
+            )
+        except httpx.HTTPError as exc:
+            raise InsurancePoliciesGatewayError(
+                503, "El servicio de pólizas no está disponible."
+            ) from exc
+
+        if not response.is_success:
+            try:
+                body = response.json()
+            except ValueError:
+                body = None
+            self._raise_response_error(response, body)
+        tipo = response.headers.get("content-type", "").split(";")[0].strip().lower()
+        if tipo != "application/pdf" or len(response.content) > MAX_CERTIFICADO_BYTES:
+            raise InsurancePoliciesGatewayError(
+                502, "El servicio de pólizas devolvió un certificado inválido."
+            )
+        return response.content, response.headers.get("content-disposition")
 
     async def aclose(self) -> None:
         await self._client.aclose()

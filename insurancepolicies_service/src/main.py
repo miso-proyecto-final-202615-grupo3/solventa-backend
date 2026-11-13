@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -10,8 +11,8 @@ from src.core.correlation import CorrelationIdMiddleware
 from src.core.database import Base, engine
 from src.core.telemetry import setup_telemetry
 from src.infrastructure.persistence import models  # noqa: F401
-from src.presentation.routers import firmas, health
-from src.presentation.routers import polizas
+from src.presentation.consumers.tareas import crear_procesos, detener_procesos
+from src.presentation.routers import emision, firmas, health, polizas
 
 logger = logging.getLogger(__name__)
 
@@ -22,18 +23,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         async with engine.begin() as conn:
             await conn.execute(text("CREATE SCHEMA IF NOT EXISTS insurancepolicies"))
             await conn.run_sync(Base.metadata.create_all)
-            await conn.execute(
-                text(
-                    "ALTER TABLE insurancepolicies.poliza "
-                    "ADD COLUMN IF NOT EXISTS ramo VARCHAR(80) NOT NULL DEFAULT 'SEGURO'"
-                )
-            )
     except Exception:
         logger.warning(
             "No se pudo crear el esquema en el arranque.",
             exc_info=True,
         )
-    yield
+    tareas = [
+        asyncio.create_task(proceso, name=nombre) for nombre, proceso in crear_procesos().items()
+    ]
+    try:
+        yield
+    finally:
+        await detener_procesos(tareas)
 
 
 app = FastAPI(
@@ -64,6 +65,7 @@ async def log_internal_errors(request, call_next):
 app.include_router(health.router)
 app.include_router(polizas.router)
 app.include_router(firmas.router, prefix=settings.API_PREFIX)
+app.include_router(emision.router, prefix=settings.API_PREFIX)
 
 
 @app.get("/")

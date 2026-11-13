@@ -1,7 +1,7 @@
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
 
 from src.core.config import settings
 from src.infrastructure.gateways.insurancepolicies_service_gateway import (
@@ -101,3 +101,20 @@ async def consultar_firma(
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
     response.status_code = status_code
     return body
+
+
+@router.get("/cotizaciones/{cotizacion_id}/poliza")
+async def consultar_poliza_por_cotizacion(
+    cotizacion_id: UUID,
+    client_id: UUID = Header(alias="X-Client-Id"),
+    correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
+    gateway: InsurancePoliciesServiceGateway = Depends(get_insurancepolicies_service_gateway),
+) -> dict[str, Any]:
+    """Resumen de la póliza emitida para la cotización (404 mientras no se haya emitido)."""
+    headers = {"X-Client-Id": str(client_id)}
+    if correlation_id:
+        headers["X-Correlation-Id"] = correlation_id
+    try:
+        return await gateway.consultar_poliza_por_cotizacion(cotizacion_id, headers)
+    except InsurancePoliciesGatewayError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc

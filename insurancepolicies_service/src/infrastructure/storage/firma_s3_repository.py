@@ -41,6 +41,15 @@ class S3AlmacenamientoFirmaRepository(AlmacenamientoFirmaRepository):
             logger.exception("No se pudo almacenar la firma en S3.")
             raise AlmacenamientoFirmaError(str(exc)) from exc
 
+    async def leer(self, ruta: str) -> bytes:
+        if not self.bucket:
+            raise AlmacenamientoFirmaError("El bucket S3 no está configurado.")
+        try:
+            return await run_in_threadpool(self._descargar, ruta)
+        except (ClientError, BotoCoreError) as exc:
+            logger.exception("No se pudo leer la firma de S3.")
+            raise AlmacenamientoFirmaError(str(exc)) from exc
+
     async def eliminar(self, ruta: str) -> None:
         try:
             await run_in_threadpool(
@@ -48,6 +57,9 @@ class S3AlmacenamientoFirmaRepository(AlmacenamientoFirmaRepository):
             )
         except (ClientError, BotoCoreError):
             logger.warning("No se pudo eliminar la firma huérfana de S3.", exc_info=True)
+
+    def _descargar(self, ruta: str) -> bytes:
+        return self._client.get_object(Bucket=self.bucket, Key=ruta)["Body"].read()
 
     def _subir(self, ruta: str, archivo: ArchivoFirma) -> None:
         self._client.put_object(

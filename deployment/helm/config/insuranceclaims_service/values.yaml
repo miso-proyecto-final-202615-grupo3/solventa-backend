@@ -1,7 +1,7 @@
 replicaCount: 1
 fullnameOverride: insuranceclaims-service
 
-containerName: backend-service
+containerName: insuranceclaims-service
 serviceAccountName: solventa-app-sa
 
 image:
@@ -29,6 +29,9 @@ database:
   enabled: true
   existingSecret: secret-name
   secretKey: DATABASE_URL
+
+sqs:
+  enabled: false
 
 bucket:
   enabled: false

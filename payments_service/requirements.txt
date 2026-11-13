@@ -10,3 +10,6 @@ opentelemetry-sdk>=1.45.1
 opentelemetry-instrumentation-fastapi>=0.66b1
 opentelemetry-exporter-otlp>=1.45.1
 prometheus-fastapi-instrumentator>=8.1.0
+httpx>=0.28.1
+boto3>=1.43.118
+botocore[crt]>=1.43.118

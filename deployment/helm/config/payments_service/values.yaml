@@ -1,7 +1,7 @@
 replicaCount: 1
 fullnameOverride: payments-service
 
-containerName: backend-service
+containerName: payments-service
 serviceAccountName: solventa-app-sa
 
 image:
@@ -30,6 +30,12 @@ database:
   existingSecret: secret-name
   secretKey: DATABASE_URL
 
+sqs:
+  enabled: true
+  existingSecret: secret-name
+  secretKeys:
+    - PAGO_APROBADO_QUEUE_URL
+
 bucket:
   enabled: false
 cognito:
@@ -46,6 +52,11 @@ config:
   API_PREFIX: /api/v1/payments-service
   OTEL_EXPORTER_OTLP_ENDPOINT: http://cloudwatch-agent.amazon-cloudwatch.svc.cluster.local:4315
   OTEL_TRACES_EXPORTER: otlp
+  AWS_REGION: us-east-1
+  QUOTINGENGINE_SERVICE_URL: http://quotingengine-service:80
+  INSURANCEPOLICIES_SERVICE_URL: http://insurancepolicies-service:80
+  PAYMENT_PROVIDER_URL: http://mock-paymentprovider:80
+  PAYMENT_PROVIDER_NAME: mock_paymentprovider
 
 resources:
   requests:

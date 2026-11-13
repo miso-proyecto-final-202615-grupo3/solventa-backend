@@ -14,7 +14,7 @@ ambiente y su imagen Docker. Cada servicio se despliega como un pod independient
 | `quotingengine_service` | Motor de cotización y suscripción | `/api/v1/quotingengine-service` |
 | `insurancepolicies_service` | Gestión de pólizas y firma digital manuscrita (HU1.3.5) | `/api/v1/insurancepolicies-service` |
 | `insuranceclaims_service` | Gestión de siniestros (solo `/health` por ahora) | `/api/v1/insuranceclaims-service` |
-| `payments_service` | Pagos y recaudo (sin endpoints de negocio por ahora) | `/api/v1/payments-service` |
+| `payments_service` | Pago de la prima inicial con PayPal o tarjeta de crédito (HU1.3.4) | `/api/v1/payments-service` |
 | `liveness_adapter` | Adaptador de retos y verificación de prueba de vida | `/api/v1/liveness-adapter` |
 
 ## Requisitos
@@ -132,9 +132,8 @@ docker compose up --build
 | `mock_opendata` | `http://localhost:8201` |
 | `mock_kyc` | `http://localhost:8202` |
 | `liveness_adapter` | `http://localhost:8203` |
-
-Payments expone `GET /`, `GET /health` y métricas Prometheus en `GET /metrics`;
-todavía no expone endpoints de negocio.
+| `mock_paymentprovider` | `http://localhost:8204` |
+| `localstack` (SQS) | `http://localhost:4566` |
 
 Los mocks locales usan HTTP. En ambientes desplegados, configura `OPEN_FINANCE_URL`
 y `OPEN_DATA_URL` con los endpoints HTTPS de los proveedores.
@@ -146,6 +145,78 @@ Para las fotos de las verificaciones KYC/AML, `identity_service` usa S3 por defe
 La consulta de productos queda expuesta por los BFF en `GET /api/v1/bff-web/productos`
 y `GET /api/v1/bff-mobile/productos`; la cotización recibe `producto_codigo`, el
 saldo pendiente del crédito y la ubicación del inmueble.
+
+## Pago de la prima (HU1.3.4)
+
+`payments_service` cobra la prima inicial por adelantado, con PayPal (por defecto) o tarjeta de crédito.
+El monto lo toma siempre de la cotización; el cliente nunca lo envía. Bajo `/api/v1/payments-service`:
+
+- `GET /cotizaciones/{cotizacion_id}/resumen-pago`: valor de la prima, moneda y métodos disponibles.
+- `POST /pagos` (header `Idempotency-Key` obligatorio): `201` con el pago nuevo y `200` si es un reintento
+  con la misma clave. Un rechazo de la pasarela es un resultado (`estado=RECHAZADO` y `codigo_rechazo`), no un error HTTP.
+  - PayPal: `{"cotizacion_id", "cliente_id", "paypal_email"}` (`metodo_pago` es `PAYPAL` si se omite).
+  - Tarjeta: `{"cotizacion_id", "cliente_id", "metodo_pago": "TARJETA_CREDITO",
+    "numero_tarjeta", "mes_expiracion", "anio_expiracion", "cvv"}`. El número y el CVV
+    son cadenas; el mes y el año son números. `payments_service` envía estos datos al
+    mock para obtener el token y no guarda los datos de tarjeta ni el token en la base de datos.
+    Sí conserva la marca y los últimos cuatro dígitos devueltos por la pasarela.
+- `GET /pagos/{pago_id}`.
+
+El BFF Web enruta estas tres operaciones bajo `/api/v1/bff-web` con las mismas rutas.
+Reenvía `Idempotency-Key`, `X-Correlation-Id` y `Authorization` y conserva los códigos y
+detalles de error del servicio. Configura su destino mediante `PAYMENTS_SERVICE_URL`.
+Ante un error de comunicación después de iniciar el pago, reintenta con la misma clave
+de idempotencia. Reenviar `Authorization` no implica validar la identidad ni la propiedad
+de la cotización o del pago; estas rutas aún no implementan esas comprobaciones.
+Los reintentos con tarjeta vuelven a tokenizar y requieren que la pasarela esté disponible.
+La huella de idempotencia usa el token, no el número ni el CVV. El token del mock solo
+identifica la marca y los últimos cuatro dígitos, por lo que no distingue tarjetas que
+compartan esos datos. El procesamiento directo de tarjetas requiere controles de seguridad
+y cumplimiento PCI DSS antes de utilizarse en producción.
+
+Antes de cobrar valida que la cotización esté vigente y sea del cliente, que las condiciones estén aceptadas y
+que exista la firma digital (`REQUIRE_FIRMA_DIGITAL`, `true` por defecto). Las tablas nuevas (`pago_prima` y
+`evento_outbox`) se crean con `create_all`. La tabla `pago` ya no se crea ni se usa; si existe, no se modifica
+ni se elimina.
+
+Un pago en `ERROR` (la pasarela no respondió) puede haber cobrado, así que bloquea otros pagos de la cotización
+hasta reintentar con la **misma** `Idempotency-Key`: la pasarela recibe como clave el id del pago y no cobra dos veces.
+
+Al aprobarse, el evento `PagoAprobado` se guarda en `evento_outbox` en la misma transacción y un proceso en
+segundo plano lo publica en SQS (`PAGO_APROBADO_QUEUE_URL`, entrega "al menos una vez"). Sin cola configurada los
+eventos quedan pendientes. Los relays de la misma base PostgreSQL se coordinan mediante
+`pg_advisory_xact_lock`: el bloqueo se adquiere por evento y se libera al confirmar o revertir la transacción.
+Si el proceso falla después de enviar a SQS y antes de confirmar, puede reenviar el evento; los consumidores
+deben ser idempotentes usando `evento_id`. El mensaje es:
+
+```json
+{"evento_id": "…", "tipo": "PagoAprobado", "version": 1, "ocurrido_en": "…", "correlation_id": "…",
+ "datos": {"pago_id": "…", "cotizacion_id": "…", "cliente_id": "…", "monto": "1250000.51",
+           "moneda": "COP", "metodo_pago": "PAYPAL", "proveedor_referencia": "…"}}
+```
+
+### Pasarela simulada y SQS local
+
+`mock_paymentprovider` (`http://localhost:8204`) simula la pasarela con operaciones síncronas, sin redirecciones
+ni webhooks, y sin guardar estado. La documentación interactiva está en `/docs`.
+
+| Operación | Escenario |
+| --- | --- |
+| `POST /paypal/payments` | `payer_email` que empieza por `declined` → `INSTRUMENT_DECLINED`; por `nofunds` → `INSUFFICIENT_FUNDS`; otro → `COMPLETED` |
+| `POST /credit-card/tokens` | Tokeniza los datos enviados por `payments_service`; devuelve `tok_<MARCA>_<últimos4>` |
+| `POST /credit-card/charges` | Últimos 4 del token: `0002` → `card_declined`, `9995` → `insufficient_funds`, `0069` → `expired_card`; otro → `succeeded` |
+
+Con `docker compose up`, el contenedor `localstack` (`localhost:4566`) crea la cola `solventa-pago-aprobado` y su DLQ
+con `scripts/localstack/init-sqs.sh`. La imagen `localstack/localstack:latest` exige `LOCALSTACK_AUTH_TOKEN` (token de
+una cuenta de LocalStack); también se puede fijar otra imagen con `LOCALSTACK_IMAGE`. Para ver los eventos:
+
+```bash
+AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test aws --endpoint-url http://localhost:4566 --region us-east-1 \
+  sqs receive-message --queue-url http://localhost:4566/000000000000/solventa-pago-aprobado
+```
+
+En ambientes desplegados la cola SQS, los permisos del servicio y el repositorio ECR de `mock-paymentprovider`
+no los crea este repositorio.
 
 ## Firma digital (HU1.3.5)
 
@@ -173,18 +244,19 @@ En ambos casos la ruta es `firma-digital/{cliente_id}/{firma_id}/firma.{png|jpg}
 
 Para ejecutar la prueba de sistema del proceso de adquisición, instala `requirements-dev.txt`,
 copia `tests/system/.env.example` a `tests/system/.env` y configura las URLs de identidad,
-cotización y pólizas. Con los servicios y sus dependencias disponibles, ejecuta:
+cotización, pólizas y pagos. Con los servicios y sus dependencias disponibles, ejecuta:
 
 ```bash
 python tests/system/test_insurance_policy_acquiring_process.py local insurancepolicies-service
 python tests/system/test_insurance_policy_acquiring_process.py local bff-web
 ```
 
-El argumento `insurancepolicies-service` accede directamente a identidad, cotización y pólizas;
-`bff-web` enruta los seis casos a través del BFF Web usando `SYSTEM_TESTS_BFF_WEB_BASE_URL`.
+El argumento `insurancepolicies-service` accede directamente a identidad, cotización y pólizas,
+y a pagos mediante `SYSTEM_TESTS_PAYMENTS_SERVICE_BASE_URL`; `bff-web` enruta los cinco casos
+a través del BFF Web usando `SYSTEM_TESTS_BFF_WEB_BASE_URL`.
 También se admiten los entornos `dev` y `prod`, usando sus URLs base configuradas. La prueba
 registra un cliente y crea datos reales en el entorno elegido; utiliza imágenes simuladas y espera
-que el proveedor KYC/AML apruebe ambas verificaciones. Para pruebas locales, configura el
+que el proveedor apruebe los resultados de KYC y AML. Para pruebas locales, configura el
 almacenamiento de documentos y firmas (`KYC_DOCUMENT_STORAGE` y `FIRMA_STORAGE`) y el proveedor.
 
 ## Prueba de vida (HU3.1.1)

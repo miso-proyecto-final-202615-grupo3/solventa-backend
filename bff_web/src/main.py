@@ -9,6 +9,7 @@ from src.presentation.routers import (
     consentimientos,
     health,
     insurancepolicies,
+    pagos,
     polizas,
     quotingengine,
 )
@@ -43,6 +44,7 @@ app.include_router(consentimientos.router, prefix=settings.API_PREFIX)
 app.include_router(quotingengine.router, prefix=settings.API_PREFIX)
 app.include_router(polizas.router, prefix=settings.API_PREFIX)
 app.include_router(insurancepolicies.router, prefix=settings.API_PREFIX)
+app.include_router(pagos.router, prefix=settings.API_PREFIX)
 
 
 @app.get("/")

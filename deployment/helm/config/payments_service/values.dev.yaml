@@ -3,3 +3,6 @@ image:
 
 database:
   existingSecret: solventa-dev-app-secrets
+
+sqs:
+  existingSecret: solventa-dev-app-secrets

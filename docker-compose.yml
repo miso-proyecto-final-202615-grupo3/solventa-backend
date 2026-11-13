@@ -15,8 +15,6 @@ services:
       COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
       COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
       COGNITO_ENABLED: "${COGNITO_ENABLED:-true}"
-      AWS_SHARED_CREDENTIALS_FILE: /root/.aws/credentials
-      AWS_CONFIG_FILE: /root/.aws/config
       REDIS_ENDPOINT: "${REDIS_ENDPOINT:-redis://redis:6379/0}"
       REDIS_AUTH_TOKEN: ${REDIS_AUTH_TOKEN:-}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
@@ -30,8 +28,6 @@ services:
       OPEN_FINANCE_TIMEOUT_SECONDS: ${OPEN_FINANCE_TIMEOUT_SECONDS:-0.2}
       GRPC_ENABLED: ${GRPC_ENABLED:-true}
       GRPC_PORT: ${GRPC_PORT:-50051}
-    volumes:
-      - ${USERPROFILE}/.aws:/root/.aws:ro
     depends_on:
       db:
         condition: service_healthy
@@ -149,11 +145,48 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@db:5432/identity_db}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+      QUOTINGENGINE_SERVICE_URL: ${QUOTINGENGINE_SERVICE_URL:-http://quotingengine_service:8000}
+      INSURANCEPOLICIES_SERVICE_URL: ${INSURANCEPOLICIES_SERVICE_URL:-http://insurancepolicies_service:8000}
+      PAYMENT_PROVIDER_URL: ${PAYMENT_PROVIDER_URL:-http://mock_paymentprovider:8000}
+      REQUIRE_FIRMA_DIGITAL: ${REQUIRE_FIRMA_DIGITAL:-true}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      SQS_ENDPOINT_URL: ${SQS_ENDPOINT_URL:-}
+      PAGO_APROBADO_QUEUE_URL: ${PAGO_APROBADO_QUEUE_URL:-}
     depends_on:
       db:
         condition: service_healthy
       lgtm:
         condition: service_started
+      mock_paymentprovider:
+        condition: service_started
+      # localstack:
+      #   condition: service_started
+
+  mock_paymentprovider:
+    build:
+      context: .
+      dockerfile: docker/services/Dockerfile.mock_paymentprovider
+    container_name: solventa-mock-paymentprovider
+    ports:
+      - "8204:8000"
+
+  # localstack:
+  #   image: localstack/localstack:latest
+  #   container_name: solventa-localstack
+  #   ports:
+  #     - "4566:4566"
+  #   environment:
+  #     SERVICES: sqs
+  #     # Desde marzo de 2026 la imagen `latest` exige un token de cuenta de LocalStack.
+  #     LOCALSTACK_AUTH_TOKEN: ${LOCALSTACK_AUTH_TOKEN:-}
+  #   volumes:
+  #     - ./scripts/localstack/init-sqs.sh:/etc/localstack/init/ready.d/init-sqs.sh:ro
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health >/dev/null"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 10
+  #     start_period: 15s
 
   mock_kyc:
     build:
@@ -210,6 +243,7 @@ services:
       IDENTITY_SERVICE_URL: ${IDENTITY_SERVICE_URL:-http://identity_service:8000}
       QUOTINGENGINE_SERVICE_URL: ${QUOTINGENGINE_SERVICE_URL:-http://quotingengine_service:8000}
       INSURANCEPOLICIES_SERVICE_URL: ${INSURANCEPOLICIES_SERVICE_URL:-http://insurancepolicies_service:8000}
+      PAYMENTS_SERVICE_URL: ${PAYMENTS_SERVICE_URL:-http://payments_service:8000}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
     depends_on:
       identity_service:
@@ -217,6 +251,8 @@ services:
       quotingengine_service:
         condition: service_started
       insurancepolicies_service:
+        condition: service_started
+      payments_service:
         condition: service_started
 
   bff_mobile:

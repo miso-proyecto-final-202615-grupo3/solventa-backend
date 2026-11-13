@@ -31,60 +31,67 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "backend-service.fullname" . }}
-{{ if or .Values.database.enabled .Values.bucket.enabled .Values.cognito.enabled .Values.redis.enabled .Values.kmsKey.enabled .Values.extraSecretEnv }}
+{{ if or .Values.database.enabled .Values.sqs.enabled .Values.bucket.enabled .Values.cognito.enabled .Values.redis.enabled .Values.kmsKey.enabled (and (hasKey .Values "livenessAdapter") .Values.livenessAdapter.enabled) }}
           env:
 {{ if .Values.database.enabled }}
-            - name: DATABASE_URL
+            - name: {{ .Values.database.secretKey }}
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.database.existingSecret }}
                   key: {{ .Values.database.secretKey }}
 {{ end }}
+{{ if and .Values.sqs .Values.sqs.enabled }}
+{{- range .Values.sqs.secretKeys }}
+            - name: {{ . }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.sqs.existingSecret }}
+                  key: {{ . }}
+{{- end }}
+{{ end }}
 {{ if .Values.bucket.enabled }}
-            - name: S3_BUCKET_NAME
+            - name: {{ .Values.bucket.secretKey }}
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.bucket.existingSecret }}
                   key: {{ .Values.bucket.secretKey }}
 {{ end }}
 {{ if .Values.cognito.enabled }}
-            - name: COGNITO_USER_POOL_ID
+{{- range .Values.cognito.secretKeys }}
+            - name: {{ . }}
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.cognito.existingSecret }}
-                  key: {{ .Values.cognito.secretKey }}
-            - name: COGNITO_CLIENT_ID
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.cognito.existingSecret }}
-                  key: {{ .Values.cognito.secretKey2 }}
+                  name: {{ $.Values.cognito.existingSecret }}
+                  key: {{ . }}
+{{- end }}
 {{ end }}
 {{ if .Values.redis.enabled }}
-            - name: REDIS_ENDPOINT
+{{- range .Values.redis.secretKeys }}
+            - name: {{ . }}
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.redis.existingSecret }}
-                  key: {{ .Values.redis.secretKey }}
-            - name: REDIS_AUTH_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.redis.existingSecret }}
-                  key: {{ .Values.redis.secretKey2 }}
+                  name: {{ $.Values.redis.existingSecret }}
+                  key: {{ . }}
+{{- end }}
 {{ end }}
 {{ if .Values.kmsKey.enabled }}
-            - name: KMS_KEY_ARN
+            - name: {{ .Values.kmsKey.secretKey }}
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.kmsKey.existingSecret }}
                   key: {{ .Values.kmsKey.secretKey }}
 {{- end }}
-{{- range .Values.extraSecretEnv }}
+{{- if hasKey .Values "livenessAdapter" }}
+{{- if .Values.livenessAdapter.enabled }}
+{{- range .Values.livenessAdapter.secretKeys }}
             - name: {{ .name }}
               valueFrom:
                 secretKeyRef:
-                  name: {{ .existingSecret }}
+                  name: {{ $.Values.livenessAdapter.existingSecret }}
                   key: {{ .secretKey }}
                   optional: {{ .optional | default false }}
+{{- end }}
+{{- end }}
 {{- end }}
 {{ end }}
           readinessProbe:

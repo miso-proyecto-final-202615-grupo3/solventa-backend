@@ -1,7 +1,7 @@
 replicaCount: 1
 fullnameOverride: mock-openfinance
 
-containerName: backend-service
+containerName: mock-openfinance
 serviceAccountName: solventa-app-sa
 
 image:
@@ -26,6 +26,9 @@ probes:
     periodSeconds: 20
 
 database:
+  enabled: false
+
+sqs:
   enabled: false
 
 bucket:

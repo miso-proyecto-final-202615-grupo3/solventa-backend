@@ -4,5 +4,8 @@ image:
 database:
   existingSecret: solventa-prod-app-secrets
 
+sqs:
+  existingSecret: solventa-prod-app-secrets
+
 config:
   ENVIRONMENT: prod

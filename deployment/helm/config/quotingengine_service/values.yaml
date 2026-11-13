@@ -1,7 +1,7 @@
 replicaCount: 1
 fullnameOverride: quotingengine-service
 
-containerName: backend-service
+containerName: quotingengine-service
 serviceAccountName: solventa-app-sa
 
 image:
@@ -30,6 +30,9 @@ database:
   existingSecret: secret-name
   secretKey: DATABASE_URL
 
+sqs:
+  enabled: false
+
 bucket:
   enabled: false
 
@@ -39,8 +42,9 @@ cognito:
 redis:
   enabled: true
   existingSecret: secret-name
-  secretKey: REDIS_ENDPOINT
-  secretKey2: REDIS_AUTH_TOKEN
+  secretKeys:
+    - REDIS_ENDPOINT
+    - REDIS_AUTH_TOKEN
 
 kmsKey:
   enabled: false

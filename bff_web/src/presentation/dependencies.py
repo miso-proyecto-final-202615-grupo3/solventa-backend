@@ -9,6 +9,9 @@ from src.infrastructure.gateways.insurancepolicies_service_gateway import (
 from src.infrastructure.gateways.quotingengine_service_gateway import (
     QuotingEngineServiceGateway,
 )
+from src.infrastructure.gateways.payments_service_gateway import (
+    PaymentsServiceGateway,
+)
 from src.infrastructure.gateways.insurancepolicies_service_gateway import (
     InsurancePoliciesServiceGateway,
 )
@@ -16,6 +19,14 @@ from src.infrastructure.gateways.insurancepolicies_service_gateway import (
 
 def get_identity_service_gateway() -> IdentityServiceGateway:
     return IdentityServiceGateway()
+
+
+async def get_payments_service_gateway() -> AsyncGenerator[PaymentsServiceGateway, None]:
+    gateway = PaymentsServiceGateway()
+    try:
+        yield gateway
+    finally:
+        await gateway.aclose()
 
 
 async def get_insurancepolicies_service_gateway() -> AsyncGenerator[

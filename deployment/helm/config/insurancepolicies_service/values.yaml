@@ -31,7 +31,11 @@ database:
   secretKey: DATABASE_URL
 
 sqs:
-  enabled: false
+  enabled: true
+  existingSecret: secret-name
+  secretKeys:
+    - PAGO_APROBADO_QUEUE_URL
+    - POLIZA_EMITIDA_QUEUE_URL
 
 bucket:
   enabled: true
@@ -56,11 +60,15 @@ config:
   OTEL_TRACES_EXPORTER: otlp
   AWS_REGION: us-east-1
   FIRMA_STORAGE: s3
+  CERTIFICADO_STORAGE: s3
+  QUOTINGENGINE_SERVICE_URL: http://quotingengine-service:80
+  IDENTITY_SERVICE_URL: http://identity-service:80
 
+# El render del certificado PDF (WeasyPrint) necesita más memoria que el resto de servicios.
 resources:
   requests:
     cpu: 100m
-    memory: 128Mi
+    memory: 256Mi
   limits:
     cpu: 500m
-    memory: 512Mi
+    memory: 1Gi

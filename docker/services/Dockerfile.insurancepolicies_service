@@ -5,6 +5,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# WeasyPrint (certificado PDF de la póliza) necesita Pango y fuentes del sistema.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libpango-1.0-0 libpangoft2-1.0-0 fonts-dejavu-core && \
+    rm -rf /var/lib/apt/lists/*
+
 COPY insurancepolicies_service/requirements.txt ./
 COPY README.md ./
 COPY insurancepolicies_service/src ./src

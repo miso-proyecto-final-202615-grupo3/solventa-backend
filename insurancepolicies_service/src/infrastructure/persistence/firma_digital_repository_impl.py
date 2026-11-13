@@ -103,3 +103,27 @@ class SqlAlchemyFirmaDigitalRepository(FirmaDigitalRepository):
             .values(estado=EstadoFirma.REEMPLAZADA.value)
             .execution_options(synchronize_session=False)
         )
+
+    async def obtener_por_poliza(self, poliza_id: uuid.UUID) -> FirmaDigital | None:
+        result = await self.session.execute(
+            select(FirmaDigitalModel)
+            .where(
+                FirmaDigitalModel.poliza_id == poliza_id,
+                FirmaDigitalModel.estado == EstadoFirma.VINCULADA.value,
+            )
+            .execution_options(populate_existing=True)
+        )
+        return _a_entidad(result.scalar_one_or_none())
+
+    async def vincular_a_poliza(self, firma_id: uuid.UUID, poliza_id: uuid.UUID) -> bool:
+        # Update condicional: solo una firma aún CAPTURADA puede quedar ligada a la póliza.
+        result = await self.session.execute(
+            update(FirmaDigitalModel)
+            .where(
+                FirmaDigitalModel.firma_id == firma_id,
+                FirmaDigitalModel.estado == EstadoFirma.CAPTURADA.value,
+            )
+            .values(estado=EstadoFirma.VINCULADA.value, poliza_id=poliza_id)
+            .execution_options(synchronize_session=False)
+        )
+        return result.rowcount == 1

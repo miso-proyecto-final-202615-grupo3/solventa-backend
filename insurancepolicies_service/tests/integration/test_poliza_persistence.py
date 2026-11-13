@@ -3,10 +3,10 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.polizas.entities import Poliza, PolizaCobertura
+from src.domain.polizas.repositories import PolizaDuplicadaError
 from src.infrastructure.persistence.poliza_repository_impl import (
     SqlAlchemyPolizaRepository,
 )
@@ -102,5 +102,5 @@ async def test_numero_de_poliza_es_unico(db_session: AsyncSession):
     repo = SqlAlchemyPolizaRepository(db_session)
     await repo.guardar(_poliza(numero="POL-DUP"))
 
-    with pytest.raises(IntegrityError):
+    with pytest.raises(PolizaDuplicadaError):
         await repo.guardar(_poliza(numero="POL-DUP"))

@@ -108,12 +108,23 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@db:5432/identity_db}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
       FIRMA_STORAGE: ${FIRMA_STORAGE:-s3}
+      CERTIFICADO_STORAGE: ${CERTIFICADO_STORAGE:-s3}
       S3_BUCKET_NAME: ${S3_BUCKET_NAME:-}
+      QUOTINGENGINE_SERVICE_URL: ${QUOTINGENGINE_SERVICE_URL:-http://quotingengine_service:8000}
+      IDENTITY_SERVICE_URL: ${IDENTITY_SERVICE_URL:-http://identity_service:8000}
+      # SQS remoto por defecto (AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY salen de .env). Sin URL de
+      # cola, el proceso correspondiente no se inicia. Para LocalStack, ver .env.example.
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      SQS_ENDPOINT_URL: ${SQS_ENDPOINT_URL:-}
+      PAGO_APROBADO_QUEUE_URL: ${PAGO_APROBADO_QUEUE_URL:-}
+      POLIZA_EMITIDA_QUEUE_URL: ${POLIZA_EMITIDA_QUEUE_URL:-}
     depends_on:
       db:
         condition: service_healthy
       lgtm:
         condition: service_started
+      # localstack:
+      #   condition: service_started
 
   insuranceclaims_service:
     build:
@@ -170,6 +181,9 @@ services:
     ports:
       - "8204:8000"
 
+  # LocalStack: solo para probar SQS en local (PagoAprobado y PolizaEmitida). Por defecto se usa el
+  # SQS remoto. Para activarlo, descomenta este servicio y los `depends_on` de payments_service e
+  # insurancepolicies_service, y apunta las variables SQS a LocalStack como indica .env.example.
   # localstack:
   #   image: localstack/localstack:latest
   #   container_name: solventa-localstack

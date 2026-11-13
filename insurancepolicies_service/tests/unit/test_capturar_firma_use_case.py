@@ -59,6 +59,12 @@ class RepoFalso(FirmaDigitalRepository):
     async def reemplazar_capturada(self, cotizacion_id):
         pass
 
+    async def obtener_por_poliza(self, poliza_id):
+        raise NotImplementedError
+
+    async def vincular_a_poliza(self, firma_id, poliza_id):
+        raise NotImplementedError
+
 
 class AlmacenamientoFalso(AlmacenamientoFirmaRepository):
     def __init__(self):
@@ -67,6 +73,9 @@ class AlmacenamientoFalso(AlmacenamientoFirmaRepository):
 
     async def guardar(self, ruta, archivo):
         self.guardadas.append(ruta)
+
+    async def leer(self, ruta):
+        raise NotImplementedError
 
     async def eliminar(self, ruta):
         self.eliminadas.append(ruta)

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Certificado de póliza {{ poliza.numero }}</title>
+  <meta name="author" content="Solventa">
+  <meta name="description" content="Certificado de la póliza {{ poliza.numero }}">
+  <style>
+    @page {
+      size: A4;
+      margin: 12mm 15mm 16mm 15mm;
+      @bottom-left {
+        content: "Documento generado electrónicamente por Solventa el {{ generado_en | fecha }}.";
+        font: 7pt "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+        color: #6b7280;
+      }
+      @bottom-right {
+        content: "Página " counter(page) " de " counter(pages);
+        font: 7pt "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+        color: #6b7280;
+      }
+    }
+    * { box-sizing: border-box; }
+    html {
+      font: 8.6pt/1.4 "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+      color: #1f2937;
+    }
+    body { margin: 0; }
+    p { margin: 0; }
+
+    .encabezado { background: #0b3c5d; color: #ffffff; padding: 7mm 8mm; border-radius: 2mm; }
+    .encabezado table { width: 100%; border-collapse: collapse; }
+    .marca { font-size: 17pt; font-weight: bold; letter-spacing: 1.5pt; }
+    .marca small { display: block; font-size: 7pt; font-weight: normal; letter-spacing: 0.5pt; opacity: 0.85; }
+    .titulo { text-align: right; }
+    .titulo h1 { margin: 0; font-size: 12.5pt; letter-spacing: 0.8pt; }
+    .titulo .numero { margin-top: 1.5mm; font-size: 9.5pt; }
+
+    .intro { margin: 5mm 0 4mm; color: #374151; text-align: justify; }
+    .estado {
+      display: inline-block; padding: 0.4mm 2.4mm; border-radius: 3mm;
+      background: #dcfce7; color: #166534; font-weight: bold; font-size: 7.4pt;
+    }
+
+    h2 {
+      margin: 4.5mm 0 1.8mm; padding-bottom: 1mm; border-bottom: 0.4mm solid #0b3c5d;
+      font-size: 8.8pt; text-transform: uppercase; letter-spacing: 0.7pt; color: #0b3c5d;
+    }
+    .columnas { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
+    .columnas > tbody > tr > td { width: 50%; vertical-align: top; }
+    .columnas > tbody > tr > td:first-child { padding-right: 4mm; }
+    .columnas > tbody > tr > td:last-child { padding-left: 4mm; }
+    .columnas h2 { margin-top: 0; }
+
+    table.datos { width: 100%; border-collapse: collapse; }
+    table.datos th {
+      width: 38%; padding: 1mm 2mm 1mm 0; text-align: left; vertical-align: top;
+      font-weight: normal; color: #6b7280;
+    }
+    table.datos td { padding: 1mm 0; font-weight: bold; overflow-wrap: anywhere; }
+    table.datos td.id { font-size: 7.4pt; }
+
+    table.tabla { width: 100%; border-collapse: collapse; }
+    table.tabla th {
+      padding: 1.6mm 2mm; background: #eef2f7; color: #0b3c5d; text-align: left;
+      font-size: 7.6pt; text-transform: uppercase; letter-spacing: 0.4pt;
+    }
+    table.tabla td { padding: 1.6mm 2mm; border-bottom: 0.2mm solid #e5e7eb; vertical-align: top; }
+    table.tabla tr { page-break-inside: avoid; }
+    table.tabla .num { text-align: right; white-space: nowrap; }
+    {% if coberturas | length > 5 %}
+    html { font-size: 8pt; }
+    .encabezado { padding: 4.5mm 8mm; }
+    .intro { margin: 3mm 0 2mm; }
+    h2 { margin-top: 3mm; }
+    table.tabla th, table.tabla td { padding-top: 0.8mm; padding-bottom: 0.8mm; }
+    .firma-bloque { margin-top: 3.5mm; padding: 2.5mm 5mm; }
+    .firma-img { max-height: 17mm; }
+    {% endif %}
+    .codigo { margin-left: 1.5mm; font-size: 7pt; color: #6b7280; font-weight: normal; }
+
+    table.prima { width: 62%; margin-left: auto; border-collapse: collapse; }
+    table.prima td { padding: 1.2mm 2mm; border-bottom: 0.2mm solid #e5e7eb; }
+    table.prima td.num { text-align: right; white-space: nowrap; }
+    table.prima tr.total td {
+      border-bottom: none; border-top: 0.5mm solid #0b3c5d; background: #eef2f7;
+      font-size: 10pt; font-weight: bold; color: #0b3c5d;
+    }
+
+    .aceptacion { margin-top: 4mm; color: #374151; text-align: justify; }
+
+    .firma-bloque {
+      margin-top: 6mm; padding: 4mm 5mm; border: 0.3mm solid #d1d5db; border-radius: 2mm;
+      page-break-inside: avoid;
+    }
+    .firma-bloque table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .firma-bloque td { vertical-align: bottom; }
+    .firma-bloque td.imagen { width: 46%; padding-right: 6mm; }
+    .firma-img { display: block; max-width: 64mm; max-height: 24mm; margin: 0 auto 1mm; object-fit: contain; }
+    .firma-linea { border-top: 0.3mm solid #111827; padding-top: 1.2mm; text-align: center; font-size: 7.6pt; }
+    .firma-detalle { font-size: 7.6pt; color: #374151; }
+    .firma-detalle strong { color: #111827; }
+    .huella { margin-top: 1.6mm; font: 6.6pt "DejaVu Sans Mono", "Liberation Mono", monospace; color: #6b7280; overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <div class="encabezado">
+    <table>
+      <tr>
+        <td class="marca">SOLVENTA<small>Seguros digitales</small></td>
+        <td class="titulo">
+          <h1>CERTIFICADO DE PÓLIZA</h1>
+          <p class="numero">N.º {{ poliza.numero }}</p>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <p class="intro">
+    Solventa certifica que la póliza descrita en este documento fue emitida el
+    <strong>{{ poliza.emitida_en | fecha }}</strong> a favor de
+    <strong>{{ titular.nombre }}</strong> y se encuentra
+    <span class="estado">{{ poliza.estado }}</span>.
+  </p>
+
+  <table class="columnas">
+    <tr>
+      <td>
+        <h2>Datos de la póliza</h2>
+        <table class="datos">
+          <tr><th>Número</th><td>{{ poliza.numero }}</td></tr>
+          <tr><th>ID de póliza</th><td class="id">{{ poliza.poliza_id }}</td></tr>
+          <tr><th>Producto</th><td>{{ producto.nombre }}</td></tr>
+          <tr><th>Tipo de seguro</th><td>{{ producto.ramo | lower | capitalize }}</td></tr>
+          <tr><th>Vigencia desde</th><td>{{ poliza.vigencia_desde | fecha }}</td></tr>
+          <tr><th>Vigencia hasta</th><td>{{ poliza.vigencia_hasta | fecha }}</td></tr>
+        </table>
+      </td>
+      <td>
+        <h2>Titular y asegurado</h2>
+        <table class="datos">
+          <tr><th>Nombre</th><td>{{ titular.nombre }}</td></tr>
+          <tr><th>Documento</th><td>{{ titular.tipo_documento }} {{ titular.numero_identificacion }}</td></tr>
+          <tr><th>Moneda</th><td>{{ moneda }}</td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <h2>Condiciones específicas</h2>
+  <table class="tabla">
+    <thead>
+      <tr>
+        <th>Cobertura</th>
+        <th class="num">Límite asegurado</th>
+        <th class="num">Deducible</th>
+        <th class="num">Prima</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for cobertura in coberturas %}
+      <tr>
+        <td>{{ cobertura.nombre }} <span class="codigo">{{ cobertura.codigo }}</span></td>
+        <td class="num">{{ cobertura.limite_asegurado | moneda(moneda) }}</td>
+        <td class="num">{{ cobertura.deducible | moneda(moneda) }}</td>
+        <td class="num">{{ cobertura.prima | moneda(moneda) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Prima</h2>
+  <table class="prima">
+    <tr><td>Prima neta</td><td class="num">{{ prima.neta | moneda(moneda) }}</td></tr>
+    {% for impuesto in prima.impuestos %}
+    <tr>
+      <td>{{ impuesto.concepto }} ({{ impuesto.tasa | porcentaje }})</td>
+      <td class="num">{{ impuesto.valor | moneda(moneda) }}</td>
+    </tr>
+    {% endfor %}
+    <tr class="total"><td>Prima total pagada</td><td class="num">{{ prima.total | moneda(moneda) }}</td></tr>
+  </table>
+
+  <p class="aceptacion">
+    El titular aceptó las Condiciones Generales (versión {{ condiciones.version_generales }}) y las
+    condiciones particulares de esta póliza{% if condiciones.aceptadas_en %} el
+    {{ condiciones.aceptadas_en | fecha }}{% endif %}, y las formalizó con su firma manuscrita digital
+    el {{ firma.capturada_en | fecha }}.
+  </p>
+
+  <div class="firma-bloque">
+    <table>
+      <tr>
+        <td class="imagen">
+          <img class="firma-img" src="{{ firma_data_uri }}" alt="Firma manuscrita digital del titular">
+          <div class="firma-linea">Firma del titular</div>
+        </td>
+        <td class="firma-detalle">
+          <p><strong>{{ titular.nombre }}</strong></p>
+          <p>{{ titular.tipo_documento }} {{ titular.numero_identificacion }}</p>
+          <p>Firmado digitalmente el {{ firma.capturada_en | fecha }}</p>
+          <p class="huella">Huella del contrato: {{ firma.fingerprint_contrato }}</p>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

@@ -1,6 +1,8 @@
+import base64
 import json
 import os
 import sys
+import time
 import uuid
 from datetime import datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
@@ -117,10 +119,16 @@ URL_RESUMEN_PAGO = (
 )
 URL_PAGOS = f"{PAYMENTS_SERVICE_URL}/pagos"
 URL_PAGO = f"{PAYMENTS_SERVICE_URL}/pagos/{{pago_id}}"
+URL_POLIZA_POR_COTIZACION = (
+    f"{INSURANCEPOLICIES_SERVICE_URL}/cotizaciones/{{cotizacion_id}}/poliza"
+)
+URL_CERTIFICADO = f"{INSURANCEPOLICIES_SERVICE_URL}/polizas/{{poliza_id}}/certificado"
+URL_DESCARGA_CERTIFICADO = f"{URL_CERTIFICADO}/descarga"
 
 CODIGO_PRODUCTO = "VIDA_HIPOTECARIO"
 TIMEOUT_SEGUNDOS = 30
 VERIFICACIONES_ACTIVAS = True
+MAX_INTENTOS = 3
 
 DATOS_CLIENTE_REGISTRADO = None
 CLIENTE_REGISTRADO = None
@@ -134,6 +142,7 @@ FIRMA_DIGITAL_CREADA = None
 ID_FIRMA_DIGITAL = None
 ID_PAGO = None
 ID_CONDICIONES = None
+ID_POLIZA = None
 
 
 def _ocultar_datos(valor):
@@ -189,11 +198,15 @@ def _enviar(metodo, url, **kwargs):
         metodo, url, timeout=TIMEOUT_SEGUNDOS, **kwargs
     )
     print(f"Respuesta: HTTP {response.status_code}")
-    try:
-        cuerpo = response.json()
-    except ValueError:
-        cuerpo = response.text
-    print(json.dumps(_ocultar_datos(cuerpo), indent=2, ensure_ascii=False))
+    tipo_contenido = response.headers.get("Content-Type", "").split(";")[0].strip().lower()
+    if tipo_contenido == "application/pdf":
+        print(f"Contenido: PDF en memoria ({len(response.content)} bytes)")
+    else:
+        try:
+            cuerpo = response.json()
+        except ValueError:
+            cuerpo = response.text
+        print(json.dumps(_ocultar_datos(cuerpo), indent=2, ensure_ascii=False))
     return response
 
 
@@ -497,7 +510,11 @@ def test_case_6_capturar_firma_digital():
 
     _verificar(ID_COTIZACION is not None, "existe una cotización creada")
     _verificar(bool(PRODUCTO_ID), "existe el ID del producto cotizado")
-    contenido_firma = b"\x89PNG\r\n\x1a\n" + os.urandom(1024)
+    contenido_firma = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAACAAAAAQCAIAAAD4YuoOAAAAW0lEQVR4nLXUMQ4AIAgD"
+        "QP7/aY1GHQgBhJbJhV6MiMiuQasVLbdYwDlxGB0HZ+wgIONFQJi4uclk28rMX0OBqVz8"
+        "i6k/YJLpDmLIYD6UwyAXg8ngF5xiWIv6MRNLiG3ZsdldgQAAAABJRU5ErkJggg=="
+    )
     response = _enviar(
         "POST",
         URL_FIRMA_DIGITAL.format(cotizacion_id=ID_COTIZACION),
@@ -709,6 +726,162 @@ def test_case_7_consultar_resumen_y_pagar_con_tarjeta():
     )
 
 
+def _cabeceras_poliza():
+    _verificar(CLIENTE_REGISTRADO is not None, "existe el cliente registrado")
+    return {
+        **_cabeceras_autorizacion(),
+        "X-Client-Id": CLIENTE_REGISTRADO["id"],
+        "X-Correlation-Id": str(uuid.uuid4()),
+    }
+
+
+def _uuid_valido(valor):
+    try:
+        uuid.UUID(valor)
+        return True
+    except (AttributeError, TypeError, ValueError):
+        return False
+
+
+def test_case_8_consultar_poliza_por_cotizacion():
+    """Espera la emisión de la póliza y conserva su identificador."""
+    global ID_POLIZA
+
+    _verificar(bool(ID_COTIZACION), "existe una cotización creada")
+    cabeceras = _cabeceras_poliza()
+    print("Esperando 5 segundos antes de consultar la póliza.")
+    time.sleep(5)
+    for intento in range(1, MAX_INTENTOS + 1):
+        print(f"Consulta de póliza: intento {intento}/{MAX_INTENTOS}")
+        response = _enviar(
+            "GET",
+            URL_POLIZA_POR_COTIZACION.format(cotizacion_id=ID_COTIZACION),
+            headers=cabeceras,
+        )
+        if response.status_code == 404:
+            resultado = response.json()
+            _verificar(
+                isinstance(resultado, dict)
+                and isinstance(resultado.get("detail"), dict)
+                and resultado["detail"].get("codigo") == "POLIZA_NO_ENCONTRADA",
+                "la póliza aún no ha sido emitida",
+            )
+            if intento < MAX_INTENTOS:
+                print("La póliza aún no está disponible; esperando 5 segundos.")
+                time.sleep(5)
+                continue
+            _verificar(False, "la póliza fue emitida dentro del límite de intentos")
+            return
+
+        _verificar(response.status_code == 200, "la consulta de póliza responde HTTP 200")
+        if response.status_code != 200:
+            return
+        poliza = response.json()
+        _verificar(isinstance(poliza, dict), "la respuesta de póliza es un objeto")
+        poliza_id = poliza.get("poliza_id")
+        identificador_valido = _uuid_valido(poliza_id)
+        _verificar(identificador_valido, "la respuesta incluye un ID de póliza válido")
+        _verificar(
+            poliza.get("cotizacion_id") == ID_COTIZACION,
+            "la póliza corresponde a la cotización creada",
+        )
+        _verificar(poliza.get("estado") == "EMITIDA", "la póliza está EMITIDA")
+        _verificar(
+            isinstance(poliza.get("numero"), str) and bool(poliza["numero"]),
+            "la póliza incluye su número",
+        )
+        _verificar(
+            isinstance(poliza.get("titular_nombre"), str) and bool(poliza["titular_nombre"]),
+            "la póliza incluye el nombre del titular",
+        )
+        _verificar(
+            _fecha_iso_valida(poliza.get("vigencia_desde"))
+            and _fecha_iso_valida(poliza.get("vigencia_hasta")),
+            "la póliza incluye fechas de vigencia válidas",
+        )
+        try:
+            prima = Decimal(str(poliza.get("prima")))
+            prima_valida = prima.is_finite() and prima > 0
+        except InvalidOperation:
+            prima_valida = False
+        _verificar(prima_valida, "la póliza incluye una prima válida")
+        _verificar(
+            poliza.get("moneda") is None
+            or (isinstance(poliza.get("moneda"), str) and bool(poliza["moneda"])),
+            "la moneda de la póliza es válida",
+        )
+        _verificar(
+            poliza.get("estado_certificado") in {"PENDIENTE", "GENERADO"},
+            "la póliza incluye un estado de certificado válido",
+        )
+        if identificador_valido:
+            ID_POLIZA = poliza_id
+        return
+
+
+def test_case_9_consultar_estado_certificado():
+    """Espera hasta que el certificado de la póliza esté generado."""
+    _verificar(bool(ID_POLIZA), "existe un ID de póliza guardado")
+    cabeceras = _cabeceras_poliza()
+    print("Esperando 10 segundos antes de consultar el certificado.")
+    time.sleep(10)
+    for intento in range(1, MAX_INTENTOS + 1):
+        print(f"Consulta de certificado: intento {intento}/{MAX_INTENTOS}")
+        response = _enviar(
+            "GET",
+            URL_CERTIFICADO.format(poliza_id=ID_POLIZA),
+            headers=cabeceras,
+        )
+        _verificar(
+            response.status_code == 200,
+            "la consulta del certificado responde HTTP 200",
+        )
+        if response.status_code != 200:
+            return
+        resultado = response.json()
+        _verificar(isinstance(resultado, dict), "la respuesta de certificado es un objeto")
+        _verificar(
+            resultado.get("poliza_id") == ID_POLIZA,
+            "el certificado corresponde a la póliza creada",
+        )
+        estado = resultado.get("estado_certificado")
+        _verificar(
+            estado in {"PENDIENTE", "GENERADO"},
+            "el estado del certificado es válido",
+        )
+        _verificar(
+            isinstance(resultado.get("disponible"), bool)
+            and resultado["disponible"] == (estado == "GENERADO"),
+            "la disponibilidad corresponde al estado del certificado",
+        )
+        if estado == "GENERADO":
+            _verificar(True, "el certificado está GENERADO")
+            return
+        if intento < MAX_INTENTOS:
+            print("El certificado aún está pendiente; esperando 10 segundos.")
+            time.sleep(10)
+    _verificar(False, "el certificado fue generado dentro del límite de intentos")
+
+
+def test_case_10_descargar_certificado():
+    """Descarga el certificado en memoria y comprueba su formato PDF."""
+    _verificar(bool(ID_POLIZA), "existe un ID de póliza guardado")
+    response = _enviar(
+        "GET",
+        URL_DESCARGA_CERTIFICADO.format(poliza_id=ID_POLIZA),
+        headers=_cabeceras_poliza(),
+    )
+    _verificar(response.status_code == 200, "la descarga responde HTTP 200")
+    if response.status_code != 200:
+        return
+    tipo_contenido = response.headers.get("Content-Type", "").split(";")[0].strip().lower()
+    _verificar(tipo_contenido == "application/pdf", "la respuesta tiene tipo application/pdf")
+    _verificar(
+        response.content.startswith(b"%PDF-") and response.content.rstrip().endswith(b"%%EOF"),
+        "el certificado descargado contiene un PDF con encabezado y final válidos",
+    )
+
+
 def _fecha_iso_valida(valor):
     try:
         return datetime.fromisoformat(valor.replace("Z", "+00:00")).tzinfo is not None
@@ -748,6 +921,9 @@ if __name__ == "__main__":
             ("Test Case 5: consultar resultado KYC/AML", test_case_5_consultar_resultado_kyc_aml),
             ("Test Case 6: capturar firma digital", test_case_6_capturar_firma_digital),
             ("Test Case 7: consultar resumen y pagar con tarjeta", test_case_7_consultar_resumen_y_pagar_con_tarjeta),
+            ("Test Case 8: consultar póliza por cotización", test_case_8_consultar_poliza_por_cotizacion),
+            ("Test Case 9: consultar estado del certificado", test_case_9_consultar_estado_certificado),
+            ("Test Case 10: descargar certificado PDF", test_case_10_descargar_certificado),
         ]
         resultados = [
             _ejecutar_caso(nombre, caso)

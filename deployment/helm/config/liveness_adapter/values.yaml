@@ -1,7 +1,7 @@
 replicaCount: 1
 fullnameOverride: liveness-adapter
 
-containerName: backend-service
+containerName: liveness-adapter
 serviceAccountName: solventa-app-sa
 
 image:
@@ -27,28 +27,35 @@ probes:
 
 database:
   enabled: false
+
+sqs:
+  enabled: false
+
 bucket:
   enabled: false
+
 cognito:
   enabled: false
+
 redis:
   enabled: true
   existingSecret: secret-name
-  secretKey: REDIS_ENDPOINT
-  secretKey2: REDIS_AUTH_TOKEN
+  secretKeys:
+    - REDIS_ENDPOINT
+    - REDIS_AUTH_TOKEN
+
 kmsKey:
   enabled: false
 
-# Secretos propios del adaptador (Secrets Manager → secret de Kubernetes de cada ambiente).
-# DIDIT_API_KEY es opcional: solo se usa con DIDIT_ENABLED=true (demostración).
-extraSecretEnv:
-  - name: ADMIN_TOKEN
-    existingSecret: secret-name
-    secretKey: LIVENESS_ADMIN_TOKEN
-  - name: DIDIT_API_KEY
-    existingSecret: secret-name
-    secretKey: DIDIT_API_KEY
-    optional: true
+livenessAdapter:
+  enabled: true
+  existingSecret: secret-name
+  secretKeys:
+    - name: ADMIN_TOKEN
+      secretKey: LIVENESS_ADMIN_TOKEN
+    - name: DIDIT_API_KEY
+      secretKey: DIDIT_API_KEY
+      optional: true
 
 config:
   PROJECT_NAME: solventa-liveness-adapter

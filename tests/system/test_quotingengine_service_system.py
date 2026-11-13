@@ -394,18 +394,15 @@ if __name__ == "__main__":
                 "Test Case 3: consultar cotización almacenada",
                 test_case_3_consultar_cotizacion_almacenada,
             ),
+            _ejecutar_caso(
+                "Test Case 4: consultar condiciones de la cotización",
+                test_case_4_consultar_condiciones_cotizacion,
+            ),
+            _ejecutar_caso(
+                "Test Case 5: aceptar y rechazar condiciones",
+                test_case_5_decidir_condiciones_cotizacion,
+            ),
         ]
-        if SERVICIO == "quotingengine-service":
-            resultados.extend([
-                _ejecutar_caso(
-                    "Test Case 4: consultar condiciones de la cotización",
-                    test_case_4_consultar_condiciones_cotizacion,
-                ),
-                _ejecutar_caso(
-                    "Test Case 5: aceptar y rechazar condiciones",
-                    test_case_5_decidir_condiciones_cotizacion,
-                ),
-            ])
 
     if VERIFICACIONES_ACTIVAS and (
         not precondicion_exitosa or not all(resultados)

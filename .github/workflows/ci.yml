@@ -26,6 +26,7 @@ jobs:
           - mock_kyc
           - mock_opendata
           - mock_openfinance
+          - mock_paymentprovider
 
     steps:
       - uses: actions/checkout@v4
@@ -80,6 +81,7 @@ jobs:
           - mock_kyc
           - mock_opendata
           - mock_openfinance
+          - mock_paymentprovider
           - liveness_adapter
 
     steps:

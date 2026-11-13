@@ -2,6 +2,8 @@ import json
 import os
 import sys
 import uuid
+from datetime import datetime
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
 
 import requests
@@ -12,6 +14,7 @@ SERVICE_PREFIX_MAP = {
     "identity-service": "/api/v1/identity-service",
     "quotingengine-service": "/api/v1/quotingengine-service",
     "insurancepolicies-service": "/api/v1/insurancepolicies-service",
+    "payments-service": "/api/v1/payments-service",
 }
 
 ENVIRONMENT_MAP = {
@@ -19,6 +22,7 @@ ENVIRONMENT_MAP = {
         "identity-service": "SYSTEM_TESTS_IDENTITY_SERVICE_BASE_URL",
         "quotingengine-service": "SYSTEM_TESTS_QUOTINGENGINE_SERVICE_BASE_URL",
         "insurancepolicies-service": "SYSTEM_TESTS_INSURANCEPOLICIES_SERVICE_BASE_URL",
+        "payments-service": "SYSTEM_TESTS_PAYMENTS_SERVICE_BASE_URL",
         "bff-web": "SYSTEM_TESTS_BFF_WEB_BASE_URL",
     },
     "dev": "SYSTEM_TESTS_DEV_BASE_URL",
@@ -59,6 +63,7 @@ if SERVICIO == "bff-web":
     IDENTITY_SERVICE_URL = base_url + SERVICE_PREFIX_MAP["bff-web"]
     QUOTINGENGINE_SERVICE_URL = IDENTITY_SERVICE_URL
     INSURANCEPOLICIES_SERVICE_URL = IDENTITY_SERVICE_URL
+    PAYMENTS_SERVICE_URL = IDENTITY_SERVICE_URL
 elif ENTORNO == "local":
     IDENTITY_SERVICE_BASE_URL = _base_url(
         ENVIRONMENT_MAP["local"]["identity-service"]
@@ -69,11 +74,15 @@ elif ENTORNO == "local":
     INSURANCEPOLICIES_SERVICE_BASE_URL = _base_url(
         ENVIRONMENT_MAP["local"]["insurancepolicies-service"]
     )
+    PAYMENTS_SERVICE_BASE_URL = _base_url(
+        ENVIRONMENT_MAP["local"]["payments-service"]
+    )
 else:
     base_url = _base_url(ENVIRONMENT_MAP[ENTORNO])
     IDENTITY_SERVICE_BASE_URL = base_url
     QUOTINGENGINE_SERVICE_BASE_URL = base_url
     INSURANCEPOLICIES_SERVICE_BASE_URL = base_url
+    PAYMENTS_SERVICE_BASE_URL = base_url
 
 if SERVICIO == "insurancepolicies-service":
     IDENTITY_SERVICE_URL = (
@@ -87,17 +96,27 @@ if SERVICIO == "insurancepolicies-service":
         INSURANCEPOLICIES_SERVICE_BASE_URL
         + SERVICE_PREFIX_MAP["insurancepolicies-service"]
     )
+    PAYMENTS_SERVICE_URL = (
+        PAYMENTS_SERVICE_BASE_URL + SERVICE_PREFIX_MAP["payments-service"]
+    )
 
 URL_REGISTRO = f"{IDENTITY_SERVICE_URL}/clientes/registro"
 URL_AUTENTICAR = f"{IDENTITY_SERVICE_URL}/clientes/autenticar"
 URL_PRODUCTO = f"{QUOTINGENGINE_SERVICE_URL}/productos/VIDA_HIPOTECARIO"
 URL_COTIZACIONES = f"{QUOTINGENGINE_SERVICE_URL}/cotizaciones"
+URL_CONDICIONES = f"{URL_COTIZACIONES}/{{cotizacion_id}}/condiciones"
+URL_DECISIONES = f"{URL_CONDICIONES}/decisiones"
 URL_VERIFICACIONES_KYC_AML = (
     f"{IDENTITY_SERVICE_URL}/clientes/{{cliente_id}}/verificaciones-kyc-aml"
 )
 URL_FIRMA_DIGITAL = (
     f"{INSURANCEPOLICIES_SERVICE_URL}/cotizaciones/{{cotizacion_id}}/firma-digital"
 )
+URL_RESUMEN_PAGO = (
+    f"{PAYMENTS_SERVICE_URL}/cotizaciones/{{cotizacion_id}}/resumen-pago"
+)
+URL_PAGOS = f"{PAYMENTS_SERVICE_URL}/pagos"
+URL_PAGO = f"{PAYMENTS_SERVICE_URL}/pagos/{{pago_id}}"
 
 CODIGO_PRODUCTO = "VIDA_HIPOTECARIO"
 TIMEOUT_SEGUNDOS = 30
@@ -110,10 +129,11 @@ PRODUCTO_CONSULTADO = None
 PRODUCTO_ID = None
 COTIZACION_CREADA = None
 ID_COTIZACION = None
-ID_VERIFICACION_CASO_2 = None
-ID_VERIFICACION_CASO_4 = None
+ID_VERIFICACION_KYC_AML = None
 FIRMA_DIGITAL_CREADA = None
 ID_FIRMA_DIGITAL = None
+ID_PAGO = None
+ID_CONDICIONES = None
 
 
 def _ocultar_datos(valor):
@@ -121,7 +141,14 @@ def _ocultar_datos(valor):
         return {
             clave: "[REDACTADO]"
             if clave.lower()
-            in {"password", "access_token", "id_token", "refresh_token"}
+            in {
+                "password",
+                "access_token",
+                "id_token",
+                "refresh_token",
+                "numero_tarjeta",
+                "cvv",
+            }
             else _ocultar_datos(contenido)
             for clave, contenido in valor.items()
         }
@@ -247,8 +274,8 @@ def _archivos_kyc_aml():
     }
 
 
-def _iniciar_verificacion_kyc_aml(caso_numero):
-    global ID_VERIFICACION_CASO_2, ID_VERIFICACION_CASO_4
+def _iniciar_verificacion_kyc_aml():
+    global ID_VERIFICACION_KYC_AML
 
     _verificar(
         CLIENTE_REGISTRADO is not None,
@@ -286,10 +313,7 @@ def _iniciar_verificacion_kyc_aml(caso_numero):
     )
     _verificar(bool(resultado.get("fecha")), "la respuesta incluye la fecha de inicio")
     if identificador_valido:
-        if caso_numero == 2:
-            ID_VERIFICACION_CASO_2 = verificacion_id
-        else:
-            ID_VERIFICACION_CASO_4 = verificacion_id
+        ID_VERIFICACION_KYC_AML = verificacion_id
 
 
 def _consultar_resultado_kyc_aml(verificacion_id, numero_caso):
@@ -389,24 +413,82 @@ def test_case_1_crear_solicitud_cotizacion():
     )
 
 
-def test_case_2_iniciar_verificaciones_kyc_aml():
+def test_case_2_consultar_condiciones_cotizacion():
+    """Consulta y almacena las condiciones de la cotización del cliente."""
+    global ID_CONDICIONES
+
+    _verificar(ID_COTIZACION is not None, "existe una cotización creada")
+    _verificar(
+        COTIZACION_CREADA["cliente_id"] == CLIENTE_REGISTRADO["id"],
+        "la cotización pertenece al cliente autenticado",
+    )
+    _verificar(
+        COTIZACION_CREADA["producto_codigo"] == CODIGO_PRODUCTO,
+        "la cotización corresponde a VIDA_HIPOTECARIO",
+    )
+    response = _enviar(
+        "GET",
+        URL_CONDICIONES.format(cotizacion_id=ID_COTIZACION),
+        headers=_cabeceras_autorizacion(),
+    )
+    _verificar(
+        response.status_code == 200,
+        "la consulta de condiciones responde HTTP 200",
+    )
+    if response.status_code != 200:
+        return
+
+    condiciones = response.json()
+    _verificar(
+        condiciones.get("cotizacion_id") == ID_COTIZACION,
+        "las condiciones corresponden a la cotización creada",
+    )
+    ID_CONDICIONES = condiciones.get("condiciones_cotizacion_id")
+    _verificar(bool(ID_CONDICIONES), "la respuesta incluye el ID de condiciones")
+
+
+def test_case_3_decidir_condiciones_cotizacion():
+    """Acepta las condiciones consultadas."""
+    _verificar(bool(ID_CONDICIONES), "existen condiciones consultadas")
+    response = _enviar(
+        "POST",
+        URL_DECISIONES.format(cotizacion_id=ID_COTIZACION),
+        json={
+            "condiciones_cotizacion_id": ID_CONDICIONES,
+            "decision": "ACEPTADA",
+        },
+        headers=_cabeceras_autorizacion(),
+    )
+    _verificar(
+        response.status_code == 201,
+        "la decisión ACEPTADA responde HTTP 201",
+    )
+    if response.status_code != 201:
+        return
+
+    resultado = response.json()
+    _verificar(
+        resultado.get("decision") == "ACEPTADA",
+        "la respuesta registra la decisión ACEPTADA",
+    )
+    _verificar(
+        resultado.get("condiciones_cotizacion_id") == ID_CONDICIONES,
+        "la decisión corresponde a las condiciones consultadas",
+    )
+    _verificar(
+        resultado.get("cliente_id") == CLIENTE_REGISTRADO["id"],
+        "la decisión corresponde al cliente autenticado",
+    )
+
+
+def test_case_4_iniciar_verificaciones_kyc_aml():
     """Inicia y conserva el primer intento de verificación KYC/AML."""
-    _iniciar_verificacion_kyc_aml(2)
+    _iniciar_verificacion_kyc_aml()
 
 
-def test_case_3_consultar_resultado_kyc_aml():
+def test_case_5_consultar_resultado_kyc_aml():
     """Consulta y valida el resultado del primer intento KYC/AML."""
-    _consultar_resultado_kyc_aml(ID_VERIFICACION_CASO_2, 3)
-
-
-def test_case_4_iniciar_segunda_verificacion_kyc_aml():
-    """Inicia y conserva el segundo intento de verificación KYC/AML."""
-    _iniciar_verificacion_kyc_aml(4)
-
-
-def test_case_5_consultar_segundo_resultado_kyc_aml():
-    """Consulta y valida el resultado del segundo intento KYC/AML."""
-    _consultar_resultado_kyc_aml(ID_VERIFICACION_CASO_4, 5)
+    _consultar_resultado_kyc_aml(ID_VERIFICACION_KYC_AML, 5)
 
 
 def test_case_6_capturar_firma_digital():
@@ -469,6 +551,171 @@ def test_case_6_capturar_firma_digital():
     )
 
 
+def test_case_7_consultar_resumen_y_pagar_con_tarjeta():
+    """Consulta el resumen, paga con tarjeta y valida el estado del pago."""
+    global ID_PAGO
+
+    _verificar(ID_COTIZACION is not None, "existe una cotización creada")
+    _verificar(
+        CLIENTE_REGISTRADO is not None,
+        "existe el cliente registrado para realizar el pago",
+    )
+
+    resumen_response = _enviar(
+        "GET",
+        URL_RESUMEN_PAGO.format(cotizacion_id=ID_COTIZACION),
+        headers={
+            **_cabeceras_autorizacion(),
+            "X-Correlation-Id": str(uuid.uuid4()),
+        },
+    )
+    _verificar(
+        resumen_response.status_code == 200,
+        "el resumen del pago responde HTTP 200",
+    )
+    if resumen_response.status_code != 200:
+        return
+
+    resumen = resumen_response.json()
+    _verificar(
+        resumen.get("cotizacion_id") == ID_COTIZACION,
+        "el resumen corresponde a la cotización creada",
+    )
+    try:
+        prima_total = Decimal(str(resumen.get("prima_total")))
+        prima_valida = prima_total.is_finite() and prima_total > 0
+    except InvalidOperation:
+        prima_valida = False
+        prima_total = Decimal("0")
+    _verificar(prima_valida, "el resumen incluye una prima total válida")
+    _verificar(
+        isinstance(resumen.get("moneda"), str) and bool(resumen["moneda"]),
+        "el resumen incluye la moneda del pago",
+    )
+    metodos_pago = resumen.get("metodos_pago")
+    _verificar(
+        isinstance(metodos_pago, list)
+        and any(
+            isinstance(metodo, dict)
+            and metodo.get("codigo") == "TARJETA_CREDITO"
+            for metodo in metodos_pago
+        ),
+        "el resumen incluye la tarjeta de crédito como método de pago",
+    )
+    _verificar(
+        _fecha_iso_valida(resumen.get("expira_en")),
+        "el resumen incluye una fecha de expiración válida",
+    )
+
+    pago_response = _enviar(
+        "POST",
+        URL_PAGOS,
+        json={
+            "cotizacion_id": ID_COTIZACION,
+            "cliente_id": CLIENTE_REGISTRADO["id"],
+            "metodo_pago": "TARJETA_CREDITO",
+            "numero_tarjeta": "4242424242424242",
+            "mes_expiracion": 12,
+            "anio_expiracion": 2099,
+            "cvv": "123",
+        },
+        headers={
+            **_cabeceras_autorizacion(),
+            "Idempotency-Key": f"pago-{uuid.uuid4().hex}",
+            "X-Correlation-Id": str(uuid.uuid4()),
+        },
+    )
+    _verificar(
+        pago_response.status_code == 201,
+        "el pago con tarjeta responde HTTP 201",
+    )
+    if pago_response.status_code != 201:
+        return
+
+    pago = pago_response.json()
+    pago_id = pago.get("pago_id")
+    try:
+        uuid.UUID(pago_id)
+        identificador_valido = True
+    except (AttributeError, TypeError, ValueError):
+        identificador_valido = False
+    _verificar(identificador_valido, "la respuesta incluye un ID de pago válido")
+    _verificar(
+        pago.get("cotizacion_id") == ID_COTIZACION,
+        "el pago corresponde a la cotización creada",
+    )
+    _verificar(
+        pago.get("cliente_id") == CLIENTE_REGISTRADO["id"],
+        "el pago corresponde al cliente registrado",
+    )
+    _verificar(
+        pago.get("metodo_pago") == "TARJETA_CREDITO",
+        "el pago se procesó con tarjeta de crédito",
+    )
+    _verificar(pago.get("estado") == "APROBADO", "el pago fue aprobado")
+    _verificar(
+        pago.get("tarjeta_ultimos4") == "4242",
+        "la respuesta confirma los últimos cuatro dígitos de la tarjeta",
+    )
+    _verificar(
+        pago.get("moneda") == resumen.get("moneda"),
+        "el pago conserva la moneda del resumen",
+    )
+    try:
+        monto_pago = Decimal(str(pago.get("monto")))
+        monto_valido = monto_pago == prima_total.quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
+    except InvalidOperation:
+        monto_valido = False
+    _verificar(monto_valido, "el monto cobrado coincide con la prima del resumen")
+    _verificar(
+        _fecha_iso_valida(pago.get("creado_en"))
+        and _fecha_iso_valida(pago.get("procesado_en")),
+        "la respuesta incluye fechas válidas de creación y procesamiento",
+    )
+    if identificador_valido:
+        ID_PAGO = pago_id
+
+    _verificar(ID_PAGO is not None, "hay un ID válido para consultar el pago")
+    estado_response = _enviar(
+        "GET",
+        URL_PAGO.format(pago_id=ID_PAGO),
+        headers={
+            **_cabeceras_autorizacion(),
+            "X-Correlation-Id": str(uuid.uuid4()),
+        },
+    )
+    _verificar(
+        estado_response.status_code == 200,
+        "la consulta del estado del pago responde HTTP 200",
+    )
+    if estado_response.status_code != 200:
+        return
+
+    estado_pago = estado_response.json()
+    _verificar(
+        estado_pago.get("pago_id") == ID_PAGO,
+        "la consulta corresponde al pago creado",
+    )
+    _verificar(
+        estado_pago.get("estado") == "APROBADO",
+        "el estado consultado del pago es APROBADO",
+    )
+    _verificar(
+        estado_pago.get("monto") == pago.get("monto")
+        and estado_pago.get("moneda") == pago.get("moneda"),
+        "la consulta conserva el monto y la moneda del pago",
+    )
+
+
+def _fecha_iso_valida(valor):
+    try:
+        return datetime.fromisoformat(valor.replace("Z", "+00:00")).tzinfo is not None
+    except (AttributeError, TypeError, ValueError):
+        return False
+
+
 def _ejecutar_caso(nombre, caso):
     print(f"\n{'=' * 72}\n{nombre}\n{'=' * 72}")
     try:
@@ -495,11 +742,12 @@ if __name__ == "__main__":
     if precondicion_exitosa:
         casos = [
             ("Test Case 1: crear solicitud de cotización", test_case_1_crear_solicitud_cotizacion),
-            ("Test Case 2: iniciar verificaciones KYC/AML", test_case_2_iniciar_verificaciones_kyc_aml),
-            ("Test Case 3: consultar resultado KYC/AML", test_case_3_consultar_resultado_kyc_aml),
-            ("Test Case 4: iniciar segunda verificación KYC/AML", test_case_4_iniciar_segunda_verificacion_kyc_aml),
-            ("Test Case 5: consultar segundo resultado KYC/AML", test_case_5_consultar_segundo_resultado_kyc_aml),
+            ("Test Case 2: consultar condiciones de la cotización", test_case_2_consultar_condiciones_cotizacion),
+            ("Test Case 3: aceptar condiciones", test_case_3_decidir_condiciones_cotizacion),
+            ("Test Case 4: iniciar verificaciones KYC/AML", test_case_4_iniciar_verificaciones_kyc_aml),
+            ("Test Case 5: consultar resultado KYC/AML", test_case_5_consultar_resultado_kyc_aml),
             ("Test Case 6: capturar firma digital", test_case_6_capturar_firma_digital),
+            ("Test Case 7: consultar resumen y pagar con tarjeta", test_case_7_consultar_resumen_y_pagar_con_tarjeta),
         ]
         resultados = [
             _ejecutar_caso(nombre, caso)

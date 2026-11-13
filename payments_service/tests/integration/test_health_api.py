@@ -21,10 +21,17 @@ async def test_metricas(async_client: AsyncClient):
     assert "http_requests_total" in response.text
 
 
-async def test_docs_y_no_expone_endpoints_de_negocio(async_client: AsyncClient):
+async def test_docs_y_endpoints_de_pago_de_prima(async_client: AsyncClient):
     schema = await async_client.get("/openapi.json")
     assert schema.status_code == 200
-    assert set(schema.json()["paths"]) == {"/", "/health", "/metrics"}
-    assert (await async_client.get("/api/v1/payments-service/pagos")).status_code == 404
+    prefijo = "/api/v1/payments-service"
+    assert set(schema.json()["paths"]) == {
+        "/",
+        "/health",
+        "/metrics",
+        f"{prefijo}/cotizaciones/{{cotizacion_id}}/resumen-pago",
+        f"{prefijo}/pagos",
+        f"{prefijo}/pagos/{{pago_id}}",
+    }
     assert (await async_client.get("/docs")).status_code == 200
     assert (await async_client.get("/redoc")).status_code == 200

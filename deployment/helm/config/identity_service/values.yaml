@@ -1,7 +1,7 @@
 replicaCount: 1
 fullnameOverride: identity-service
 
-containerName: backend-service
+containerName: identity-service
 serviceAccountName: solventa-app-sa
 
 image:
@@ -35,6 +35,9 @@ database:
   existingSecret: secret-name
   secretKey: DATABASE_URL
 
+sqs:
+  enabled: false
+
 bucket:
   enabled: true
   existingSecret: secret-name
@@ -43,14 +46,16 @@ bucket:
 cognito:
   enabled: true
   existingSecret: secret-name
-  secretKey: COGNITO_USER_POOL_ID
-  secretKey2: COGNITO_CLIENT_ID
+  secretKeys:
+    - COGNITO_USER_POOL_ID
+    - COGNITO_CLIENT_ID
 
 redis:
   enabled: true
   existingSecret: secret-name
-  secretKey: REDIS_ENDPOINT
-  secretKey2: REDIS_AUTH_TOKEN
+  secretKeys:
+    - REDIS_ENDPOINT
+    - REDIS_AUTH_TOKEN
 
 kmsKey:
   enabled: true

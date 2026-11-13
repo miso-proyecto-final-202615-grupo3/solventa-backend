@@ -1,0 +1,57 @@
+replicaCount: 1
+fullnameOverride: mock-paymentprovider
+
+containerName: mock-paymentprovider
+serviceAccountName: solventa-app-sa
+
+image:
+  repository: mock-paymentprovider
+  pullPolicy: Always
+  tag: "latest"
+
+http:
+  containerPort: 8000
+  servicePort: 80
+
+probes:
+  readiness:
+    path: /docs
+    port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  liveness:
+    path: /docs
+    port: http
+    initialDelaySeconds: 20
+    periodSeconds: 20
+
+database:
+  enabled: false
+
+sqs:
+  enabled: false
+
+bucket:
+  enabled: false
+
+redis:
+  enabled: false
+
+cognito:
+  enabled: false
+
+kmsKey:
+  enabled: false
+
+config:
+  PROJECT_NAME: solventa-mock-paymentprovider
+  VERSION: "0.1.0"
+  ENVIRONMENT: dev
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

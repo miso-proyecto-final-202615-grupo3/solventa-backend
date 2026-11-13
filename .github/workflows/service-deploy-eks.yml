@@ -28,6 +28,7 @@ on:
           - mock_kyc
           - mock_opendata
           - mock_openfinance
+          - mock_paymentprovider
         default: identity_service
 
 permissions:

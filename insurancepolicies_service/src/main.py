@@ -9,7 +9,6 @@ from sqlalchemy import text
 from src.core.config import settings
 from src.core.correlation import CorrelationIdMiddleware
 from src.core.database import Base, engine
-from src.core.migraciones import aplicar_migraciones
 from src.core.telemetry import setup_telemetry
 from src.infrastructure.persistence import models  # noqa: F401
 from src.presentation.consumers.tareas import crear_procesos, detener_procesos
@@ -29,7 +28,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             "No se pudo crear el esquema en el arranque.",
             exc_info=True,
         )
-    await aplicar_migraciones(engine)
     tareas = [
         asyncio.create_task(proceso, name=nombre) for nombre, proceso in crear_procesos().items()
     ]

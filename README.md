@@ -263,9 +263,9 @@ El BFF Web los expone con las mismas rutas bajo `/api/v1/bff-web` (`/cotizacione
 con el header `X-Client-Id` que envía quien llama: aún no se valida contra el token de sesión.
 
 `create_all` crea las tablas nuevas (`poliza_contrato`, `generacion_certificado`, `evento_outbox`), pero no altera
-`poliza`: al arrancar, `core/migraciones.py` agrega de forma idempotente las columnas `titular_nombre`,
-`estado_certificado` y `ruta_certificado` y el índice único por cotización (si ya hubiera cotizaciones con más de una
-póliza, ese índice no se crea y se registra una advertencia). La imagen Docker instala Pango y fuentes para WeasyPrint.
+tablas existentes. Antes de desplegar sobre una base de datos existente, se debe actualizar el esquema de `poliza`
+por separado para incluir `ramo`, `titular_nombre`, `estado_certificado`, `ruta_certificado` y la restricción de
+unicidad por cotización. La imagen Docker instala Pango y fuentes para WeasyPrint.
 
 ## Firma digital (HU1.3.5)
 

@@ -18,6 +18,17 @@ class Settings(BaseSettings):
     POLIZAS_SEMILLA_PATH: str = ""
     # MS Pólizas deja la póliza en EMITIDA al emitirla; la vigencia se valida por fechas.
     ESTADOS_POLIZA_ELEGIBLES: str = "EMITIDA,VIGENTE"
+    # Evidencias (HU4.1.2). `memoria` solo para pruebas. En AWS las credenciales llegan por EKS Pod Identity.
+    ALMACEN_EVIDENCIAS: str = "s3"
+    S3_BUCKET_NAME: str = ""
+    KMS_KEY_ARN: str = ""
+    EVIDENCIAS_PREFIX: str = "siniestros/"
+    EVIDENCIAS_SSE: str = "aws:kms"
+    AWS_REGION: str = "us-east-1"
+    S3_ENDPOINT_URL: str = ""
+    S3_PUBLIC_ENDPOINT_URL: str = ""
+    FOTO_MAX_MB: int = 5
+    VIDEO_MAX_MB: int = 50
 
     model_config = SettingsConfigDict(
         env_file=".env",

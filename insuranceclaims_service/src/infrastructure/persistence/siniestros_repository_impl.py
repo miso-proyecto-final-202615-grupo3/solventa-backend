@@ -2,6 +2,7 @@ import uuid
 from dataclasses import asdict, fields
 from typing import Generic, TypeVar
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import Base
@@ -46,7 +47,9 @@ class _SqlAlchemyEntityRepository(Generic[Entity, Model]):
         return entity
 
     async def obtener_por_id(self, entity_id: uuid.UUID) -> Entity | None:
-        model = await self.session.get(self.model_type, entity_id)
+        return self._a_entidad(await self.session.get(self.model_type, entity_id))
+
+    def _a_entidad(self, model: Model | None) -> Entity | None:
         if model is None:
             return None
         return self.entity_type(**{
@@ -81,6 +84,19 @@ class SqlAlchemySiniestroRepository(
 ):
     entity_type = Siniestro
     model_type = SiniestroModel
+
+    async def obtener_por_clave_idempotencia(self, clave: str) -> Siniestro | None:
+        model = await self.session.scalar(select(SiniestroModel).where(SiniestroModel.clave_idempotencia == clave))
+        return self._a_entidad(model)
+
+    async def obtener_de_cliente(self, siniestro_id: uuid.UUID, cliente_id: uuid.UUID) -> Siniestro | None:
+        model = await self.session.scalar(
+            select(SiniestroModel).where(
+                SiniestroModel.siniestro_id == siniestro_id,
+                SiniestroModel.cliente_id == cliente_id,
+            )
+        )
+        return self._a_entidad(model)
 
 
 class SqlAlchemyIndemnizacionRepository(

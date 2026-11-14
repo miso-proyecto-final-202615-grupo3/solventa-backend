@@ -36,7 +36,13 @@ class ActivacionPolizaRepository(Repository[ActivacionPoliza]):
 
 
 class SiniestroRepository(Repository[Siniestro]):
-    pass
+    @abstractmethod
+    async def obtener_por_clave_idempotencia(self, clave: str) -> Siniestro | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def obtener_de_cliente(self, siniestro_id: uuid.UUID, cliente_id: uuid.UUID) -> Siniestro | None:
+        raise NotImplementedError
 
 
 class IndemnizacionRepository(Repository[Indemnizacion]):

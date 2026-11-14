@@ -3,6 +3,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 
+from src.domain.siniestros.enums import CanalReporte
+
 
 @dataclass
 class EventoExterno:
@@ -47,6 +49,14 @@ class Siniestro:
     reportado_en: datetime
     activacion_id: uuid.UUID | None = None
     evidencia_referencia: dict | list | None = None
+    # Siniestro asistido reportado por el cliente (HU4.1.1).
+    cliente_id: uuid.UUID | None = None
+    numero: str | None = None
+    canal: str = CanalReporte.PARAMETRICO.value
+    descripcion: str | None = None
+    poliza_numero: str | None = None
+    producto_codigo: str | None = None
+    huella_solicitud: str | None = None
     siniestro_id: uuid.UUID = field(default_factory=uuid.uuid4)
 
 

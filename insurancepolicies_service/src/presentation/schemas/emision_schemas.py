@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -36,3 +37,27 @@ class EstadoCertificadoResponse(BaseModel):
     estado_certificado: EstadoCertificado
     disponible: bool
     ultima_generacion: GeneracionCertificadoResponse | None
+
+
+class EventoTrazabilidadPolizaResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    evento_id: uuid.UUID
+    cotizacion_id: uuid.UUID
+    cliente_id: uuid.UUID
+    tipo: str
+    ocurrido_en: datetime
+    origen: str
+    actor_id: str | None
+    resultado: str
+    referencia_id: str
+    correlation_id: str | None
+    detalles: dict[str, Any]
+
+
+class ReferenciaTrazabilidadPolizaResponse(BaseModel):
+    poliza_id: uuid.UUID
+    numero: str
+    cotizacion_id: uuid.UUID
+    cliente_id: uuid.UUID
+    eventos: list[EventoTrazabilidadPolizaResponse]

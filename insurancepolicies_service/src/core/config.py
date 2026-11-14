@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     CERTIFICADO_ZONA_HORARIA: str = "America/Bogota"
     # Una generación EN_PROCESO más antigua que esto se considera abandonada.
     CERTIFICADO_EN_PROCESO_TTL_SECONDS: int = 300
+    TRAZABILIDAD_INTERNAL_TOKEN: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -12,7 +12,7 @@ from src.core.database import Base, engine
 from src.core.telemetry import setup_telemetry
 from src.infrastructure.persistence import models  # noqa: F401
 from src.presentation.consumers.tareas import crear_procesos, detener_procesos
-from src.presentation.routers import emision, firmas, health, polizas
+from src.presentation.routers import auditoria_emision, emision, firmas, health, polizas
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +66,7 @@ app.include_router(health.router)
 app.include_router(polizas.router)
 app.include_router(firmas.router, prefix=settings.API_PREFIX)
 app.include_router(emision.router, prefix=settings.API_PREFIX)
+app.include_router(auditoria_emision.router, prefix=settings.API_PREFIX)
 
 
 @app.get("/")

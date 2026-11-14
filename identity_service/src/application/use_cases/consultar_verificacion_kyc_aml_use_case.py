@@ -7,8 +7,12 @@ from src.application.ports.kyc_aml import KycAmlProvider, ProveedorKycAmlError
 from src.domain.clientes.entities import ClienteId
 from src.domain.clientes.repositories import ClienteRepository
 from src.domain.clientes.value_objects import EstadoKYC
+from src.domain.verificaciones_kyc_aml.auditoria import EventoTrazabilidadKycAml
 from src.domain.verificaciones_kyc_aml.entities import EstadoVerificacion, VerificacionKycAml
-from src.domain.verificaciones_kyc_aml.repositories import VerificacionKycAmlRepository
+from src.domain.verificaciones_kyc_aml.repositories import (
+    AuditoriaKycAmlRepository,
+    VerificacionKycAmlRepository,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -31,12 +35,14 @@ class ConsultarVerificacionKycAmlUseCase:
         self,
         clientes: ClienteRepository,
         verificaciones: VerificacionKycAmlRepository,
+        auditoria: AuditoriaKycAmlRepository,
         proveedor: KycAmlProvider,
         commit: Callable[[], Awaitable[None]],
         rollback: Callable[[], Awaitable[None]],
     ) -> None:
         self.clientes = clientes
         self.verificaciones = verificaciones
+        self.auditoria = auditoria
         self.proveedor = proveedor
         self._commit = commit
         self._rollback = rollback
@@ -62,6 +68,13 @@ class ConsultarVerificacionKycAmlUseCase:
         except ProveedorKycAmlError as exc:
             verificacion.registrar_error(exc.codigo, f"[{correlation_id}] {exc.detalle}")
             if await self.verificaciones.actualizar(verificacion):
+                await self._registrar_evento(
+                    verificacion,
+                    "KYC_AML_ERROR",
+                    exc.codigo,
+                    correlation_id,
+                    {"codigo": exc.codigo},
+                )
                 await self._commit()
             else:
                 await self._rollback()
@@ -76,6 +89,22 @@ class ConsultarVerificacionKycAmlUseCase:
                 raise VerificacionNoEncontradaError("La verificación indicada no existe.")
             return actual
 
+        if verificacion.resultado_kyc is not None or verificacion.resultado_aml is not None:
+            await self._registrar_evento(
+                verificacion,
+                "KYC_AML_RESULTADO",
+                verificacion.estado.value if verificacion.es_final else "PENDIENTE",
+                correlation_id,
+                {
+                    "kyc": verificacion.resultado_kyc.value
+                    if verificacion.resultado_kyc
+                    else "PENDIENTE",
+                    "aml": verificacion.resultado_aml.value
+                    if verificacion.resultado_aml
+                    else "PENDIENTE",
+                },
+            )
+
         estado_cliente = _ESTADO_KYC_CLIENTE.get(verificacion.estado)
         if estado_cliente is not None:
             # El cliente se bloquea para que un intento viejo no pise el resultado de uno más reciente.
@@ -86,3 +115,35 @@ class ConsultarVerificacionKycAmlUseCase:
                 return verificacion
         await self._commit()
         return verificacion
+
+    async def _registrar_evento(
+        self,
+        verificacion: VerificacionKycAml,
+        tipo: str,
+        resultado: str,
+        correlation_id: str,
+        detalles: dict[str, str],
+    ) -> None:
+        cotizacion_id = await self.auditoria.cotizacion_de_verificacion(
+            verificacion.cliente_id, verificacion.id
+        )
+        if cotizacion_id is None:
+            return
+        ultimo = await self.auditoria.ultimo_evento_verificacion(
+            verificacion.cliente_id, verificacion.id, tipo
+        )
+        if ultimo is not None and ultimo.resultado == resultado and ultimo.detalles == detalles:
+            return
+        await self.auditoria.agregar(
+            EventoTrazabilidadKycAml(
+                cotizacion_id=cotizacion_id,
+                cliente_id=verificacion.cliente_id,
+                tipo=tipo,
+                ocurrido_en=datetime.now(UTC),
+                origen=verificacion.proveedor,
+                resultado=resultado,
+                referencia_id=str(verificacion.id),
+                correlation_id=correlation_id,
+                detalles=detalles,
+            )
+        )

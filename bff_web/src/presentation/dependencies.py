@@ -1,5 +1,7 @@
 from collections.abc import AsyncGenerator
 
+from fastapi import Header, HTTPException
+
 from src.infrastructure.gateways.identity_service_gateway import (
     IdentityServiceGateway,
 )
@@ -12,13 +14,19 @@ from src.infrastructure.gateways.quotingengine_service_gateway import (
 from src.infrastructure.gateways.payments_service_gateway import (
     PaymentsServiceGateway,
 )
-from src.infrastructure.gateways.insurancepolicies_service_gateway import (
-    InsurancePoliciesServiceGateway,
+from src.presentation.auditor_jwt_validator import (
+    AuditorTokenConfiguracionError,
+    AuditorTokenError,
+    get_cognito_auditor_jwt_validator,
 )
 
 
-def get_identity_service_gateway() -> IdentityServiceGateway:
-    return IdentityServiceGateway()
+async def get_identity_service_gateway() -> AsyncGenerator[IdentityServiceGateway, None]:
+    gateway = IdentityServiceGateway()
+    try:
+        yield gateway
+    finally:
+        await gateway.aclose()
 
 
 async def get_payments_service_gateway() -> AsyncGenerator[PaymentsServiceGateway, None]:
@@ -29,14 +37,19 @@ async def get_payments_service_gateway() -> AsyncGenerator[PaymentsServiceGatewa
         await gateway.aclose()
 
 
-async def get_insurancepolicies_service_gateway() -> AsyncGenerator[
-    InsurancePoliciesServiceGateway, None
-]:
-    gateway = InsurancePoliciesServiceGateway()
+def require_auditor(authorization: str | None = Header(default=None)) -> str:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Autenticación requerida.")
     try:
-        yield gateway
-    finally:
-        await gateway.aclose()
+        return get_cognito_auditor_jwt_validator().validar(authorization[7:])
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail="Acceso exclusivo para auditores.") from exc
+    except AuditorTokenConfiguracionError as exc:
+        raise HTTPException(
+            status_code=503, detail="Autenticación de auditoría no configurada."
+        ) from exc
+    except AuditorTokenError as exc:
+        raise HTTPException(status_code=401, detail="Token inválido o vencido.") from exc
 
 
 async def get_quotingengine_service_gateway() -> AsyncGenerator[

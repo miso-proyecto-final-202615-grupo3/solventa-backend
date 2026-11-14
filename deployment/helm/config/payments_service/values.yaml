@@ -40,6 +40,11 @@ bucket:
   enabled: false
 cognito:
   enabled: false
+
+audit:
+  enabled: true
+  existingSecret: secret-name
+  secretKey: TRAZABILIDAD_INTERNAL_TOKEN
 redis:
   enabled: false
 kmsKey:

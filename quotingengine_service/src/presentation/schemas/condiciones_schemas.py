@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.domain.condiciones.entities import Decision
 
@@ -31,3 +31,17 @@ class DecisionResponse(BaseModel):
     version_condiciones_generales: str
     decision: Decision
     decidida_en: datetime
+
+
+class EventoTrazabilidadCondicionesResponse(BaseModel):
+    evento_id: uuid.UUID
+    cotizacion_id: uuid.UUID
+    cliente_id: uuid.UUID
+    tipo: str
+    ocurrido_en: datetime
+    origen: str
+    actor_id: str | None
+    resultado: str
+    referencia_id: str
+    correlation_id: str | None = None
+    detalles: dict[str, Any] = Field(default_factory=dict)

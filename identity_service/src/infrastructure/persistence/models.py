@@ -250,3 +250,26 @@ class VerificacionKycAmlModel(Base):
         DateTime(timezone=True), nullable=True
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+
+class EventoTrazabilidadKycAmlModel(Base):
+    """Eventos inmutables KYC/AML asociados a la cotización de adquisición."""
+
+    __tablename__ = "eventos_trazabilidad_kyc_aml"
+    __table_args__ = (
+        Index("ix_evento_trazabilidad_kyc_cotizacion_fecha", "cotizacion_id", "ocurrido_en"),
+    )
+
+    evento_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    cotizacion_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    cliente_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("clientes.id"), nullable=False, index=True
+    )
+    tipo: Mapped[str] = mapped_column(String(40), nullable=False)
+    ocurrido_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    origen: Mapped[str] = mapped_column(String(80), nullable=False)
+    actor_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    resultado: Mapped[str] = mapped_column(String(40), nullable=False)
+    referencia_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    correlation_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    detalles: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)

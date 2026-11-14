@@ -1,7 +1,7 @@
 import hashlib
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 
 RUTA_BASE_DOCUMENTOS = "verificaciones-kyc-aml"
@@ -129,6 +129,7 @@ class VerificacionKycAml:
         self.ruta_documento_reverso = rutas.reverso
 
     def marcar_iniciada(self, inicio: InicioProveedor) -> None:
+        self.iniciada_en = datetime.now(UTC)
         self.estado = EstadoVerificacion.INICIADA
         self.proveedor_verificacion_id = inicio.verificacion_externa_id
         self.respuesta_inicio = inicio.respuesta

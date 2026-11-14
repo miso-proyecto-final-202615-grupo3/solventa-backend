@@ -17,7 +17,13 @@ from src.presentation.dependencies import (
     cerrar_consentimiento_cache,
 )
 from src.presentation.grpc.server import iniciar_servidor_grpc
-from src.presentation.routers import clientes, consentimientos, health, verificaciones_kyc_aml
+from src.presentation.routers import (
+    auditoria_kyc_aml,
+    clientes,
+    consentimientos,
+    health,
+    verificaciones_kyc_aml,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +96,7 @@ app.include_router(health.router)
 app.include_router(clientes.router, prefix=settings.API_PREFIX)
 app.include_router(consentimientos.router, prefix=settings.API_PREFIX)
 app.include_router(verificaciones_kyc_aml.router, prefix=settings.API_PREFIX)
+app.include_router(auditoria_kyc_aml.router, prefix=settings.API_PREFIX)
 
 
 @app.get("/")

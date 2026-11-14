@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     OPEN_DATA_URL: str = ""
     OPEN_DATA_TIMEOUT_SECONDS: float = 0.25
     OPEN_DATA_CACHE_TTL_SECONDS: int = 300
+    TRAZABILIDAD_INTERNAL_TOKEN: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",

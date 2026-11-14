@@ -6,3 +6,6 @@ database:
 
 sqs:
   existingSecret: solventa-dev-app-secrets
+
+audit:
+  existingSecret: solventa-dev-app-secrets

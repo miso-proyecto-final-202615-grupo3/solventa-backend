@@ -94,6 +94,15 @@ class InsurancePoliciesServiceGateway:
             )
         return response.content, response.headers.get("content-disposition")
 
+    async def consultar_trazabilidad_poliza(
+        self, numero: str, internal_token: str
+    ) -> dict[str, Any]:
+        return await self._request_poliza(
+            "GET",
+            f"{_PREFIJO}/auditoria-emision/polizas/numero/{numero}",
+            {"X-Audit-Internal-Token": internal_token},
+        )
+
     async def aclose(self) -> None:
         await self._client.aclose()
 

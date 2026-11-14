@@ -208,3 +208,24 @@ class EventoOutboxModel(Base):
     ultimo_error: Mapped[str | None] = mapped_column(String(500), nullable=True)
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     publicado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class EventoTrazabilidadPolizaModel(Base):
+    """Eventos append-only de firma y emisión de una cotización."""
+
+    __tablename__ = "eventos_trazabilidad_poliza"
+    __table_args__ = (
+        Index("ix_evento_trazabilidad_poliza_cotizacion_fecha", "cotizacion_id", "ocurrido_en"),
+    )
+
+    evento_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    cotizacion_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    cliente_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False, index=True)
+    tipo: Mapped[str] = mapped_column(String(40), nullable=False)
+    ocurrido_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    origen: Mapped[str] = mapped_column(String(80), nullable=False)
+    actor_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    resultado: Mapped[str] = mapped_column(String(40), nullable=False)
+    referencia_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    correlation_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    detalles: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)

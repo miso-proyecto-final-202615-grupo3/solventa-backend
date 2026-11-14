@@ -24,6 +24,9 @@ from src.infrastructure.gateways.quotingengine_http_client import QuotingEngineH
 from src.infrastructure.persistence.evento_outbox_repository_impl import (
     SqlAlchemyEventoOutboxRepository,
 )
+from src.infrastructure.persistence.auditoria_pago_repository_impl import (
+    SqlAlchemyAuditoriaPagoRepository,
+)
 from src.infrastructure.persistence.pago_prima_repository_impl import SqlAlchemyPagoPrimaRepository
 
 
@@ -67,6 +70,7 @@ def get_procesar_pago_prima_use_case(
 ) -> ProcesarPagoPrimaUseCase:
     return ProcesarPagoPrimaUseCase(
         SqlAlchemyPagoPrimaRepository(db),
+        SqlAlchemyAuditoriaPagoRepository(db),
         SqlAlchemyEventoOutboxRepository(db),
         cotizaciones,
         firmas,
@@ -87,3 +91,9 @@ def get_consultar_resumen_pago_use_case(
 
 def get_consultar_pago_use_case(db: AsyncSession = Depends(get_db)) -> ConsultarPagoUseCase:
     return ConsultarPagoUseCase(SqlAlchemyPagoPrimaRepository(db))
+
+
+def get_auditoria_pago_repository(
+    db: AsyncSession = Depends(get_db),
+) -> SqlAlchemyAuditoriaPagoRepository:
+    return SqlAlchemyAuditoriaPagoRepository(db)

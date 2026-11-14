@@ -286,6 +286,26 @@ en el BFF es `FIRMA_MAX_REQUEST_BYTES` (2 MiB por defecto); ajústalo si cambia
 El reenvío de `Authorization` no implica validación de identidad ni de propiedad de la
 cotización: esas verificaciones aún no están implementadas en estas rutas.
 
+## Trazabilidad de emisión (HU1.3.7)
+
+El BFF expone `GET /api/v1/bff-web/auditoria-emision?numero_poliza=POL-...`. La respuesta reúne, por
+`cotizacion_id`, las decisiones de condiciones, eventos KYC/AML, transiciones de pago, captura/vínculo
+de firma y emisión. Orden cronológico ascendente; si una fuente no responde, no se devuelve historial
+parcial. La pantalla de solo lectura está en `/operador/auditoria-emision`.
+
+El BFF valida la firma, emisor, expiración, `token_use=access`, app client y el grupo Cognito definido
+por `COGNITO_AUDITOR_GROUP` (por defecto `Auditor`). Configure también `COGNITO_REGION`,
+`COGNITO_USER_POOL_ID` y `COGNITO_CLIENT_ID`; cree/asigne el grupo `Auditor` en cada User Pool.
+Las lecturas internas de los microservicios requieren el mismo secreto aleatorio
+`TRAZABILIDAD_INTERNAL_TOKEN` en BFF, Identity, Quoting Engine, Payments e Insurance Policies.
+En despliegues, agregue ese valor a `dev/solventa-backend/app-secrets`, `qa/...` y `prod/...` en AWS
+Secrets Manager; los manifiestos ExternalSecret lo proyectan a los pods. Sin secreto, las rutas
+internas rechazan consultas.
+
+Cada servicio registra eventos append-only en su propio esquema y transacción. El modelo común de
+respuesta y el mapa de fuentes están en `docs/hu1.3.7-trazabilidad-emision.md`. No se guardan
+documentos, imágenes de firma, credenciales, tarjetas ni respuestas crudas de proveedores.
+
 El almacenamiento se elige con `FIRMA_STORAGE`: `s3` (por defecto; bucket privado `S3_BUCKET_NAME`, SSE-S3,
 credenciales por la cadena por defecto de boto3) o `local` (bajo `FIRMA_LOCAL_BASE_DIR`, por defecto `/tmp`).
 En ambos casos la ruta es `firma-digital/{cliente_id}/{firma_id}/firma.{png|jpg}`. `FIRMA_MAX_BYTES`

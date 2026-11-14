@@ -5,7 +5,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.condiciones.decision_condiciones_repository import DecisionCondicionesRepository
 from src.domain.condiciones.entities import Decision, DecisionCondiciones
-from src.infrastructure.persistence.models import DecisionCondicionesModel
+from src.infrastructure.persistence.models import (
+    CondicionesCotizacionModel,
+    DecisionCondicionesModel,
+)
 
 
 class SqlAlchemyDecisionCondicionesRepository(DecisionCondicionesRepository):
@@ -39,3 +42,28 @@ class SqlAlchemyDecisionCondicionesRepository(DecisionCondicionesRepository):
             decision=Decision(model.decision),
             decidida_en=model.decidida_en,
         )
+
+    async def listar_por_cotizacion(self, cotizacion_id: uuid.UUID) -> list[DecisionCondiciones]:
+        result = await self.session.execute(
+            select(DecisionCondicionesModel)
+            .join(
+                CondicionesCotizacionModel,
+                CondicionesCotizacionModel.condiciones_cotizacion_id
+                == DecisionCondicionesModel.condiciones_cotizacion_id,
+            )
+            .where(CondicionesCotizacionModel.cotizacion_id == cotizacion_id)
+            .order_by(
+                DecisionCondicionesModel.decidida_en,
+                DecisionCondicionesModel.decision_condiciones_id,
+            )
+        )
+        return [
+            DecisionCondiciones(
+                decision_condiciones_id=model.decision_condiciones_id,
+                condiciones_cotizacion_id=model.condiciones_cotizacion_id,
+                cliente_id=model.cliente_id,
+                decision=Decision(model.decision),
+                decidida_en=model.decidida_en,
+            )
+            for model in result.scalars().all()
+        ]

@@ -1,5 +1,7 @@
 import uuid
 from abc import ABC, abstractmethod
+
+from src.domain.eventos.trazabilidad import EventoTrazabilidadPoliza
 from datetime import datetime
 
 from src.domain.eventos.entities import EventoOutbox
@@ -22,4 +24,16 @@ class EventoOutboxRepository(ABC):
 
     @abstractmethod
     async def registrar_fallo(self, evento_id: uuid.UUID, detalle: str) -> None:
+        raise NotImplementedError
+
+
+class AuditoriaPolizaRepository(ABC):
+    @abstractmethod
+    async def agregar(self, evento: EventoTrazabilidadPoliza) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def listar_por_cotizacion(
+        self, cotizacion_id: uuid.UUID
+    ) -> list[EventoTrazabilidadPoliza]:
         raise NotImplementedError

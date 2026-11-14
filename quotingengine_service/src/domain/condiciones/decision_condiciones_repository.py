@@ -12,3 +12,7 @@ class DecisionCondicionesRepository(ABC):
     @abstractmethod
     async def obtener_ultima(self, condiciones_id: uuid.UUID) -> DecisionCondiciones | None:
         raise NotImplementedError
+
+    @abstractmethod
+    async def listar_por_cotizacion(self, cotizacion_id: uuid.UUID) -> list[DecisionCondiciones]:
+        raise NotImplementedError

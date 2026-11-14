@@ -15,7 +15,8 @@ from src.application.ports.cotizaciones import (
 from src.application.ports.titulares import Titular, TitularGateway
 from src.domain.eventos.entities import EventoOutbox
 from src.domain.eventos.mensajes import TIPO_POLIZA_EMITIDA, PagoAprobado, payload_poliza_emitida
-from src.domain.eventos.repositories import EventoOutboxRepository
+from src.domain.eventos.repositories import AuditoriaPolizaRepository, EventoOutboxRepository
+from src.domain.eventos.trazabilidad import EventoTrazabilidadPoliza
 from src.domain.firmas.repositories import FirmaDigitalRepository
 from src.domain.polizas.entities import (
     ESTADO_POLIZA_EMITIDA,
@@ -134,6 +135,7 @@ class EmitirPolizaUseCase:
         rollback: Callable[[], Awaitable[None]],
         ahora: Callable[[], datetime] = lambda: datetime.now(UTC),
         generar_numero: Callable[[datetime], str] = numero_de_poliza,
+        auditoria: AuditoriaPolizaRepository | None = None,
     ) -> None:
         self.polizas = polizas
         self.firmas = firmas
@@ -144,6 +146,7 @@ class EmitirPolizaUseCase:
         self._rollback = rollback
         self._ahora = ahora
         self._generar_numero = generar_numero
+        self.auditoria = auditoria
 
     async def ejecutar(self, pago: PagoAprobado, correlation_id: str) -> ResultadoEmision:
         existente = await self.polizas.obtener_por_cotizacion(pago.cotizacion_id)
@@ -153,15 +156,47 @@ class EmitirPolizaUseCase:
         firma = await self.firmas.obtener_activa_por_cotizacion(pago.cotizacion_id)
         if firma is None or firma.cliente_id != pago.cliente_id:
             raise FirmaRequeridaError("La cotización no tiene una firma digital del cliente.")
+        eventos_trazabilidad: list[EventoTrazabilidadPoliza] = []
+        if self.auditoria is not None:
+            eventos_trazabilidad.append(
+                self._evento_trazabilidad(
+                    pago,
+                    "VALIDACION_FIRMA",
+                    "VALIDA",
+                    str(firma.firma_id),
+                    correlation_id,
+                )
+            )
 
         cotizacion = await self.cotizaciones.obtener_cotizacion(pago.cotizacion_id, correlation_id)
         self._validar_pago(pago, cotizacion)
+        if self.auditoria is not None:
+            eventos_trazabilidad.append(
+                self._evento_trazabilidad(
+                    pago,
+                    "VALIDACION_PAGO",
+                    "VALIDO",
+                    str(pago.pago_id),
+                    correlation_id,
+                    detalles={"monto": str(pago.monto), "moneda": pago.moneda},
+                )
+            )
         producto = await self.cotizaciones.obtener_producto(cotizacion.producto_codigo, correlation_id)
         condiciones = await self.cotizaciones.obtener_condiciones(pago.cotizacion_id, correlation_id)
         titular = await self.titulares.obtener(pago.cliente_id, correlation_id)
         if not cotizacion.coberturas:
             raise DatosEmisionInvalidosError("La cotización no tiene coberturas.")
         vigencia_desde, vigencia_hasta = _vigencia(condiciones)
+        if self.auditoria is not None:
+            eventos_trazabilidad.append(
+                self._evento_trazabilidad(
+                    pago,
+                    "VALIDACION_COTIZACION",
+                    "VALIDA",
+                    str(pago.cotizacion_id),
+                    correlation_id,
+                )
+            )
 
         emitida_en = self._ahora()
         poliza = Poliza(
@@ -193,11 +228,40 @@ class EmitirPolizaUseCase:
         )
 
         try:
+            for evento in eventos_trazabilidad:
+                await self.auditoria.agregar(evento)
             await self.polizas.guardar(poliza)
             await self.polizas.guardar_contrato(contrato)
             if not await self.firmas.vincular_a_poliza(firma.firma_id, poliza.poliza_id):
                 raise FirmaRequeridaError("La firma de la cotización cambió durante la emisión.")
             await self.eventos.agregar(self._evento_poliza_emitida(poliza, cotizacion, correlation_id))
+            if self.auditoria is not None:
+                await self.auditoria.agregar(
+                    EventoTrazabilidadPoliza(
+                        cotizacion_id=poliza.cotizacion_id,
+                        cliente_id=poliza.cliente_id,
+                        tipo="FIRMA_VINCULADA",
+                        ocurrido_en=emitida_en,
+                        origen="insurancepolicies_service",
+                        resultado="VINCULADA",
+                        referencia_id=str(firma.firma_id),
+                        correlation_id=correlation_id,
+                        detalles={"poliza_id": str(poliza.poliza_id)},
+                    )
+                )
+                await self.auditoria.agregar(
+                    EventoTrazabilidadPoliza(
+                        cotizacion_id=poliza.cotizacion_id,
+                        cliente_id=poliza.cliente_id,
+                        tipo="POLIZA_EMITIDA",
+                        ocurrido_en=emitida_en,
+                        origen="insurancepolicies_service",
+                        resultado=ESTADO_POLIZA_EMITIDA,
+                        referencia_id=str(poliza.poliza_id),
+                        correlation_id=correlation_id,
+                        detalles={"numero_poliza": poliza.numero},
+                    )
+                )
             await self._commit()
         except PolizaDuplicadaError:
             # Otra entrega del mismo mensaje ganó la carrera: su póliza es la válida.
@@ -216,6 +280,28 @@ class EmitirPolizaUseCase:
             correlation_id,
         )
         return ResultadoEmision(poliza=poliza, creada=True)
+
+    def _evento_trazabilidad(
+        self,
+        pago: PagoAprobado,
+        tipo: str,
+        resultado: str,
+        referencia_id: str,
+        correlation_id: str,
+        *,
+        detalles: dict[str, Any] | None = None,
+    ) -> EventoTrazabilidadPoliza:
+        return EventoTrazabilidadPoliza(
+            cotizacion_id=pago.cotizacion_id,
+            cliente_id=pago.cliente_id,
+            tipo=tipo,
+            ocurrido_en=self._ahora(),
+            origen="insurancepolicies_service",
+            resultado=resultado,
+            referencia_id=referencia_id,
+            correlation_id=correlation_id,
+            detalles=detalles or {},
+        )
 
     @staticmethod
     def _validar_pago(pago: PagoAprobado, cotizacion: CotizacionEmision) -> None:

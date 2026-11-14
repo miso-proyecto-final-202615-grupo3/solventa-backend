@@ -50,6 +50,11 @@ cognito:
     - COGNITO_USER_POOL_ID
     - COGNITO_CLIENT_ID
 
+audit:
+  enabled: true
+  existingSecret: secret-name
+  secretKey: TRAZABILIDAD_INTERNAL_TOKEN
+
 redis:
   enabled: true
   existingSecret: secret-name

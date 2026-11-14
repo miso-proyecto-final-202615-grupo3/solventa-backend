@@ -4,6 +4,8 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from src.domain.eventos.repositories import AuditoriaPolizaRepository
+from src.domain.eventos.trazabilidad import EventoTrazabilidadPoliza
 from src.domain.firmas.entities import (
     ArchivoFirma,
     EstadoFirma,
@@ -47,6 +49,7 @@ class CapturarFirmaDigitalUseCase:
         rollback: Callable[[], Awaitable[None]],
         tamano_maximo: int,
         proveedor_firma: str,
+        auditoria: AuditoriaPolizaRepository | None = None,
     ) -> None:
         self.firmas = firmas
         self.almacenamiento = almacenamiento
@@ -54,6 +57,7 @@ class CapturarFirmaDigitalUseCase:
         self._rollback = rollback
         self.tamano_maximo = tamano_maximo
         self.proveedor_firma = proveedor_firma
+        self.auditoria = auditoria
 
     async def ejecutar(
         self,
@@ -108,6 +112,20 @@ class CapturarFirmaDigitalUseCase:
             # carrera, falla antes de escribir en el almacenamiento.
             await self.almacenamiento.guardar(firma.ruta_imagen, archivo)
             archivo_guardado = True
+            if self.auditoria is not None:
+                await self.auditoria.agregar(
+                    EventoTrazabilidadPoliza(
+                        cotizacion_id=cotizacion_id,
+                        cliente_id=cliente_id,
+                        tipo="FIRMA_CAPTURADA",
+                        ocurrido_en=capturada_en,
+                        origen="insurancepolicies_service",
+                        resultado=EstadoFirma.CAPTURADA.value,
+                        referencia_id=str(firma_id),
+                        correlation_id=correlation_id,
+                        detalles={"proveedor": self.proveedor_firma},
+                    )
+                )
             await self._commit()
         except FirmaDuplicadaError:
             await self._rollback()

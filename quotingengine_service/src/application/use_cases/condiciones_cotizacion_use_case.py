@@ -79,3 +79,6 @@ class CondicionesCotizacionUseCase:
 
     async def ultima_decision(self, condiciones_id: uuid.UUID) -> DecisionCondiciones | None:
         return await self.decisiones.obtener_ultima(condiciones_id)
+
+    async def decisiones_por_cotizacion(self, cotizacion_id: uuid.UUID) -> list[DecisionCondiciones]:
+        return await self.decisiones.listar_por_cotizacion(cotizacion_id)

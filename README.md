@@ -13,7 +13,7 @@ ambiente y su imagen Docker. Cada servicio se despliega como un pod independient
 | `identity_service` | Identidad y registro de clientes | `/api/v1/identity-service` |
 | `quotingengine_service` | Motor de cotización y suscripción | `/api/v1/quotingengine-service` |
 | `insurancepolicies_service` | Gestión de pólizas, firma digital manuscrita (HU1.3.5), emisión de la póliza y certificado PDF (HU1.3.6) | `/api/v1/insurancepolicies-service` |
-| `insuranceclaims_service` | Gestión de siniestros: reporte del siniestro asistido (HU4.1.1) | `/api/v1/insuranceclaims-service` |
+| `insuranceclaims_service` | Gestión de siniestros: reporte del siniestro asistido (HU4.1.1), evidencias y ubicación (HU4.1.2) | `/api/v1/insuranceclaims-service` |
 | `payments_service` | Pago de la prima inicial con PayPal o tarjeta de crédito (HU1.3.4) | `/api/v1/payments-service` |
 | `liveness_adapter` | Adaptador de retos y verificación de prueba de vida | `/api/v1/liveness-adapter` |
 
@@ -365,6 +365,29 @@ curl -X PUT -H "X-Admin-Token: $LIVENESS_ADMIN_TOKEN" -H "Content-Type: applicat
   (dentro de la red de compose) y `python -m pytest insuranceclaims_service/tests -m postgres`.
 - Plan y decisiones: [docs/planning/HU4.1.1-plan-tecnico.md](docs/planning/HU4.1.1-plan-tecnico.md); contrato canónico:
   [docs/contracts/siniestros](docs/contracts/siniestros).
+
+## Evidencias y ubicación del siniestro (HU4.1.2)
+
+- Cada foto o video es independiente (una que falle no afecta al siniestro ni a las demás):
+  1. `POST /api/v1/bff-mobile/siniestros/{id}/evidencias` `{tipo: FOTO|VIDEO, content_type, tamano_bytes, origen, capturada_en}`
+     → `201 {evidencia_id, estado: PENDIENTE, carga: {url, campos, expira_en, tamano_max_bytes}}`.
+  2. La app sube el archivo **directo al almacenamiento**: `POST {carga.url}` multipart con todos los `campos` y la parte `file` al final.
+  3. `POST /api/v1/bff-mobile/siniestros/{id}/evidencias/{evidencia_id}/confirmacion` → el servicio verifica tamaño,
+     tipo, cifrado y los primeros bytes; `CARGADA`, o `422 EVIDENCIA_RECHAZADA` y borra el objeto.
+- `PUT /api/v1/bff-mobile/siniestros/{id}/ubicacion` `{latitud, longitud, precision_m, fuente: GPS|RED|ULTIMA_CONOCIDA, capturada_en}`.
+- `GET /api/v1/bff-mobile/siniestros/{id}` incluye `ubicacion` y `evidencias`.
+- **URL prefirmada (`POST` con política):** la firma fija la llave exacta, el `Content-Type`, el rango de tamaño
+  (foto ≤ 5 MB, video ≤ 50 MB) y el cifrado; vence en 10 min (foto) o 30 min (video). Cantidades por tipo de siniestro:
+  tabla `tipo_siniestro`.
+- **Local:** MinIO en `docker compose` (`http://localhost:9000`, consola en `:9001`, bucket `solventa-local-storage`,
+  SSE `AES256`). La app recibe URLs firmadas con `S3_PUBLIC_ENDPOINT_URL` (`http://10.0.2.2:9000` desde el emulador).
+  La imagen oficial de MinIO ya no se publica en Docker Hub: se usa `bitnamilegacy/minio`, solo para desarrollo.
+- **AWS:** bucket `storage_bucket` con SSE-KMS (secretos `S3_BUCKET_NAME` y `KMS_KEY_ARN`) y credenciales por EKS Pod
+  Identity. Permisos necesarios del rol: sección 7.1 de [docs/planning/HU4.1.2-plan-tecnico.md](docs/planning/HU4.1.2-plan-tecnico.md).
+- **Base existente:** aplicar `scripts/sql/insuranceclaims_hu4_1_2.sql` (idempotente) después del de HU4.1.1.
+- Pruebas contra infraestructura real (dentro de la red de compose): `TEST_POSTGRES_URL=postgresql+asyncpg://postgres:postgres@db:5432/identity_db`,
+  `TEST_S3_ENDPOINT_URL=http://minio:9000` y las credenciales de MinIO en `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`.
+- Contrato canónico: [docs/contracts/evidencias](docs/contracts/evidencias).
 
 ## Cognito en local vs. EKS
 

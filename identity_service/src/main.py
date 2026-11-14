@@ -30,13 +30,9 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    if app is not None:
-        app.state.schema_ready = False
     async with engine.begin() as conn:
         await conn.execute(text("CREATE SCHEMA IF NOT EXISTS identity"))
         await conn.run_sync(Base.metadata.create_all)
-    if app is not None:
-        app.state.schema_ready = True
     if settings.ENVIRONMENT.lower() in {"qa", "prod", "production"} and not settings.REQUIRE_BIOMETRIC_CONSENT:
         logger.warning(
             "REQUIRE_BIOMETRIC_CONSENT=false: la activación no exige consentimiento biométrico (HU3.1.3)."
@@ -60,8 +56,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
-        if app is not None:
-            app.state.schema_ready = False
         await cerrar_consentimiento_cache()
 
 

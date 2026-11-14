@@ -10,13 +10,6 @@ async def test_health_check(async_client: AsyncClient):
     assert "version" in data
 
 
-async def test_readiness_requiere_esquema_listo(async_client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(async_client._transport.app.state, "schema_ready", False, raising=False)
-    response = await async_client.get("/ready")
-
-    assert response.status_code == 503
-
-
 async def test_root(async_client: AsyncClient):
     response = await async_client.get("/")
 

@@ -5,6 +5,7 @@ from decimal import Decimal
 import pytest
 from emision_fakes import (
     AHORA,
+    AuditoriaPolizaEnMemoria,
     CLIENTE_ID,
     COBERTURA_ID,
     COTIZACION_ID,
@@ -52,6 +53,7 @@ class Escenario:
         self.polizas = PolizasEnMemoria()
         self.firmas = FirmasEnMemoria(self.firma) if firma_vigente else FirmasEnMemoria()
         self.eventos = EventosEnMemoria()
+        self.auditoria = AuditoriaPolizaEnMemoria()
         self.cotizaciones = CotizacionesFalsas()
         self.titulares = TitularesFalsos()
         self.tx = Transaccion()
@@ -65,6 +67,7 @@ class Escenario:
             self.tx.rollback,
             ahora=lambda: AHORA,
             generar_numero=lambda emitida_en: "POL-20261113-AAAA0001",
+            auditoria=self.auditoria,
         )
 
     async def emitir(self, pago=PAGO):
@@ -138,6 +141,13 @@ async def test_vincula_la_firma_y_deja_el_evento_poliza_emitida_en_el_outbox():
     assert mensaje.numero == "POL-20261113-AAAA0001" and mensaje.correlation_id == "corr-1"
     assert evento.payload["evento_id"] == str(evento.evento_id)
     assert evento.payload["datos"]["prima_total"] == "1416100.00"
+    assert [evento.tipo for evento in e.auditoria.eventos] == [
+        "VALIDACION_FIRMA",
+        "VALIDACION_PAGO",
+        "VALIDACION_COTIZACION",
+        "FIRMA_VINCULADA",
+        "POLIZA_EMITIDA",
+    ]
     assert evento.payload["datos"]["moneda"] == "COP"
     assert evento.payload["datos"]["producto_id"] == str(PRODUCTO_ID)
 

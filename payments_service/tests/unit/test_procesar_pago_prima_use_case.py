@@ -5,6 +5,7 @@ from decimal import Decimal
 import pytest
 from pagos_fakes import (
     AHORA,
+    AuditoriaPagoEnMemoria,
     CLIENTE_ID,
     COTIZACION_ID,
     CotizacionesFalsas,
@@ -51,6 +52,7 @@ class Escenario:
     def __init__(self, *, proveedor=None, firmas=None, requiere_firma=True, **cotizaciones) -> None:
         self.ahora = AHORA
         self.pagos = RepoPagosEnMemoria()
+        self.auditoria = AuditoriaPagoEnMemoria()
         self.eventos = EventosEnMemoria()
         self.cotizaciones = CotizacionesFalsas(**cotizaciones)
         self.firmas = firmas or FirmasFalsas()
@@ -63,6 +65,7 @@ class Escenario:
         self.tx = Transaccion()
         self.caso = ProcesarPagoPrimaUseCase(
             self.pagos,
+            self.auditoria,
             self.eventos,
             self.cotizaciones,
             self.firmas,
@@ -110,6 +113,11 @@ async def test_pago_aprobado_guarda_el_monto_de_la_cotizacion_y_publica_el_event
         "metodo_pago": "PAYPAL",
         "proveedor_referencia": "PP-1",
     }
+    assert [evento.tipo for evento in e.auditoria.eventos] == [
+        "PAGO_INICIADO",
+        "PAGO_RESULTADO",
+    ]
+    assert [evento.resultado for evento in e.auditoria.eventos] == ["PENDIENTE", "APROBADO"]
     assert evento.payload["evento_id"] == str(evento.evento_id)
     assert evento.payload["correlation_id"] == CORRELACION
     assert e.tx.commits == 2 and e.tx.rollbacks == 0

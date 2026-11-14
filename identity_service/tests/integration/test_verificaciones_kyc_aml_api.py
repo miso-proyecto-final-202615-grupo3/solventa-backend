@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from src.application.ports.kyc_aml import KycAmlProvider, ProveedorKycAmlError
+from src.application.ports.cotizacion_kyc import CotizacionKycGateway
 from src.core.config import settings
 from src.core.database import Base
 from src.domain.clientes.value_objects import EstadoKYC
@@ -30,6 +31,7 @@ from src.infrastructure.storage.documento_verificacion_local_repository import (
 from src.main import app
 from src.presentation.dependencies import (
     get_db,
+    get_cotizacion_kyc_gateway,
     get_documento_verificacion_repository,
     get_kyc_aml_provider,
 )
@@ -77,6 +79,11 @@ class FakeProveedor(KycAmlProvider):
         return ResultadoProveedor(self.kyc, self.aml, {"kyc_status": self.kyc.value})
 
 
+class FakeCotizaciones(CotizacionKycGateway):
+    async def validar_cliente(self, cotizacion_id, cliente_id, correlation_id):
+        return None
+
+
 @pytest.fixture
 def documentos():
     return FakeDocumentos()
@@ -106,9 +113,13 @@ async def api(documentos, proveedor):
     async def override_proveedor():
         yield proveedor
 
+    async def override_cotizaciones():
+        yield FakeCotizaciones()
+
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_documento_verificacion_repository] = lambda: documentos
     app.dependency_overrides[get_kyc_aml_provider] = override_proveedor
+    app.dependency_overrides[get_cotizacion_kyc_gateway] = override_cotizaciones
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client, factory
     app.dependency_overrides.clear()
@@ -167,6 +178,49 @@ async def test_inicia_verificacion_y_audita_el_intento(api, documentos, proveedo
     assert fila.ruta_documento_frontal.startswith(f"s3://bucket/verificaciones-kyc-aml/{cliente_id}/{fila.id}/")
     assert fila.respuesta_inicio == {"verification_id": fila.proveedor_verificacion_id}
     assert await _estado_cliente(factory, cliente_id) == EstadoKYC.PENDIENTE
+
+
+async def test_trazabilidad_kyc_aml_se_consulta_por_cotizacion_y_exige_token_interno(
+    api, proveedor, monkeypatch
+):
+    client, factory = api
+    cliente_id = await _cliente(factory)
+    cotizacion_id = uuid.uuid4()
+    monkeypatch.setattr(settings, "TRAZABILIDAD_INTERNAL_TOKEN", "token-interno")
+
+    inicio = await client.post(
+        URL.format(cliente_id),
+        data={"cotizacion_id": str(cotizacion_id)},
+        files=_archivos(),
+    )
+    assert inicio.status_code == 202
+    verificacion_id = inicio.json()["verificacion_id"]
+
+    resultado = await client.get(f"{URL.format(cliente_id)}/{verificacion_id}")
+    assert resultado.status_code == 200
+
+    sin_token = await client.get(
+        f"/api/v1/identity-service/cotizaciones/{cotizacion_id}/trazabilidad-kyc-aml"
+    )
+    assert sin_token.status_code == 403
+
+    response = await client.get(
+        f"/api/v1/identity-service/cotizaciones/{cotizacion_id}/trazabilidad-kyc-aml",
+        headers={"X-Audit-Internal-Token": "token-interno"},
+    )
+
+    assert response.status_code == 200
+    eventos = response.json()
+    assert [evento["tipo"] for evento in eventos] == [
+        "KYC_AML_SOLICITADA",
+        "KYC_AML_INICIADA",
+        "KYC_AML_RESULTADO",
+    ]
+    assert all(evento["cotizacion_id"] == str(cotizacion_id) for evento in eventos)
+    assert eventos[0]["resultado"] == "INICIANDO"
+    assert eventos[1]["resultado"] == "INICIADA"
+    assert eventos[2]["resultado"] == "APROBADA"
+    assert eventos[2]["detalles"] == {"kyc": "APROBADO", "aml": "APROBADO"}
 
 
 async def test_inicia_con_almacenamiento_local_y_audita_rutas(
@@ -248,6 +302,7 @@ async def test_exige_los_dos_documentos(api):
         (b"", "image/jpeg", "DOCUMENTO_VACIO", 422),
         (JPEG + b"0" * (5 * 1024 * 1024), "image/jpeg", "DOCUMENTO_DEMASIADO_GRANDE", 413),
     ],
+    ids=["pdf", "contenido-invalido", "vacio", "excede-tamano"],
 )
 async def test_valida_tipo_y_tamano(api, documentos, frontal, tipo, codigo, http):
     client, factory = api

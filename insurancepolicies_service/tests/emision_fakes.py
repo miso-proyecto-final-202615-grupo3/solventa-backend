@@ -24,7 +24,8 @@ from src.domain.certificados.repositories import (
     GeneracionEnCursoDuplicadaError,
 )
 from src.domain.eventos.entities import EventoOutbox
-from src.domain.eventos.repositories import EventoOutboxRepository
+from src.domain.eventos.repositories import AuditoriaPolizaRepository, EventoOutboxRepository
+from src.domain.eventos.trazabilidad import EventoTrazabilidadPoliza
 from src.domain.firmas.entities import EstadoFirma, FirmaDigital
 from src.domain.firmas.repositories import AlmacenamientoFirmaRepository, FirmaDigitalRepository
 from src.domain.polizas.entities import ContratoPoliza, EstadoCertificado, Poliza
@@ -187,6 +188,17 @@ class EventosEnMemoria(EventoOutboxRepository):
 
     async def registrar_fallo(self, evento_id, detalle):
         raise NotImplementedError
+
+
+class AuditoriaPolizaEnMemoria(AuditoriaPolizaRepository):
+    def __init__(self) -> None:
+        self.eventos: list[EventoTrazabilidadPoliza] = []
+
+    async def agregar(self, evento):
+        self.eventos.append(evento)
+
+    async def listar_por_cotizacion(self, cotizacion_id):
+        return [evento for evento in self.eventos if evento.cotizacion_id == cotizacion_id]
 
 
 class CotizacionesFalsas(CotizacionGateway):

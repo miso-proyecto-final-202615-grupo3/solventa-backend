@@ -181,6 +181,7 @@ async def test_requiere_clave_de_idempotencia_valida(client: AsyncClient):
         (b"", "image/png", 422, "FIRMA_VACIA"),
         (PNG + b"x" * (1024 * 1024), "image/png", 413, "FIRMA_DEMASIADO_GRANDE"),
     ],
+    ids=["tipo-invalido", "contenido-invalido", "vacio", "excede-tamano"],
 )
 async def test_rechaza_archivos_invalidos(
     client: AsyncClient, db_session: AsyncSession, contenido, content_type, status_esperado, codigo

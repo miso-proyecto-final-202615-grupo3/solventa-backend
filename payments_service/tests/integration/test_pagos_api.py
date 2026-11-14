@@ -21,8 +21,13 @@ from src.application.ports.proveedor_pago import (
     SolicitudInvalidaError,
 )
 from src.application.ports.servicios import ServicioNoDisponibleError
+from src.core.config import settings
 from src.domain.pagos.entities import MetodoPago
-from src.infrastructure.persistence.models import EventoOutboxModel, PagoPrimaModel
+from src.infrastructure.persistence.models import (
+    EventoOutboxModel,
+    EventoTrazabilidadPagoModel,
+    PagoPrimaModel,
+)
 from src.main import app
 from src.presentation.dependencies import (
     get_cotizacion_gateway,
@@ -144,6 +149,33 @@ async def test_pago_con_paypal_por_defecto_se_aprueba_y_deja_el_evento_en_el_out
     assert (evento.tipo, evento.estado, evento.agregado_id) == ("PagoAprobado", "PENDIENTE", pago.pago_id)
     assert evento.payload["datos"]["pago_id"] == cuerpo["pago_id"]
     assert evento.payload["datos"]["monto"] == "1250000.51"
+
+
+async def test_auditoria_pago_es_append_only_y_solo_lectura_interna(
+    client, monkeypatch
+):
+    monkeypatch.setattr(settings, "TRAZABILIDAD_INTERNAL_TOKEN", "secreto-interno")
+    pago = await _pagar(client, **{"X-Correlation-Id": "corr-auditoria"})
+    assert pago.status_code == 201
+
+    url = f"{PREFIJO}/cotizaciones/{COTIZACION_ID}/trazabilidad-pagos"
+    no_autorizada = await client.get(url)
+    assert no_autorizada.status_code == 403
+
+    response = await client.get(
+        url, headers={"X-Audit-Internal-Token": "secreto-interno"}
+    )
+
+    assert response.status_code == 200
+    eventos = response.json()
+    assert {evento["tipo"] for evento in eventos} == {"PAGO_INICIADO", "PAGO_RESULTADO"}
+    assert {evento["resultado"] for evento in eventos} == {"PENDIENTE", "APROBADO"}
+    assert all(evento["cotizacion_id"] == str(COTIZACION_ID) for evento in eventos)
+    assert all(evento["correlation_id"] == "corr-auditoria" for evento in eventos)
+    assert [evento["ocurrido_en"] for evento in eventos] == sorted(
+        evento["ocurrido_en"] for evento in eventos
+    )
+    assert all("credencial" not in str(evento) and "tarjeta" not in str(evento) for evento in eventos)
 
 
 async def test_pago_con_tarjeta(client, entorno, db_session: AsyncSession):

@@ -16,7 +16,12 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from src.domain.certificados.entities import EstadoGeneracion, GeneracionCertificado
+from src.domain.eventos.trazabilidad import EventoTrazabilidadPoliza
 from src.domain.certificados.repositories import AlmacenamientoCertificadoError
+from src.core.config import settings
+from src.infrastructure.persistence.auditoria_poliza_repository_impl import (
+    SqlAlchemyAuditoriaPolizaRepository,
+)
 from src.domain.polizas.entities import EstadoCertificado, PolizaCobertura
 from src.infrastructure.persistence.generacion_certificado_repository_impl import (
     SqlAlchemyGeneracionCertificadoRepository,
@@ -98,6 +103,37 @@ async def test_resumen_de_la_poliza_por_cotizacion(client, session_factory):
         "moneda": "COP",
         "estado_certificado": "PENDIENTE",
     }
+
+
+async def test_auditoria_emision_busca_por_numero_y_requiere_token_interno(
+    client, session_factory, monkeypatch
+):
+    poliza = await sembrar(session_factory)
+    monkeypatch.setattr(settings, "TRAZABILIDAD_INTERNAL_TOKEN", "secreto-interno")
+    async with session_factory() as session:
+        await SqlAlchemyAuditoriaPolizaRepository(session).agregar(
+            EventoTrazabilidadPoliza(
+                cotizacion_id=poliza.cotizacion_id,
+                cliente_id=poliza.cliente_id,
+                tipo="POLIZA_EMITIDA",
+                ocurrido_en=poliza.emitida_en,
+                origen="insurancepolicies_service",
+                resultado="EMITIDA",
+                referencia_id=str(poliza.poliza_id),
+                correlation_id="corr-emision",
+                detalles={"numero_poliza": poliza.numero},
+            )
+        )
+        await session.commit()
+
+    url = f"/api/v1/insurancepolicies-service/auditoria-emision/polizas/numero/{poliza.numero}"
+    assert (await client.get(url)).status_code == 403
+
+    response = await client.get(url, headers={"X-Audit-Internal-Token": "secreto-interno"})
+
+    assert response.status_code == 200
+    assert response.json()["cotizacion_id"] == str(poliza.cotizacion_id)
+    assert response.json()["eventos"][0]["tipo"] == "POLIZA_EMITIDA"
 
 
 async def test_resumen_sin_poliza_emitida_aun(client):

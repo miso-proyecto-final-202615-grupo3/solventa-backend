@@ -208,6 +208,38 @@ async def test_decisiones_sucesivas_preservan_auditoria(api_client: AsyncClient,
     assert len((await db_session.execute(select(DecisionCondicionesModel))).scalars().all()) == 2
 
 
+async def test_trazabilidad_condiciones_lista_decisiones_en_orden_y_exige_token(
+    api_client: AsyncClient, monkeypatch
+):
+    monkeypatch.setattr(settings, "TRAZABILIDAD_INTERNAL_TOKEN", "secreto-interno")
+    cotizacion = await crear_cotizacion(api_client)
+    url = f"{BASE}/{cotizacion['cotizacion_id']}/condiciones"
+    condiciones = (await api_client.get(url)).json()
+    for decision in ("ACEPTADA", "RECHAZADA"):
+        response = await api_client.post(
+            f"{url}/decisiones",
+            json={
+                "condiciones_cotizacion_id": condiciones["condiciones_cotizacion_id"],
+                "decision": decision,
+            },
+        )
+        assert response.status_code == 201
+
+    consulta = f"{BASE}/{cotizacion['cotizacion_id']}/trazabilidad-condiciones"
+    assert (await api_client.get(consulta)).status_code == 403
+
+    response = await api_client.get(
+        consulta, headers={"X-Audit-Internal-Token": "secreto-interno"}
+    )
+
+    assert response.status_code == 200
+    assert [evento["resultado"] for evento in response.json()] == [
+        "ACEPTADA",
+        "RECHAZADA",
+    ]
+    assert all(evento["cotizacion_id"] == cotizacion["cotizacion_id"] for evento in response.json())
+
+
 async def test_producto_sin_condiciones_no_se_cotiza(api_client: AsyncClient, db_session: AsyncSession):
     await db_session.execute(
         update(ProductoSeguroModel).where(ProductoSeguroModel.codigo == "SEGURO_VIAJE")

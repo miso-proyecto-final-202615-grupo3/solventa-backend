@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     COGNITO_USERINFO_TIMEOUT_SECONDS: float = 3.0
     COGNITO_USERINFO_CACHE_SECONDS: int = 300
     QUOTINGENGINE_SERVICE_URL: str = "http://localhost:8000"
+    INSURANCECLAIMS_SERVICE_URL: str = "http://localhost:8005"
+    CLAIMS_TIMEOUT_SECONDS: float = 8.0
+    CLIENTE_ID_CACHE_SECONDS: int = 300
     OTEL_EXPORTER_OTLP_ENDPOINT: str = "http://localhost:4317"
 
     model_config = SettingsConfigDict(

@@ -1,7 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, EmailStr, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class LoginRequest(BaseModel):
@@ -90,3 +90,59 @@ class RegistrarConsentimientoBiometricoResponse(BaseModel):
     decision: str
     version_terminos: str
     registrado_en: datetime
+
+
+# --- HU4.1.1 · Registrar un siniestro (contrato canónico: docs/planning/HU4.1.1-plan-tecnico.md §3) ---
+
+class EvidenciaReglas(BaseModel):
+    fotos_max: int = Field(ge=0)
+    videos_max: int = Field(ge=0)
+
+
+class TipoSiniestro(BaseModel):
+    codigo: str
+    nombre: str
+    evidencia: EvidenciaReglas
+
+
+class ProductoPoliza(BaseModel):
+    codigo: str
+    nombre: str
+
+
+class PolizaElegible(BaseModel):
+    poliza_id: uuid.UUID
+    numero: str
+    producto: ProductoPoliza
+    vigencia_desde: date
+    vigencia_hasta: date
+    tipos_siniestro: list[TipoSiniestro] = Field(min_length=1)
+
+
+class PolizasElegiblesResponse(BaseModel):
+    polizas: list[PolizaElegible]
+
+
+class ReportarSiniestroRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    poliza_id: uuid.UUID
+    tipo: str = Field(pattern=r"^[A-Z_]{3,40}$")
+    descripcion: str = Field(min_length=10, max_length=500)
+    ocurrido_en: AwareDatetime
+
+    @field_validator("descripcion", mode="before")
+    @classmethod
+    def _sin_espacios_extremos(cls, valor):
+        return valor.strip() if isinstance(valor, str) else valor
+
+
+class SiniestroResponse(BaseModel):
+    siniestro_id: uuid.UUID
+    numero: str
+    estado: str
+    poliza_id: uuid.UUID
+    poliza_numero: str | None
+    tipo: str
+    ocurrido_en: datetime
+    reportado_en: datetime

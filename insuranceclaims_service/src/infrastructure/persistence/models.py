@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from sqlalchemy import (
     JSON,
+    BigInteger,
     Boolean,
     CheckConstraint,
     DateTime,
@@ -95,6 +96,13 @@ class SiniestroModel(Base):
     poliza_numero: Mapped[str | None] = mapped_column(String(50), nullable=True)
     producto_codigo: Mapped[str | None] = mapped_column(String(50), nullable=True)
     huella_solicitud: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Ubicación del evento (HU4.1.2).
+    ubicacion_latitud: Mapped[Decimal | None] = mapped_column(Numeric(9, 6), nullable=True)
+    ubicacion_longitud: Mapped[Decimal | None] = mapped_column(Numeric(9, 6), nullable=True)
+    ubicacion_precision_m: Mapped[Decimal | None] = mapped_column(Numeric(8, 2), nullable=True)
+    ubicacion_fuente: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    ubicacion_capturada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    ubicacion_actualizada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (Index("ix_siniestro_cliente_reportado", "cliente_id", "reportado_en"),)
 
@@ -137,3 +145,31 @@ class TipoSiniestroModel(Base):
     videos_max: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     orden: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
+
+
+class EvidenciaSiniestroModel(Base):
+    """Evidencias del siniestro asistido (HU4.1.2): una fila por foto o video, con su estado."""
+
+    __tablename__ = "evidencia_siniestro"
+    __table_args__ = (
+        Index("ix_evidencia_siniestro_tipo_estado", "siniestro_id", "tipo", "estado"),
+        UniqueConstraint("siniestro_id", "clave_idempotencia", name="uq_evidencia_siniestro_clave"),
+    )
+
+    evidencia_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    siniestro_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey(_fk("siniestro.siniestro_id")), nullable=False, index=True
+    )
+    tipo: Mapped[str] = mapped_column(String(10), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    tamano_declarado: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    tamano_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    origen: Mapped[str] = mapped_column(String(10), nullable=False)
+    capturada_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    objeto_clave: Mapped[str] = mapped_column(String(300), nullable=False, unique=True)
+    estado: Mapped[str] = mapped_column(String(20), nullable=False)
+    solicitada_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expira_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    cargada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    motivo_rechazo: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    clave_idempotencia: Mapped[str | None] = mapped_column(String(36), nullable=True)

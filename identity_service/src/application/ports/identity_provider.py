@@ -31,5 +31,9 @@ class IdentityProvider(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def renovar_sesion(self, refresh_token: str) -> AutenticarResult:
+        raise NotImplementedError
+
+    @abstractmethod
     async def eliminar_usuario(self, correo: str) -> None:
         raise NotImplementedError

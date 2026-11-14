@@ -150,3 +150,13 @@ async def test_autentica_responde_cambio_de_password_obligatorio(provider):
 
     assert resultado.access_token == "access-123"
     assert client.challenge_calls[0]["ChallengeName"] == "NEW_PASSWORD_REQUIRED"
+
+
+async def test_renueva_sesion_con_refresh_token(provider):
+    identity, client = provider
+
+    resultado = await identity.renovar_sesion("refresh-123")
+
+    assert resultado.access_token == "access-123"
+    assert client.auth_calls[0]["AuthFlow"] == "REFRESH_TOKEN_AUTH"
+    assert client.auth_calls[0]["AuthParameters"] == {"REFRESH_TOKEN": "refresh-123"}

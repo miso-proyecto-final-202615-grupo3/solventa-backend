@@ -57,7 +57,9 @@ from src.presentation.dependencies import (
     get_registrar_cliente_use_case,
     get_iniciar_activacion_movil_use_case,
     get_verificar_activacion_movil_use_case,
+    get_identity_provider,
 )
+from src.application.ports.identity_provider import IdentityProvider
 from src.presentation.schemas import (
     AutenticarResponse,
     ActualizarConsentimientoRequest,
@@ -66,6 +68,7 @@ from src.presentation.schemas import (
     ConsentimientoResponse,
     EstadoConsentimientoBiometricoResponse,
     PasswordVerify,
+    RefreshSessionRequest,
     RegistrarConsentimientoBiometricoRequest,
     RegistrarConsentimientoBiometricoResponse,
     IniciarActivacionMovilRequest,
@@ -342,6 +345,26 @@ async def autenticar_cliente(
         access_token=resultado.access_token,
         id_token=resultado.id_token,
         refresh_token=resultado.refresh_token,
+        expires_in=resultado.expires_in,
+        token_type=resultado.token_type,
+    )
+
+
+@router.post("/renovar-sesion", response_model=AutenticarResponse, status_code=status.HTTP_200_OK)
+async def renovar_sesion(
+    payload: RefreshSessionRequest,
+    identity_provider: IdentityProvider = Depends(get_identity_provider),
+) -> AutenticarResponse:
+    try:
+        resultado = await identity_provider.renovar_sesion(payload.refresh_token)
+    except InvalidCredentialsError as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="La sesión ya no es válida.") from exc
+    except IdentityProviderError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="No se pudo renovar la sesión en este momento.") from exc
+    return AutenticarResponse(
+        access_token=resultado.access_token,
+        id_token=resultado.id_token,
+        refresh_token=resultado.refresh_token or payload.refresh_token,
         expires_in=resultado.expires_in,
         token_type=resultado.token_type,
     )

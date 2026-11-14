@@ -31,6 +31,12 @@ class IdentityServiceGateway:
             {"correo": correo, "password": password},
         )
 
+    async def renovar_sesion(self, refresh_token: str) -> dict:
+        return await self._post(
+            "/api/v1/identity-service/clientes/renovar-sesion",
+            {"refresh_token": refresh_token},
+        )
+
     async def obtener_resumen_movil(
         self, correo: str, installation_id: str | None
     ) -> dict:

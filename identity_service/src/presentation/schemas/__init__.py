@@ -6,6 +6,7 @@ from src.presentation.schemas.auditoria_schemas import (
 from src.presentation.schemas.auth_schemas import (
     AutenticarResponse,
     PasswordVerify,
+    RefreshSessionRequest,
 )
 from src.presentation.schemas.cliente_schemas import (
     ClienteCreate,
@@ -50,4 +51,5 @@ __all__ = [
     "ResumenMovilResponse",
     "VerificarActivacionMovilResponse",
     "PasswordVerify",
+    "RefreshSessionRequest",
 ]

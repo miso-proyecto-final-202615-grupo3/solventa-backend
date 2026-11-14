@@ -14,6 +14,12 @@ class LoginRequest(BaseModel):
     installation_id: uuid.UUID | None = None
 
 
+class RefreshSessionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    refresh_token: str = Field(min_length=1, max_length=4096)
+
+
 class ClienteMovil(BaseModel):
     id: uuid.UUID
     nombre: str

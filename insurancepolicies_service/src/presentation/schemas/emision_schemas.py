@@ -55,6 +55,14 @@ class EventoTrazabilidadPolizaResponse(BaseModel):
     detalles: dict[str, Any]
 
 
+class HistorialPolizaResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    tipo: str
+    ocurrido_en: datetime
+    resultado: str
+
+
 class ReferenciaTrazabilidadPolizaResponse(BaseModel):
     poliza_id: uuid.UUID
     numero: str

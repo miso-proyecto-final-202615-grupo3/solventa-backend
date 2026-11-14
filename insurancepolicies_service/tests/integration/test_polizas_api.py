@@ -5,8 +5,9 @@ from decimal import Decimal
 import pytest
 
 from src.domain.polizas.entities import Poliza, PolizaCobertura
+from src.domain.eventos.trazabilidad import EventoTrazabilidadPoliza
 from src.main import app
-from src.presentation.dependencies import get_poliza_repository
+from src.presentation.dependencies import get_auditoria_poliza_repository, get_poliza_repository
 
 CLIENTE_ID = uuid.uuid4()
 OTRO_CLIENTE_ID = uuid.uuid4()
@@ -49,10 +50,26 @@ class FakePolizaRepository:
         return next((p for p in self.polizas if p.poliza_id == poliza_id), None)
 
 
+class FakeAuditoriaRepository:
+    async def listar_por_cotizacion(self, cotizacion_id: uuid.UUID):
+        return [
+            EventoTrazabilidadPoliza(
+                cotizacion_id=cotizacion_id,
+                cliente_id=CLIENTE_ID,
+                tipo="POLIZA_EMITIDA",
+                ocurrido_en=datetime(2026, 1, 1, tzinfo=UTC),
+                origen="insurancepolicies_service",
+                resultado="EMITIDA",
+                referencia_id=str(POLIZA_ID),
+            )
+        ]
+
+
 @pytest.fixture
 def repository():
     repository = FakePolizaRepository([_poliza()])
     app.dependency_overrides[get_poliza_repository] = lambda: repository
+    app.dependency_overrides[get_auditoria_poliza_repository] = FakeAuditoriaRepository
     yield repository
     app.dependency_overrides.clear()
 
@@ -66,6 +83,7 @@ async def test_lista_solo_las_polizas_del_cliente(async_client, repository):
     assert response.json()[0]["numero"] == "POL-0001"
     assert response.json()[0]["prima_total"] == "12000.50"
     assert response.json()[0]["ramo"] == "VIAJE"
+    assert response.json()[0]["historial"][0]["tipo"] == "POLIZA_EMITIDA"
 
 
 async def test_cliente_no_puede_consultar_poliza_de_otro_cliente(async_client, repository):
@@ -83,3 +101,4 @@ async def test_cliente_consulta_el_detalle_de_su_poliza(async_client, repository
 
     assert response.status_code == 200
     assert response.json()["coberturas"][0]["deducible"] == "50000.00"
+    assert response.json()["historial"][0]["resultado"] == "EMITIDA"

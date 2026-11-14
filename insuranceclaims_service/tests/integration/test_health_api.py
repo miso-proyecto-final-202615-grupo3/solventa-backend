@@ -31,6 +31,9 @@ async def test_docs_y_openapi(async_client: AsyncClient):
         f"{base}/siniestros/polizas-elegibles",
         f"{base}/siniestros/{{siniestro_id}}",
         f"{base}/tipos-siniestro",
+        f"{base}/siniestros/{{siniestro_id}}/evidencias",
+        f"{base}/siniestros/{{siniestro_id}}/evidencias/{{evidencia_id}}/confirmacion",
+        f"{base}/siniestros/{{siniestro_id}}/ubicacion",
     }
 
 

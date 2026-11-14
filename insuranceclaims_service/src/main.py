@@ -13,7 +13,7 @@ from src.infrastructure.persistence import models  # noqa: F401
 from src.infrastructure.persistence.seed_tipos_siniestro import sembrar_tipos_siniestro
 from src.domain.siniestros.errores import ErrorSiniestro
 from src.presentation.errors import error_siniestro_handler
-from src.presentation.routers import health, siniestros
+from src.presentation.routers import evidencias, health, siniestros
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +70,7 @@ app.add_exception_handler(ErrorSiniestro, error_siniestro_handler)
 app.include_router(health.router)
 app.include_router(siniestros.router, prefix=settings.API_PREFIX)
 app.include_router(siniestros.router_tipos, prefix=settings.API_PREFIX)
+app.include_router(evidencias.router, prefix=settings.API_PREFIX)
 
 
 @app.get("/")

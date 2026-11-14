@@ -46,6 +46,33 @@ class InsuranceClaimsServiceGateway:
         )
         return body
 
+    # --- HU4.1.2 · Evidencias y ubicación ---
+
+    async def solicitar_carga_evidencia(
+        self, cliente_id: str, siniestro_id: str, payload: dict, correlation_id: str, idempotency_key: str | None = None
+    ) -> tuple[int, dict]:
+        """Devuelve el status: `201` evidencia nueva, `200` reintento con la misma `Idempotency-Key`."""
+        headers = self._headers(cliente_id, correlation_id)
+        if idempotency_key:
+            headers["Idempotency-Key"] = idempotency_key
+        return await self._request("POST", f"{PREFIJO}/siniestros/{siniestro_id}/evidencias", headers, json=payload)
+
+    async def confirmar_carga_evidencia(
+        self, cliente_id: str, siniestro_id: str, evidencia_id: str, correlation_id: str
+    ) -> dict:
+        _, body = await self._request(
+            "POST",
+            f"{PREFIJO}/siniestros/{siniestro_id}/evidencias/{evidencia_id}/confirmacion",
+            self._headers(cliente_id, correlation_id),
+        )
+        return body
+
+    async def registrar_ubicacion(self, cliente_id: str, siniestro_id: str, payload: dict, correlation_id: str) -> dict:
+        _, body = await self._request(
+            "PUT", f"{PREFIJO}/siniestros/{siniestro_id}/ubicacion", self._headers(cliente_id, correlation_id), json=payload
+        )
+        return body
+
     async def aclose(self) -> None:
         await self._client.aclose()
 

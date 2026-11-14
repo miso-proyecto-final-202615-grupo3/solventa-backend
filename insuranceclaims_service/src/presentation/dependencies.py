@@ -4,19 +4,30 @@ from datetime import UTC, datetime
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.application.ports.almacen_evidencias import AlmacenEvidenciasPort, AlmacenNoDisponible
 from src.application.ports.polizas import PolizasPort
 from src.application.use_cases.consultar_siniestro_use_case import ConsultarSiniestroUseCase
+from src.application.use_cases.evidencias_use_cases import (
+    ConfirmarCargaEvidenciaUseCase,
+    ConsultarDetalleSiniestroUseCase,
+    RegistrarUbicacionUseCase,
+    SolicitarCargaEvidenciaUseCase,
+)
 from src.application.use_cases.listar_polizas_elegibles_use_case import ListarPolizasElegiblesUseCase
 from src.application.use_cases.reportar_siniestro_use_case import ReportarSiniestroUseCase
 from src.core.config import settings
 from src.core.database import SessionLocal
 from src.domain.siniestros.catalogo import CatalogoTiposSiniestro
+from src.domain.siniestros.errores import ServicioNoDisponible
+from src.domain.siniestros.politica_evidencias import MB, LimitesEvidencia, PoliticaEvidencias
 from src.infrastructure.gateways.polizas_factory import crear_polizas_port
 from src.infrastructure.persistence.catalogo_tipos_siniestro_impl import SqlAlchemyCatalogoTiposSiniestro
+from src.infrastructure.storage.factory import crear_almacen
 from src.domain.siniestros.repositories import (
     ActivacionParametricaRepository,
     ActivacionPolizaRepository,
     EventoExternoRepository,
+    EvidenciaRepository,
     IndemnizacionRepository,
     SiniestroRepository,
 )
@@ -24,6 +35,7 @@ from src.infrastructure.persistence.siniestros_repository_impl import (
     SqlAlchemyActivacionParametricaRepository,
     SqlAlchemyActivacionPolizaRepository,
     SqlAlchemyEventoExternoRepository,
+    SqlAlchemyEvidenciaRepository,
     SqlAlchemyIndemnizacionRepository,
     SqlAlchemySiniestroRepository,
 )
@@ -102,3 +114,64 @@ def get_consultar_siniestro_use_case(
     repo: SiniestroRepository = Depends(get_siniestro_repository),
 ) -> ConsultarSiniestroUseCase:
     return ConsultarSiniestroUseCase(repo)
+
+
+# --- HU4.1.2 · Evidencias y ubicación ---------------------------------------------------------
+
+def get_evidencia_repository(db: AsyncSession = Depends(get_db)) -> EvidenciaRepository:
+    return SqlAlchemyEvidenciaRepository(db)
+
+
+def get_almacen() -> AlmacenEvidenciasPort:
+    try:
+        return crear_almacen(settings)
+    except AlmacenNoDisponible as exc:
+        raise ServicioNoDisponible() from exc
+
+
+def get_politica() -> PoliticaEvidencias:
+    return PoliticaEvidencias(
+        LimitesEvidencia(foto_max_bytes=settings.FOTO_MAX_MB * MB, video_max_bytes=settings.VIDEO_MAX_MB * MB)
+    )
+
+
+def get_solicitar_carga_use_case(
+    db: AsyncSession = Depends(get_db),
+    siniestros: SiniestroRepository = Depends(get_siniestro_repository),
+    evidencias: EvidenciaRepository = Depends(get_evidencia_repository),
+    catalogo: CatalogoTiposSiniestro = Depends(get_catalogo),
+    almacen: AlmacenEvidenciasPort = Depends(get_almacen),
+    politica: PoliticaEvidencias = Depends(get_politica),
+    reloj: Callable[[], datetime] = Depends(get_reloj),
+) -> SolicitarCargaEvidenciaUseCase:
+    return SolicitarCargaEvidenciaUseCase(
+        db, siniestros, evidencias, catalogo, almacen, politica, reloj, settings.EVIDENCIAS_PREFIX
+    )
+
+
+def get_confirmar_carga_use_case(
+    db: AsyncSession = Depends(get_db),
+    siniestros: SiniestroRepository = Depends(get_siniestro_repository),
+    evidencias: EvidenciaRepository = Depends(get_evidencia_repository),
+    almacen: AlmacenEvidenciasPort = Depends(get_almacen),
+    politica: PoliticaEvidencias = Depends(get_politica),
+    reloj: Callable[[], datetime] = Depends(get_reloj),
+) -> ConfirmarCargaEvidenciaUseCase:
+    return ConfirmarCargaEvidenciaUseCase(db, siniestros, evidencias, almacen, politica, reloj)
+
+
+def get_registrar_ubicacion_use_case(
+    db: AsyncSession = Depends(get_db),
+    siniestros: SiniestroRepository = Depends(get_siniestro_repository),
+    politica: PoliticaEvidencias = Depends(get_politica),
+    reloj: Callable[[], datetime] = Depends(get_reloj),
+) -> RegistrarUbicacionUseCase:
+    return RegistrarUbicacionUseCase(db, siniestros, politica, reloj)
+
+
+def get_consultar_detalle_siniestro_use_case(
+    siniestros: SiniestroRepository = Depends(get_siniestro_repository),
+    evidencias: EvidenciaRepository = Depends(get_evidencia_repository),
+    reloj: Callable[[], datetime] = Depends(get_reloj),
+) -> ConsultarDetalleSiniestroUseCase:
+    return ConsultarDetalleSiniestroUseCase(siniestros, evidencias, reloj)

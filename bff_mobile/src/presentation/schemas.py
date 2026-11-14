@@ -1,5 +1,6 @@
 import uuid
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, EmailStr, Field, field_validator
 
@@ -152,3 +153,65 @@ class SiniestroResponse(BaseModel):
     tipo: str
     ocurrido_en: datetime
     reportado_en: datetime
+
+
+# --- HU4.1.2 · Evidencias y ubicación (contrato canónico: docs/planning/HU4.1.2-plan-tecnico.md §3) ---
+
+class SolicitudCargaRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tipo: Literal["FOTO", "VIDEO"]
+    content_type: str = Field(min_length=3, max_length=50)
+    tamano_bytes: int = Field(gt=0)
+    origen: Literal["CAMARA", "GALERIA"]
+    capturada_en: AwareDatetime
+
+
+class CargaPrefirmada(BaseModel):
+    url: str
+    campos: dict[str, str]
+    expira_en: datetime
+    tamano_max_bytes: int
+
+
+class SolicitudCargaResponse(BaseModel):
+    evidencia_id: uuid.UUID
+    estado: str
+    carga: CargaPrefirmada | None = None  # null: la evidencia de esa Idempotency-Key ya está CARGADA
+
+
+class EvidenciaResponse(BaseModel):
+    evidencia_id: uuid.UUID
+    tipo: str
+    estado: str
+    tamano_bytes: int | None = None
+    capturada_en: datetime
+    cargada_en: datetime | None = None
+
+
+class UbicacionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    latitud: float = Field(ge=-90, le=90)
+    longitud: float = Field(ge=-180, le=180)
+    precision_m: float = Field(gt=0, le=5000)
+    fuente: Literal["GPS", "RED", "ULTIMA_CONOCIDA"]
+    capturada_en: AwareDatetime
+
+
+class UbicacionResponse(BaseModel):
+    latitud: float
+    longitud: float
+    precision_m: float
+    fuente: str
+    capturada_en: datetime
+
+
+class RegistrarUbicacionResponse(BaseModel):
+    ubicacion: UbicacionResponse
+    actualizada_en: datetime
+
+
+class SiniestroDetalleResponse(SiniestroResponse):
+    ubicacion: UbicacionResponse | None = None
+    evidencias: list[EvidenciaResponse] = []

@@ -12,7 +12,12 @@ from src.infrastructure.gateways.insuranceclaims_service_gateway import (
 )
 from src.presentation.dependencies import get_cliente_id, get_insuranceclaims_service_gateway
 from src.presentation.errors import ApiError
-from src.presentation.schemas import PolizasElegiblesResponse, ReportarSiniestroRequest, SiniestroResponse
+from src.presentation.schemas import (
+    PolizasElegiblesResponse,
+    ReportarSiniestroRequest,
+    SiniestroDetalleResponse,
+    SiniestroResponse,
+)
 
 router = APIRouter(prefix="/siniestros", tags=["Siniestros"])
 
@@ -74,15 +79,16 @@ async def reportar_siniestro(
     return SiniestroResponse.model_validate(body)
 
 
-@router.get("/{siniestro_id}", response_model=SiniestroResponse, responses=_RESPUESTAS)
+@router.get("/{siniestro_id}", response_model=SiniestroDetalleResponse, responses=_RESPUESTAS)
 async def consultar_siniestro(
     siniestro_id: uuid.UUID,
     correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
     cliente_id: str = Depends(get_cliente_id),
     gateway: InsuranceClaimsServiceGateway = Depends(get_insuranceclaims_service_gateway),
-) -> SiniestroResponse:
+) -> SiniestroDetalleResponse:
+    """El siniestro con su ubicación y sus evidencias (HU4.1.2)."""
     try:
         body = await gateway.obtener_siniestro(cliente_id, str(siniestro_id), _correlation(correlation_id))
     except ClaimsGatewayError as exc:
         raise ApiError.desde_servicio(exc.status_code, exc.detail) from exc
-    return SiniestroResponse.model_validate(body)
+    return SiniestroDetalleResponse.model_validate(body)

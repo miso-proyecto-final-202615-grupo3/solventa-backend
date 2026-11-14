@@ -6,16 +6,17 @@ import uuid
 
 from fastapi import APIRouter, Depends, Header, Response, status
 
-from src.application.use_cases.consultar_siniestro_use_case import ConsultarSiniestroUseCase
+from src.application.use_cases.evidencias_use_cases import ConsultarDetalleSiniestroUseCase
 from src.application.use_cases.listar_polizas_elegibles_use_case import ListarPolizasElegiblesUseCase
 from src.application.use_cases.reportar_siniestro_use_case import ReporteSiniestroCmd, ReportarSiniestroUseCase
 from src.domain.siniestros.catalogo import CatalogoTiposSiniestro, idioma_de
 from src.presentation.dependencies import (
     get_catalogo,
-    get_consultar_siniestro_use_case,
+    get_consultar_detalle_siniestro_use_case,
     get_listar_polizas_elegibles_use_case,
     get_reportar_siniestro_use_case,
 )
+from src.presentation.schemas.evidencias import SiniestroDetalleResponse
 from src.presentation.schemas.siniestros import (
     PolizaElegibleResponse,
     PolizasElegiblesResponse,
@@ -88,13 +89,15 @@ async def reportar_siniestro(
     return SiniestroResponse.desde(resultado.siniestro)
 
 
-@router.get("/{siniestro_id}", response_model=SiniestroResponse)
+@router.get("/{siniestro_id}", response_model=SiniestroDetalleResponse)
 async def consultar_siniestro(
     siniestro_id: uuid.UUID,
     cliente_id: uuid.UUID = Header(alias="X-Cliente-Id"),
-    use_case: ConsultarSiniestroUseCase = Depends(get_consultar_siniestro_use_case),
-) -> SiniestroResponse:
-    return SiniestroResponse.desde(await use_case.ejecutar(siniestro_id, cliente_id))
+    use_case: ConsultarDetalleSiniestroUseCase = Depends(get_consultar_detalle_siniestro_use_case),
+) -> SiniestroDetalleResponse:
+    """El siniestro con su ubicación y sus evidencias vigentes (HU4.1.2)."""
+    detalle = await use_case.ejecutar(siniestro_id, cliente_id)
+    return SiniestroDetalleResponse.desde_detalle(detalle.siniestro, detalle.evidencias)
 
 
 @router_tipos.get("", response_model=TiposSiniestroResponse)

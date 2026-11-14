@@ -100,7 +100,8 @@ async def test_consultar_propio_y_ajeno(api):
         f"{BASE}/siniestros/{creado['siniestro_id']}", headers={"X-Cliente-Id": str(OTRO_CLIENTE)}
     )
 
-    assert propio.json() == creado
+    # HU4.1.2 amplía el detalle con la ubicación y las evidencias.
+    assert propio.json() == {**creado, "ubicacion": None, "evidencias": []}
     assert ajeno.status_code == 404
     assert ajeno.json() == {"detail": {"codigo": "SINIESTRO_NO_ENCONTRADO", "mensaje": "No encontramos el siniestro."}}
 

@@ -138,6 +138,9 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@db:5432/identity_db}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+      # HU4.1.1: pólizas en memoria hasta que MS Pólizas exponga el endpoint interno (#265).
+      POLIZAS_ADAPTER: ${POLIZAS_ADAPTER:-memoria}
+      INSURANCEPOLICIES_SERVICE_URL: ${INSURANCEPOLICIES_SERVICE_URL:-http://insurancepolicies_service:8000}
     depends_on:
       db:
         condition: service_healthy
@@ -288,11 +291,14 @@ services:
       COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
       COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
       QUOTINGENGINE_SERVICE_URL: ${QUOTINGENGINE_SERVICE_URL:-http://quotingengine_service:8000}
+      INSURANCECLAIMS_SERVICE_URL: ${INSURANCECLAIMS_SERVICE_URL:-http://insuranceclaims_service:8000}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
     depends_on:
       identity_service:
         condition: service_started
       quotingengine_service:
+        condition: service_started
+      insuranceclaims_service:
         condition: service_started
 
   db:

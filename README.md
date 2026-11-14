@@ -13,7 +13,7 @@ ambiente y su imagen Docker. Cada servicio se despliega como un pod independient
 | `identity_service` | Identidad y registro de clientes | `/api/v1/identity-service` |
 | `quotingengine_service` | Motor de cotización y suscripción | `/api/v1/quotingengine-service` |
 | `insurancepolicies_service` | Gestión de pólizas, firma digital manuscrita (HU1.3.5), emisión de la póliza y certificado PDF (HU1.3.6) | `/api/v1/insurancepolicies-service` |
-| `insuranceclaims_service` | Gestión de siniestros (solo `/health` por ahora) | `/api/v1/insuranceclaims-service` |
+| `insuranceclaims_service` | Gestión de siniestros: reporte del siniestro asistido (HU4.1.1) | `/api/v1/insuranceclaims-service` |
 | `payments_service` | Pago de la prima inicial con PayPal o tarjeta de crédito (HU1.3.4) | `/api/v1/payments-service` |
 | `liveness_adapter` | Adaptador de retos y verificación de prueba de vida | `/api/v1/liveness-adapter` |
 
@@ -346,6 +346,25 @@ curl -X PUT -H "X-Admin-Token: $LIVENESS_ADMIN_TOKEN" -H "Content-Type: applicat
 - Sin consentimiento vigente, `POST /activacion/sesiones` responde `403 CONSENTIMIENTO_BIOMETRICO_REQUERIDO`
   (`REQUIRE_BIOMETRIC_CONSENT=true` por defecto; `false` solo para demostraciones).
 - Contrato canónico: [docs/contracts/consentimiento-biometrico](docs/contracts/consentimiento-biometrico).
+
+## Reportar un siniestro (HU4.1.1)
+
+- BFF Móvil (JWT; el cliente sale del token, nunca del cuerpo):
+  - `GET /api/v1/bff-mobile/siniestros/polizas-elegibles` → pólizas vigentes del cliente con sus `tipos_siniestro`.
+  - `POST /api/v1/bff-mobile/siniestros` con `Idempotency-Key: <UUID>` → `201` (nuevo) o `200` (reintento con la misma clave).
+  - `GET /api/v1/bff-mobile/siniestros/{id}`.
+- MS Siniestros (`insuranceclaims_service`, solo red interna, dueño en `X-Cliente-Id`): los mismos endpoints y
+  `GET /api/v1/insuranceclaims-service/tipos-siniestro?producto_codigo=`, la consulta de referencia del catálogo.
+- **Catálogo:** tabla `insuranceclaims.tipo_siniestro` (única fuente de los tipos por producto y sus reglas de evidencia),
+  cargada al arrancar (`SEED_ON_STARTUP=true`, idempotente). Los seguros de vida no tienen tipos: no se reportan por la app.
+- **Pólizas:** MS Siniestros las consulta a MS Pólizas por un puerto (`POLIZAS_ADAPTER=http`). Mientras MS Pólizas no
+  exponga el endpoint interno (#265), `POLIZAS_ADAPTER=memoria` usa pólizas ficticias (por defecto en `docker compose`).
+- **Base existente:** `create_all` no altera tablas; en ambientes donde `insuranceclaims.siniestro` ya existe, aplicar
+  `scripts/sql/insuranceclaims_hu4_1_1.sql` (idempotente).
+- Prueba de concurrencia de idempotencia contra Postgres: `TEST_POSTGRES_URL=postgresql+asyncpg://postgres:postgres@db:5432/identity_db`
+  (dentro de la red de compose) y `python -m pytest insuranceclaims_service/tests -m postgres`.
+- Plan y decisiones: [docs/planning/HU4.1.1-plan-tecnico.md](docs/planning/HU4.1.1-plan-tecnico.md); contrato canónico:
+  [docs/contracts/siniestros](docs/contracts/siniestros).
 
 ## Cognito en local vs. EKS
 

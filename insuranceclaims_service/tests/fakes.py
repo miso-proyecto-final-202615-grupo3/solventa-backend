@@ -36,11 +36,12 @@ class PolizasFalsas:
             raise PolizasNoDisponibles()
         return [p for p in self.polizas.values() if p.cliente_id == cliente_id]
 
-    async def obtener(self, poliza_id, correlation_id):
+    async def obtener(self, poliza_id, cliente_id, correlation_id):
         self.llamadas.append(("obtener", correlation_id))
         if self.caido:
             raise PolizasNoDisponibles()
-        return self.polizas.get(poliza_id)
+        poliza = self.polizas.get(poliza_id)
+        return poliza if poliza is not None and poliza.cliente_id == cliente_id else None
 
     async def aclose(self):
         return None

@@ -92,7 +92,7 @@ class ReportarSiniestroUseCase:
             raise FechaInvalida()
 
         try:
-            poliza = await self.polizas.obtener(cmd.poliza_id, correlation_id)
+            poliza = await self.polizas.obtener(cmd.poliza_id, cmd.cliente_id, correlation_id)
         except PolizasNoDisponibles as exc:
             raise ServicioNoDisponible() from exc
         if poliza is None or poliza.cliente_id != cmd.cliente_id:

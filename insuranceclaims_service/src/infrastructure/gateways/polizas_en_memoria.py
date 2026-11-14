@@ -34,8 +34,9 @@ class PolizasEnMemoria:
                 self._registrar(self._crear(plantilla, cliente_id))
         return [p for p in self._por_id.values() if p.cliente_id == cliente_id]
 
-    async def obtener(self, poliza_id: uuid.UUID, correlation_id: str) -> PolizaResumen | None:
-        return self._por_id.get(poliza_id)
+    async def obtener(self, poliza_id: uuid.UUID, cliente_id: uuid.UUID, correlation_id: str) -> PolizaResumen | None:
+        poliza = self._por_id.get(poliza_id)
+        return poliza if poliza is not None and poliza.cliente_id == cliente_id else None
 
     async def aclose(self) -> None:
         return None

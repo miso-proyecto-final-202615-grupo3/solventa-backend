@@ -13,4 +13,6 @@ def crear_polizas_port(settings: Settings) -> HttpPolizasClient | PolizasEnMemor
         if _en_memoria is None:
             _en_memoria = PolizasEnMemoria.desde_archivo(settings.POLIZAS_SEMILLA_PATH or None)
         return _en_memoria
-    return HttpPolizasClient(settings.INSURANCEPOLICIES_SERVICE_URL, settings.POLIZAS_TIMEOUT_SECONDS)
+    return HttpPolizasClient(
+        settings.INSURANCEPOLICIES_SERVICE_URL, settings.QUOTINGENGINE_SERVICE_URL, settings.POLIZAS_TIMEOUT_SECONDS
+    )

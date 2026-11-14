@@ -4,7 +4,7 @@
     {
       "numero": "SLV-2026-08341",
       "cliente_id": "*",
-      "estado": "VIGENTE",
+      "estado": "EMITIDA",
       "producto_codigo": "SEGURO_VIAJE",
       "producto_nombre": "Seguro de viaje",
       "vigencia_desde": "2026-03-12",
@@ -13,7 +13,7 @@
     {
       "numero": "SLV-2026-09120",
       "cliente_id": "*",
-      "estado": "VIGENTE",
+      "estado": "EMITIDA",
       "producto_codigo": "PROTECCION_DISPOSITIVOS",
       "producto_nombre": "Protección de dispositivos",
       "vigencia_desde": "2026-06-01",
@@ -31,7 +31,7 @@
     {
       "numero": "SLV-2026-04410",
       "cliente_id": "*",
-      "estado": "VIGENTE",
+      "estado": "EMITIDA",
       "producto_codigo": "MICROSEGURO_VIDA",
       "producto_nombre": "Microseguro de vida",
       "vigencia_desde": "2026-01-15",

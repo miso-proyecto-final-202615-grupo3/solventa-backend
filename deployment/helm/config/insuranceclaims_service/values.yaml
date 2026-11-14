@@ -49,11 +49,12 @@ config:
   API_PREFIX: /api/v1/insuranceclaims-service
   OTEL_EXPORTER_OTLP_ENDPOINT: http://cloudwatch-agent.amazon-cloudwatch.svc.cluster.local:4315
   OTEL_TRACES_EXPORTER: otlp
-  # HU4.1.1: `memoria` hasta que MS Pólizas exponga el endpoint interno (#265); luego `http`.
-  POLIZAS_ADAPTER: memoria
+  # HU4.1.1: pólizas de MS Pólizas (#265) y catálogo de productos del Motor de Cotización.
+  POLIZAS_ADAPTER: http
   INSURANCEPOLICIES_SERVICE_URL: http://insurancepolicies-service:80
+  QUOTINGENGINE_SERVICE_URL: http://quotingengine-service:80
   POLIZAS_TIMEOUT_SECONDS: "3"
-  ESTADOS_POLIZA_ELEGIBLES: VIGENTE
+  ESTADOS_POLIZA_ELEGIBLES: EMITIDA,VIGENTE
 
 resources:
   requests:

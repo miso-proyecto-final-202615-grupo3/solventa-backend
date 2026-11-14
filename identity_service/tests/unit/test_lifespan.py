@@ -1,3 +1,5 @@
+import pytest
+
 import src.main as main
 
 
@@ -6,12 +8,32 @@ class _EngineSinBD:
         raise RuntimeError("base de datos no disponible")
 
 
-async def test_lifespan_no_rompe_por_falta_de_bd(monkeypatch):
+class _ContextoBD:
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        return False
+
+    async def execute(self, statement):
+        return None
+
+    async def run_sync(self, callback):
+        return None
+
+
+class _EngineConBD:
+    def begin(self):
+        return _ContextoBD()
+
+
+async def test_lifespan_falla_por_falta_de_bd(monkeypatch):
     monkeypatch.setattr(main, "engine", _EngineSinBD())
     monkeypatch.setattr(main.settings, "GRPC_PORT", 0)
 
-    async with main.lifespan(None):
-        pass
+    with pytest.raises(RuntimeError, match="base de datos no disponible"):
+        async with main.lifespan(None):
+            pass
 
 
 async def test_lifespan_inicia_y_detiene_servidor_grpc(monkeypatch):
@@ -25,7 +47,7 @@ async def test_lifespan_inicia_y_detiene_servidor_grpc(monkeypatch):
         eventos.append(("start", port))
         return ServidorFalso()
 
-    monkeypatch.setattr(main, "engine", _EngineSinBD())
+    monkeypatch.setattr(main, "engine", _EngineConBD())
     monkeypatch.setattr(main, "iniciar_servidor_grpc", iniciar)
     monkeypatch.setattr(main.settings, "GRPC_ENABLED", True)
     monkeypatch.setattr(main.settings, "GRPC_PORT", 50999)

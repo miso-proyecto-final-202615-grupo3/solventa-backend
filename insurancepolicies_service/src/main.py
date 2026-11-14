@@ -19,21 +19,21 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    try:
-        async with engine.begin() as conn:
-            await conn.execute(text("CREATE SCHEMA IF NOT EXISTS insurancepolicies"))
-            await conn.run_sync(Base.metadata.create_all)
-    except Exception:
-        logger.warning(
-            "No se pudo crear el esquema en el arranque.",
-            exc_info=True,
-        )
+    if app is not None:
+        app.state.schema_ready = False
+    async with engine.begin() as conn:
+        await conn.execute(text("CREATE SCHEMA IF NOT EXISTS insurancepolicies"))
+        await conn.run_sync(Base.metadata.create_all)
+    if app is not None:
+        app.state.schema_ready = True
     tareas = [
         asyncio.create_task(proceso, name=nombre) for nombre, proceso in crear_procesos().items()
     ]
     try:
         yield
     finally:
+        if app is not None:
+            app.state.schema_ready = False
         await detener_procesos(tareas)
 
 

@@ -16,6 +16,13 @@ async def test_health_check(async_client: AsyncClient):
     assert "version" in data
 
 
+async def test_readiness_requiere_esquema_listo(async_client: AsyncClient, monkeypatch):
+    monkeypatch.setattr(async_client._transport.app.state, "schema_ready", False, raising=False)
+    response = await async_client.get("/ready")
+
+    assert response.status_code == 503
+
+
 async def test_root(async_client: AsyncClient):
     response = await async_client.get("/")
 
@@ -50,16 +57,22 @@ async def test_lifespan_crea_esquema_y_detiene_procesos(monkeypatch, caplog, fal
     monkeypatch.setattr(main, "engine", engine)
     monkeypatch.setattr(main, "crear_procesos", lambda: {"prueba": proceso()})
 
-    async with main.lifespan(main.app):
-        await asyncio.sleep(0)
+    if fallo_bd:
+        with pytest.raises(RuntimeError, match="BD no disponible"):
+            async with main.lifespan(main.app):
+                pass
         assert not detenido.is_set()
+    else:
+        async with main.lifespan(main.app):
+            await asyncio.sleep(0)
+            assert not detenido.is_set()
 
-    assert detenido.is_set()
+    if not fallo_bd:
+        assert detenido.is_set()
     engine.begin.assert_called_once_with()
     conexion.execute.assert_awaited_once()
     assert str(conexion.execute.await_args.args[0]) == "CREATE SCHEMA IF NOT EXISTS insurancepolicies"
     if fallo_bd:
         conexion.run_sync.assert_not_awaited()
-        assert "No se pudo crear el esquema en el arranque." in caplog.text
     else:
         conexion.run_sync.assert_awaited_once_with(main.Base.metadata.create_all)

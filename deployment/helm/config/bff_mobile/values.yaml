@@ -40,8 +40,9 @@ redis:
 cognito:
   enabled: true
   existingSecret: secret-name
-  secretKey: COGNITO_USER_POOL_ID
-  secretKey2: COGNITO_CLIENT_ID
+  secretKeys:
+    - COGNITO_USER_POOL_ID
+    - COGNITO_CLIENT_ID
 
 kmsKey:
   enabled: false

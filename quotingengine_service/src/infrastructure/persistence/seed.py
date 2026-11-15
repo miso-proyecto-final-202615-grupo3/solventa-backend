@@ -365,7 +365,7 @@ CONDICIONES_GENERALES = {
 
 
 async def sembrar_catalogo(session: AsyncSession) -> int:
-    """Crea los productos faltantes con coberturas y regla de rating. Retorna cuántos creó."""
+    """Crea productos faltantes; el llamador debe confirmar o revertir la transacción."""
     productos = SqlAlchemyProductoSeguroRepository(session)
     coberturas = SqlAlchemyCoberturaRepository(session)
     reglas = SqlAlchemyReglaRatingRepository(session)
@@ -406,5 +406,4 @@ async def sembrar_catalogo(session: AsyncSession) -> int:
             )
         )
         creados += 1
-    await session.commit()
     return creados

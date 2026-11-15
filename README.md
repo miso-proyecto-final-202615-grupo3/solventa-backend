@@ -58,7 +58,6 @@ cd identity_service
 python -m pytest -v
 ```
 
-
 ## Docker
 
 Cada servicio tiene su imagen en `docker/services/Dockerfile.<service_name>`.
@@ -81,6 +80,33 @@ docker build -f docker/services/Dockerfile.identity_service -t solventa/identity
     `deployment/kuztomize`.
 - Requiere: GitHub Environments (`dev`/`qa`/`prod`) con
   `AWS_REGION`, `AWS_ROLE_ARN` y `DATABASE_URL`, y los repos ECR configurados en los `values`.
+
+### Autoescalado
+
+Todos los servicios del chart `backend-service` incluyen en sus `values.yaml`
+la sección `autoscaling`, deshabilitada por defecto:
+
+```yaml
+autoscaling:
+  enabled: false
+  cpuUtilization: 70
+  min: 1
+  max: 10
+```
+
+Para activar el HPA de un servicio en un ambiente, establece
+`autoscaling.enabled: true` en el `values.<ambiente>.yaml` correspondiente.
+El HPA `autoscaling/v2` utiliza el promedio de utilización de CPU como
+porcentaje del `resources.requests.cpu` de los contenedores. Requiere la API de
+métricas de recursos disponible en el clúster, por ejemplo, Metrics Server.
+Su comportamiento es común a todos los servicios: espera 300 segundos para
+reducir y usa políticas de 20 % o un pod por minuto; para aumentar usa 100 % o
+cuatro pods cada 15 segundos, seleccionando `Max` en ambos casos.
+
+Con HPA activo, el Deployment no fija `replicas`; con HPA desactivado se usa
+`replicaCount`. Al desactivar el HPA, el Deployment vuelve al `replicaCount`
+configurado. Los flujos de despliegue actualizan el release sin eliminarlo y
+reinician gradualmente el Deployment para actualizar la imagen `latest`.
 
 ## Stack local (Docker Compose)
 

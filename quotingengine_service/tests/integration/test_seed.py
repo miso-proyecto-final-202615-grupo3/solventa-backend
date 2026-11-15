@@ -39,6 +39,7 @@ async def test_siembra_seis_productos_con_coberturas_y_reglas(db_session: AsyncS
 
 async def test_siembra_es_idempotente(db_session: AsyncSession):
     await sembrar_catalogo(db_session)
+    await db_session.commit()
 
     assert await sembrar_catalogo(db_session) == 0
     assert len(await SqlAlchemyProductoSeguroRepository(db_session).listar_activos()) == 6
@@ -60,3 +61,10 @@ async def test_siembra_inicializa_productos_existentes_sin_reemplazar_condicione
     assert viaje.condiciones_generales and viaje.version_condiciones_generales == "1.0"
     assert vida.condiciones_generales == "Condiciones propias"
     assert vida.version_condiciones_generales == "2.0"
+
+
+async def test_siembra_se_revierte_con_la_transaccion(db_session: AsyncSession):
+    await sembrar_catalogo(db_session)
+    await db_session.rollback()
+
+    assert await SqlAlchemyProductoSeguroRepository(db_session).listar_activos() == []

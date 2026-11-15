@@ -1,4 +1,9 @@
 replicaCount: 1
+autoscaling:
+  enabled: true
+  cpuUtilization: 70
+  min: 1
+  max: 10
 fullnameOverride: quotingengine-service
 
 containerName: quotingengine-service

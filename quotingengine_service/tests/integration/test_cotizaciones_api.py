@@ -21,6 +21,7 @@ BASE = f"{settings.API_PREFIX}/cotizaciones"
 @pytest.fixture(autouse=True)
 async def catalogo(db_session: AsyncSession):
     await sembrar_catalogo(db_session)
+    await db_session.commit()
 
 
 def _payload(**extra):

@@ -323,6 +323,8 @@ async def test_openapi_expone_los_tres_endpoints_con_el_prefijo_del_servicio(cli
 
 
 async def test_las_rutas_de_consulta_de_polizas_existentes_siguen_funcionando(client):
-    response = await client.get("/polizas/mis-polizas", headers=HEADERS)
+    response = await client.get(
+        "/api/v1/insurancepolicies-service/polizas/mis-polizas", headers=HEADERS
+    )
 
     assert response.status_code == 200 and response.json() == []

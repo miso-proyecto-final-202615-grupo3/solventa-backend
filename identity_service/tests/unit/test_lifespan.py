@@ -1,3 +1,5 @@
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 
 import src.main as main
@@ -56,3 +58,23 @@ async def test_lifespan_inicia_y_detiene_servidor_grpc(monkeypatch):
         assert eventos == [("start", 50999)]
 
     assert eventos[-1] == "stop"
+
+
+async def test_lifespan_bloquea_antes_de_crear_esquema(monkeypatch):
+    connection = MagicMock()
+    connection.execute = AsyncMock()
+    connection.run_sync = AsyncMock()
+    engine = MagicMock()
+    engine.begin.return_value.__aenter__ = AsyncMock(return_value=connection)
+    engine.begin.return_value.__aexit__ = AsyncMock(return_value=False)
+    monkeypatch.setattr(main, "engine", engine)
+    monkeypatch.setattr(main.settings, "GRPC_ENABLED", False)
+    monkeypatch.setattr(main, "cerrar_consentimiento_cache", AsyncMock())
+
+    async with main.lifespan(None):
+        assert [str(c.args[0]) for c in connection.execute.await_args_list] == [
+            "SELECT pg_advisory_xact_lock(1397705812, 1)",
+            "CREATE SCHEMA IF NOT EXISTS identity",
+        ]
+        assert [c[0] for c in connection.method_calls] == ["execute", "execute", "run_sync"]
+        connection.run_sync.assert_awaited_once_with(main.Base.metadata.create_all)

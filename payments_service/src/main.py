@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     async with engine.begin() as conn:
+        await conn.execute(text("SELECT pg_advisory_xact_lock(1397705812, 5)"))
         await conn.execute(text("CREATE SCHEMA IF NOT EXISTS payments"))
         await conn.run_sync(Base.metadata.create_all)
     relay_task = None

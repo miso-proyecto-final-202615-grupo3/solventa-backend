@@ -76,13 +76,13 @@ jobs:
           GITHUB_SHA: ${{ github.sha }}
         run: |
           service_release="${SERVICE_NAME//_/-}"
-          helm uninstall "$service_release" --namespace "$K8S_NAMESPACE" || true
           helm upgrade --install "$service_release" deployment/helm/charts/backend-service \
             --namespace "$K8S_NAMESPACE" \
             --values "deployment/helm/config/$SERVICE_NAME/values.yaml" \
             --values "deployment/helm/config/$SERVICE_NAME/values.$DEPLOYMENT_ENV.yaml" \
             --set-string image.tag="latest" \
             --set-string config.ENVIRONMENT="$DEPLOYMENT_ENV"
+          kubectl rollout restart "deployment/$service_release" --namespace "$K8S_NAMESPACE"
 
       - name: Wait for deployment rollout
         run: |

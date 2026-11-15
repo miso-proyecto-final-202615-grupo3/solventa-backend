@@ -749,8 +749,8 @@ def test_case_8_consultar_poliza_por_cotizacion():
 
     _verificar(bool(ID_COTIZACION), "existe una cotización creada")
     cabeceras = _cabeceras_poliza()
-    print("Esperando 5 segundos antes de consultar la póliza.")
-    time.sleep(5)
+    print("Esperando 10 segundos antes de consultar la póliza.")
+    time.sleep(10)
     for intento in range(1, MAX_INTENTOS + 1):
         print(f"Consulta de póliza: intento {intento}/{MAX_INTENTOS}")
         response = _enviar(
@@ -767,8 +767,8 @@ def test_case_8_consultar_poliza_por_cotizacion():
                 "la póliza aún no ha sido emitida",
             )
             if intento < MAX_INTENTOS:
-                print("La póliza aún no está disponible; esperando 5 segundos.")
-                time.sleep(5)
+                print("La póliza aún no está disponible; esperando 10 segundos.")
+                time.sleep(10)
                 continue
             _verificar(False, "la póliza fue emitida dentro del límite de intentos")
             return

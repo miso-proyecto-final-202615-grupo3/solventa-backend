@@ -12,6 +12,7 @@ BASE = f"{settings.API_PREFIX}/productos"
 @pytest.fixture(autouse=True)
 async def catalogo(db_session: AsyncSession):
     await sembrar_catalogo(db_session)
+    await db_session.commit()
 
 
 async def test_lista_ramos_con_condiciones_y_parametros(api_client: AsyncClient):

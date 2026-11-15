@@ -17,24 +17,23 @@ from src.presentation.dependencies import (
     cerrar_consentimiento_cache,
 )
 from src.presentation.grpc.server import iniciar_servidor_grpc
-from src.presentation.routers import clientes, consentimientos, health, verificaciones_kyc_aml
+from src.presentation.routers import (
+    auditoria_kyc_aml,
+    clientes,
+    consentimientos,
+    health,
+    verificaciones_kyc_aml,
+)
 
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    try:
-        async with engine.begin() as conn:
-            await conn.execute(
-                text("CREATE SCHEMA IF NOT EXISTS identity")
-            )
-            await conn.run_sync(Base.metadata.create_all)
-    except Exception:
-        logger.warning(
-            "No se pudo crear el esquema en el arranque.",
-            exc_info=True,
-        )
+    async with engine.begin() as conn:
+        await conn.execute(text("SELECT pg_advisory_xact_lock(1397705812, 1)"))
+        await conn.execute(text("CREATE SCHEMA IF NOT EXISTS identity"))
+        await conn.run_sync(Base.metadata.create_all)
     if settings.ENVIRONMENT.lower() in {"qa", "prod", "production"} and not settings.REQUIRE_BIOMETRIC_CONSENT:
         logger.warning(
             "REQUIRE_BIOMETRIC_CONSENT=false: la activación no exige consentimiento biométrico (HU3.1.3)."
@@ -90,6 +89,7 @@ app.include_router(health.router)
 app.include_router(clientes.router, prefix=settings.API_PREFIX)
 app.include_router(consentimientos.router, prefix=settings.API_PREFIX)
 app.include_router(verificaciones_kyc_aml.router, prefix=settings.API_PREFIX)
+app.include_router(auditoria_kyc_aml.router, prefix=settings.API_PREFIX)
 
 
 @app.get("/")

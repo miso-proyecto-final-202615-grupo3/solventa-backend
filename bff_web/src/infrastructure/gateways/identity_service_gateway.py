@@ -99,6 +99,18 @@ class IdentityServiceGateway:
             params=params,
         )
 
+    async def consultar_trazabilidad_kyc_aml(
+        self, cotizacion_id: str, internal_token: str
+    ) -> list[dict]:
+        result = await self._request(
+            "GET",
+            f"/api/v1/identity-service/cotizaciones/{cotizacion_id}/trazabilidad-kyc-aml",
+            headers={"X-Audit-Internal-Token": internal_token},
+        )
+        if not isinstance(result, list) or not all(isinstance(item, dict) for item in result):
+            raise IdentityGatewayError(502, "El servicio de identidad devolvió una respuesta inválida.")
+        return result
+
     async def aclose(self) -> None:
         await self._client.aclose()
 

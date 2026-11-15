@@ -1,8 +1,9 @@
 from datetime import datetime
 from enum import Enum
+from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class EstadoValidacion(str, Enum):
@@ -28,3 +29,19 @@ class VerificacionKycAmlResponse(BaseModel):
     resultado_aml: EstadoResultadoVerificacion
     estado: EstadoResultadoVerificacion
     fecha_resultado: datetime | None = None
+
+
+class EventoTrazabilidadKycAmlResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    evento_id: UUID
+    cotizacion_id: UUID
+    cliente_id: UUID
+    tipo: str
+    ocurrido_en: datetime
+    origen: str
+    actor_id: str | None
+    resultado: str
+    referencia_id: str
+    correlation_id: str | None
+    detalles: dict[str, Any]

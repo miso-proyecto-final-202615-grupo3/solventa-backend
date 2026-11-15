@@ -1,5 +1,6 @@
 import re
 import uuid
+from hmac import compare_digest
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
 
@@ -22,17 +23,21 @@ from src.application.use_cases.procesar_pago_prima_use_case import (
     SolicitudPago,
 )
 from src.presentation.dependencies import (
+    get_auditoria_pago_repository,
     get_consultar_pago_use_case,
     get_consultar_resumen_pago_use_case,
     get_procesar_pago_prima_use_case,
 )
 from src.presentation.schemas.pago_schemas import (
+    EventoTrazabilidadPagoResponse,
     MetodoPagoResponse,
     PagoRequest,
     PagoResponse,
     ResumenPagoResponse,
 )
 from src.domain.pagos.entities import MetodoPago
+from src.domain.pagos.repositories import AuditoriaPagoRepository
+from src.core.config import settings
 
 router = APIRouter(tags=["Pagos"])
 
@@ -156,3 +161,20 @@ async def obtener_pago(
         return PagoResponse.model_validate(await use_case.ejecutar(pago_id))
     except PagoNoEncontradoError as exc:
         raise _error(404, "PAGO_NO_ENCONTRADO", "El pago no existe.") from exc
+
+
+@router.get(
+    "/cotizaciones/{cotizacion_id}/trazabilidad-pagos",
+    response_model=list[EventoTrazabilidadPagoResponse],
+    include_in_schema=False,
+)
+async def consultar_trazabilidad_pagos(
+    cotizacion_id: uuid.UUID,
+    internal_token: str | None = Header(default=None, alias="X-Audit-Internal-Token"),
+    auditoria: AuditoriaPagoRepository = Depends(get_auditoria_pago_repository),
+) -> list[EventoTrazabilidadPagoResponse]:
+    esperado = settings.TRAZABILIDAD_INTERNAL_TOKEN
+    if not esperado or not internal_token or not compare_digest(esperado, internal_token):
+        raise _error(403, "ACCESO_DENEGADO", "Consulta interna no autorizada.")
+    eventos = await auditoria.listar_por_cotizacion(cotizacion_id)
+    return [EventoTrazabilidadPagoResponse.model_validate(evento) for evento in eventos]

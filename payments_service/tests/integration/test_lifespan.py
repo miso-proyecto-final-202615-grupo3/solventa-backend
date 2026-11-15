@@ -32,7 +32,11 @@ async def test_crea_esquema_y_tablas(monkeypatch):
     monkeypatch.setattr("src.main.engine", engine)
 
     async with lifespan(app):
-        assert str(connection.execute.await_args.args[0]) == "CREATE SCHEMA IF NOT EXISTS payments"
+        assert [str(c.args[0]) for c in connection.execute.await_args_list] == [
+            "SELECT pg_advisory_xact_lock(1397705812, 5)",
+            "CREATE SCHEMA IF NOT EXISTS payments",
+        ]
+        assert [c[0] for c in connection.method_calls] == ["execute", "execute", "run_sync"]
         connection.run_sync.assert_awaited_once_with(Base.metadata.create_all)
     engine.dispose.assert_awaited_once()
 

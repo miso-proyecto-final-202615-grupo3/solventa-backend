@@ -18,6 +18,9 @@ from src.infrastructure.gateways.quotingengine_http_client import QuotingEngineH
 from src.infrastructure.persistence.evento_outbox_repository_impl import (
     SqlAlchemyEventoOutboxRepository,
 )
+from src.infrastructure.persistence.auditoria_poliza_repository_impl import (
+    SqlAlchemyAuditoriaPolizaRepository,
+)
 from src.infrastructure.persistence.firma_digital_repository_impl import (
     SqlAlchemyFirmaDigitalRepository,
 )
@@ -54,6 +57,7 @@ class ManejadorPagoAprobado:
                     titulares,
                     session.commit,
                     session.rollback,
+                    auditoria=SqlAlchemyAuditoriaPolizaRepository(session),
                 )
                 await caso.ejecutar(pago, correlation_id)
         finally:

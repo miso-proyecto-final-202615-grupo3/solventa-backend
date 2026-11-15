@@ -1,4 +1,9 @@
 replicaCount: 1
+autoscaling:
+  enabled: true
+  cpuUtilization: 70
+  min: 1
+  max: 10
 fullnameOverride: bff-mobile
 
 containerName: bff-mobile
@@ -40,8 +45,9 @@ redis:
 cognito:
   enabled: true
   existingSecret: secret-name
-  secretKey: COGNITO_USER_POOL_ID
-  secretKey2: COGNITO_CLIENT_ID
+  secretKeys:
+    - COGNITO_USER_POOL_ID
+    - COGNITO_CLIENT_ID
 
 kmsKey:
   enabled: false

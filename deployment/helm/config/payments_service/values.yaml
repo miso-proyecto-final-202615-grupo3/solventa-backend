@@ -1,4 +1,9 @@
 replicaCount: 1
+autoscaling:
+  enabled: true
+  cpuUtilization: 70
+  min: 1
+  max: 10
 fullnameOverride: payments-service
 
 containerName: payments-service
@@ -40,6 +45,11 @@ bucket:
   enabled: false
 cognito:
   enabled: false
+
+audit:
+  enabled: true
+  existingSecret: secret-name
+  secretKey: TRAZABILIDAD_INTERNAL_TOKEN
 redis:
   enabled: false
 kmsKey:

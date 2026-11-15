@@ -32,13 +32,13 @@ class InsurancePoliciesServiceGateway:
 
     async def listar_mis_polizas(self, client_id: str) -> list[dict[str, Any]]:
         body = await self._request_poliza(
-            "GET", "/polizas/mis-polizas", {"X-Client-Id": client_id}
+            "GET", f"{_PREFIJO}/polizas/mis-polizas", {"X-Client-Id": client_id}
         )
         return body
 
     async def obtener_poliza(self, poliza_id: str, client_id: str) -> dict[str, Any]:
         return await self._request_poliza(
-            "GET", f"/polizas/{poliza_id}", {"X-Client-Id": client_id}
+            "GET", f"{_PREFIJO}/polizas/{poliza_id}", {"X-Client-Id": client_id}
         )
 
     async def capturar_firma(
@@ -93,6 +93,15 @@ class InsurancePoliciesServiceGateway:
                 502, "El servicio de pólizas devolvió un certificado inválido."
             )
         return response.content, response.headers.get("content-disposition")
+
+    async def consultar_trazabilidad_poliza(
+        self, numero: str, internal_token: str
+    ) -> dict[str, Any]:
+        return await self._request_poliza(
+            "GET",
+            f"{_PREFIJO}/auditoria-emision/polizas/numero/{numero}",
+            {"X-Audit-Internal-Token": internal_token},
+        )
 
     async def aclose(self) -> None:
         await self._client.aclose()

@@ -2,7 +2,7 @@ import re
 import uuid
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile, status
 
 from src.application.ports.kyc_aml import ProveedorKycAmlError
 from src.application.use_cases.consultar_verificacion_kyc_aml_use_case import (
@@ -71,6 +71,7 @@ async def _leer_documento(upload: UploadFile | None) -> ArchivoDocumento:
 )
 async def iniciar_verificacion_kyc_aml(
     cliente_id: uuid.UUID,
+    cotizacion_id: uuid.UUID | None = Form(default=None),
     documento_frontal: UploadFile | None = File(None),
     documento_reverso: UploadFile | None = File(None),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
@@ -85,7 +86,12 @@ async def iniciar_verificacion_kyc_aml(
     reverso = await _leer_documento(documento_reverso)
     try:
         verificacion = await use_case.ejecutar(
-            cliente_id, frontal, reverso, idempotency_key, correlation_id or str(uuid4())
+            cliente_id,
+            frontal,
+            reverso,
+            idempotency_key,
+            correlation_id or str(uuid4()),
+            cotizacion_id,
         )
     except DocumentoInvalidoError as exc:
         raise _error(_STATUS_DOCUMENTO.get(exc.codigo, 422), exc.codigo, exc.mensaje) from exc

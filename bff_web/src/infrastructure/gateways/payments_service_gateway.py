@@ -42,6 +42,33 @@ class PaymentsServiceGateway:
     ) -> tuple[int, dict[str, Any]]:
         return await self._request("GET", f"/pagos/{pago_id}", headers)
 
+    async def consultar_trazabilidad_pagos(
+        self, cotizacion_id: UUID, internal_token: str
+    ) -> list[dict[str, Any]]:
+        try:
+            response = await self._client.get(
+                f"/api/v1/payments-service/cotizaciones/{cotizacion_id}/trazabilidad-pagos",
+                headers={"X-Audit-Internal-Token": internal_token},
+            )
+        except httpx.HTTPError as exc:
+            raise PaymentsGatewayError(503, "El servicio de pagos no está disponible.") from exc
+        try:
+            body = response.json()
+        except ValueError as exc:
+            raise PaymentsGatewayError(
+                502, "El servicio de pagos devolvió una respuesta inválida."
+            ) from exc
+        if not response.is_success:
+            detail = (
+                body.get("detail", "Error del servicio de pagos.")
+                if isinstance(body, dict)
+                else body
+            )
+            raise PaymentsGatewayError(response.status_code, detail)
+        if not isinstance(body, list) or not all(isinstance(item, dict) for item in body):
+            raise PaymentsGatewayError(502, "El servicio de pagos devolvió una respuesta inválida.")
+        return body
+
     async def aclose(self) -> None:
         await self._client.aclose()
 

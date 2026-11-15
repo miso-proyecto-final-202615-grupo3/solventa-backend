@@ -5,7 +5,9 @@ metadata:
   labels:
     {{- include "backend-service.labels" . | nindent 4 }}
 spec:
+  {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "backend-service.selectorLabels" . | nindent 6 }}
@@ -31,7 +33,7 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "backend-service.fullname" . }}
-{{ if or .Values.database.enabled .Values.sqs.enabled .Values.bucket.enabled .Values.cognito.enabled .Values.redis.enabled .Values.kmsKey.enabled (and (hasKey .Values "livenessAdapter") .Values.livenessAdapter.enabled) }}
+{{ if or .Values.database.enabled .Values.sqs.enabled .Values.bucket.enabled .Values.cognito.enabled .Values.redis.enabled .Values.kmsKey.enabled (and (hasKey .Values "livenessAdapter") .Values.livenessAdapter.enabled) (and (hasKey .Values "audit") .Values.audit.enabled) }}
           env:
 {{ if .Values.database.enabled }}
             - name: {{ .Values.database.secretKey }}
@@ -64,6 +66,14 @@ spec:
                   name: {{ $.Values.cognito.existingSecret }}
                   key: {{ . }}
 {{- end }}
+{{ end }}
+{{ if and (hasKey .Values "audit") .Values.audit.enabled }}
+            - name: {{ .Values.audit.secretKey }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.audit.existingSecret }}
+                  key: {{ .Values.audit.secretKey }}
+                  optional: true
 {{ end }}
 {{ if .Values.redis.enabled }}
 {{- range .Values.redis.secretKeys }}

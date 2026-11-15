@@ -23,8 +23,11 @@ class Settings(BaseSettings):
     REDIS_AUTH_TOKEN: str = ""
     KYC_SERVICE_URL: str = "http://localhost:8202"
     KYC_TIMEOUT_SECONDS: float = 5.0
+    QUOTINGENGINE_SERVICE_URL: str = "http://localhost:8003"
+    KYC_QUOTINGENGINE_TIMEOUT_SECONDS: float = 3.0
     KYC_PROVIDER_NAME: str = "mock_kyc"
     KYC_DOCUMENT_MAX_BYTES: int = 5 * 1024 * 1024
+    TRAZABILIDAD_INTERNAL_TOKEN: str = ""
     KYC_DOCUMENT_STORAGE: Literal["local", "s3"] = "s3"
     # Bucket S3 privado; las credenciales salen de la cadena por defecto de boto3 (Pod Identity o AWS_*).
     S3_BUCKET_NAME: str = ""

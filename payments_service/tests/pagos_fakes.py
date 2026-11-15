@@ -19,8 +19,13 @@ from src.application.ports.proveedor_pago import (
 )
 from src.domain.eventos.entities import EventoOutbox
 from src.domain.eventos.repositories import EventoOutboxRepository
+from src.domain.pagos.auditoria import EventoTrazabilidadPago
 from src.domain.pagos.entities import ESTADOS_PAGO_ACTIVO, PagoPrima
-from src.domain.pagos.repositories import PagoDuplicadoError, PagoPrimaRepository
+from src.domain.pagos.repositories import (
+    AuditoriaPagoRepository,
+    PagoDuplicadoError,
+    PagoPrimaRepository,
+)
 
 COTIZACION_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
 CLIENTE_ID = uuid.UUID("22222222-2222-4222-8222-222222222222")
@@ -99,6 +104,17 @@ class EventosEnMemoria(EventoOutboxRepository):
 
     async def registrar_fallo(self, evento_id, detalle):
         raise NotImplementedError
+
+
+class AuditoriaPagoEnMemoria(AuditoriaPagoRepository):
+    def __init__(self) -> None:
+        self.eventos: list[EventoTrazabilidadPago] = []
+
+    async def agregar(self, evento):
+        self.eventos.append(evento)
+
+    async def listar_por_cotizacion(self, cotizacion_id):
+        return [e for e in self.eventos if e.cotizacion_id == cotizacion_id]
 
 
 class CotizacionesFalsas(CotizacionGateway):

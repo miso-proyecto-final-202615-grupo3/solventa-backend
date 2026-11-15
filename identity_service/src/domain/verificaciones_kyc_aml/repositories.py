@@ -1,6 +1,7 @@
 import uuid
 from abc import ABC, abstractmethod
 
+from src.domain.verificaciones_kyc_aml.auditoria import EventoTrazabilidadKycAml
 from src.domain.verificaciones_kyc_aml.entities import (
     ArchivoDocumento,
     RutasDocumentos,
@@ -42,6 +43,30 @@ class VerificacionKycAmlRepository(ABC):
     @abstractmethod
     async def actualizar(self, verificacion: VerificacionKycAml) -> bool:
         """Control optimista: False si otra escritura ya cambió la versión."""
+        raise NotImplementedError
+
+
+class AuditoriaKycAmlRepository(ABC):
+    @abstractmethod
+    async def agregar(self, evento: EventoTrazabilidadKycAml) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def listar_por_cotizacion(
+        self, cotizacion_id: uuid.UUID
+    ) -> list[EventoTrazabilidadKycAml]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def cotizacion_de_verificacion(
+        self, cliente_id: uuid.UUID, verificacion_id: uuid.UUID
+    ) -> uuid.UUID | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def ultimo_evento_verificacion(
+        self, cliente_id: uuid.UUID, verificacion_id: uuid.UUID, tipo: str
+    ) -> EventoTrazabilidadKycAml | None:
         raise NotImplementedError
 
 

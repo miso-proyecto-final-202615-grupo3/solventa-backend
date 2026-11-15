@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from sqlalchemy import text
 
 from src.core.config import settings
-from src.core.database import Base, SessionLocal, engine
+from src.core.database import Base, SessionLocal
 from src.core.telemetry import setup_telemetry
 from src.infrastructure.persistence import models  # noqa: F401
 from src.infrastructure.persistence.seed import sembrar_catalogo
@@ -18,26 +18,18 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    try:
-        async with engine.begin() as conn:
-            await conn.execute(text("CREATE SCHEMA IF NOT EXISTS quotingengine"))
-            await conn.run_sync(Base.metadata.create_all)
-    except Exception:
-        logger.warning(
-            "No se pudo crear el esquema en el arranque.",
-            exc_info=True,
-        )
-    if settings.SEED_ON_STARTUP:
-        try:
-            async with SessionLocal() as session:
-                await sembrar_catalogo(session)
-        except Exception:
-            logger.warning("No se pudo cargar el catálogo inicial.", exc_info=True)
+    async with SessionLocal.begin() as session:
+        await session.execute(text("SELECT pg_advisory_xact_lock(1397705812, 2)"))
+        await session.execute(text("CREATE SCHEMA IF NOT EXISTS quotingengine"))
+        conn = await session.connection()
+        await conn.run_sync(Base.metadata.create_all)
+        if settings.SEED_ON_STARTUP:
+            await sembrar_catalogo(session)
     await inicializar_recursos(app)
     try:
         yield
     finally:
-        await cerrar_recursos(app)
+        await cerrar_recursos()
 
 
 app = FastAPI(

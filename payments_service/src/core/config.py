@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     PAYMENT_PROVIDER_TIMEOUT_SECONDS: float = 10.0
     # Un pago PENDIENTE más antiguo que esto se considera abandonado y puede reintentarse.
     PAGO_PENDIENTE_TTL_SECONDS: int = 120
+    TRAZABILIDAD_INTERNAL_TOKEN: str = ""
 
     # Bus de eventos (SQS). Sin cola configurada los eventos quedan en el outbox sin publicarse.
     AWS_REGION: str = "us-east-1"

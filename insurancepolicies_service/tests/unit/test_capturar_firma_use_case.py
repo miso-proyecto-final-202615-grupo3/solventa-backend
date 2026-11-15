@@ -96,10 +96,42 @@ class Transaccion:
         self.rollbacks += 1
 
 
-def _caso(repo, almacenamiento, tx):
+class AuditoriaFalsa:
+    def __init__(self):
+        self.eventos = []
+
+    async def agregar(self, evento):
+        self.eventos.append(evento)
+
+
+def _caso(repo, almacenamiento, tx, auditoria=None):
     return CapturarFirmaDigitalUseCase(
-        repo, almacenamiento, tx.commit, tx.rollback, 1024, "CANVAS_MANUSCRITA"
+        repo,
+        almacenamiento,
+        tx.commit,
+        tx.rollback,
+        1024,
+        "CANVAS_MANUSCRITA",
+        auditoria,
     )
+
+
+async def test_firma_capturada_agrega_evento_inmutable_a_la_transaccion():
+    cliente, cotizacion, producto = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+    auditoria = AuditoriaFalsa()
+
+    await _caso(RepoFalso(), AlmacenamientoFalso(), Transaccion(), auditoria).ejecutar(
+        cliente, cotizacion, producto, ARCHIVO, "k1", "corr-1"
+    )
+
+    (evento,) = auditoria.eventos
+    assert (evento.cotizacion_id, evento.cliente_id) == (cotizacion, cliente)
+    assert (evento.tipo, evento.resultado, evento.origen) == (
+        "FIRMA_CAPTURADA",
+        "CAPTURADA",
+        "insurancepolicies_service",
+    )
+    assert evento.correlation_id == "corr-1"
 
 
 async def test_carrera_con_la_misma_clave_devuelve_la_firma_ganadora():

@@ -1,4 +1,9 @@
 replicaCount: 1
+autoscaling:
+  enabled: true
+  cpuUtilization: 70
+  min: 1
+  max: 10
 fullnameOverride: quotingengine-service
 
 containerName: quotingengine-service
@@ -38,6 +43,11 @@ bucket:
 
 cognito:
   enabled: false
+
+audit:
+  enabled: true
+  existingSecret: secret-name
+  secretKey: TRAZABILIDAD_INTERNAL_TOKEN
 
 redis:
   enabled: true

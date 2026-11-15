@@ -28,10 +28,6 @@ services:
       OPEN_FINANCE_TIMEOUT_SECONDS: ${OPEN_FINANCE_TIMEOUT_SECONDS:-0.2}
       GRPC_ENABLED: ${GRPC_ENABLED:-true}
       GRPC_PORT: ${GRPC_PORT:-50051}
-    # Solo desarrollo local: permite que boto3 lea el perfil indicado por AWS_PROFILE.
-    # Las credenciales siguen fuera del repositorio y se montan en modo lectura.
-    volumes:
-      - "${USERPROFILE}/.aws:/root/.aws:ro"
     depends_on:
       db:
         condition: service_healthy

@@ -2,6 +2,7 @@ import uuid
 from abc import ABC, abstractmethod
 
 from src.domain.pagos.entities import PagoPrima
+from src.domain.pagos.auditoria import EventoTrazabilidadPago
 
 
 class PagoDuplicadoError(Exception):
@@ -32,4 +33,16 @@ class PagoPrimaRepository(ABC):
     @abstractmethod
     async def actualizar(self, pago: PagoPrima) -> bool:
         """Actualiza con control optimista de versión; False si otro proceso lo modificó antes."""
+        raise NotImplementedError
+
+
+class AuditoriaPagoRepository(ABC):
+    @abstractmethod
+    async def agregar(self, evento: EventoTrazabilidadPago) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def listar_por_cotizacion(
+        self, cotizacion_id: uuid.UUID
+    ) -> list[EventoTrazabilidadPago]:
         raise NotImplementedError

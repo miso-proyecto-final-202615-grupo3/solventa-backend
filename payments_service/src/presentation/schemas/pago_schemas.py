@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import Self
+from typing import Any, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -61,3 +61,19 @@ class ResumenPagoResponse(BaseModel):
     moneda: str
     expira_en: datetime
     metodos_pago: list[MetodoPagoResponse]
+
+
+class EventoTrazabilidadPagoResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    evento_id: uuid.UUID
+    cotizacion_id: uuid.UUID
+    cliente_id: uuid.UUID
+    tipo: str
+    ocurrido_en: datetime
+    origen: str
+    actor_id: str | None
+    resultado: str
+    referencia_id: str
+    correlation_id: str | None
+    detalles: dict[str, Any]

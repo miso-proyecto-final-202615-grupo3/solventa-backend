@@ -1,4 +1,9 @@
 replicaCount: 1
+autoscaling:
+  enabled: true
+  cpuUtilization: 70
+  min: 1
+  max: 10
 fullnameOverride: bff-web
 
 containerName: bff-web
@@ -38,7 +43,16 @@ redis:
   enabled: false
 
 cognito:
-  enabled: false
+  enabled: true
+  existingSecret: secret-name
+  secretKeys:
+    - COGNITO_USER_POOL_ID
+    - COGNITO_CLIENT_ID
+
+audit:
+  enabled: true
+  existingSecret: secret-name
+  secretKey: TRAZABILIDAD_INTERNAL_TOKEN
 
 kmsKey:
   enabled: false
@@ -54,6 +68,8 @@ config:
   QUOTINGENGINE_SERVICE_URL: http://quotingengine-service:80
   INSURANCEPOLICIES_SERVICE_URL: http://insurancepolicies-service:80
   PAYMENTS_SERVICE_URL: http://payments-service:80
+  COGNITO_REGION: us-east-1
+  COGNITO_AUDITOR_GROUP: Auditor
 
 resources:
   requests:

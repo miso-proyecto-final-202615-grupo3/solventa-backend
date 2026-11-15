@@ -2,7 +2,9 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+from src.presentation.schemas.emision_schemas import HistorialPolizaResponse
 
 
 class PolizaCoberturaResponse(BaseModel):
@@ -29,4 +31,5 @@ class PolizaResponse(BaseModel):
     ramo: str
     prima_total: Decimal
     coberturas: list[PolizaCoberturaResponse]
+    historial: list[HistorialPolizaResponse] = Field(default_factory=list)
     documento_url: str | None = None

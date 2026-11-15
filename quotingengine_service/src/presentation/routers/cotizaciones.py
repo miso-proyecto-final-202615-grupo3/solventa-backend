@@ -1,6 +1,7 @@
 import uuid
+from hmac import compare_digest
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 
 from src.application.ports.perfil_cliente_gateway import (
     ClienteNoEncontradoError,
@@ -24,8 +25,14 @@ from src.application.use_cases.condiciones_cotizacion_use_case import (
     CotizacionNoVigenteError,
 )
 from src.domain.condiciones.entities import DecisionCondiciones
+from src.core.config import settings
 from src.presentation.dependencies import get_condiciones_cotizacion_use_case, get_solicitar_cotizacion_use_case
-from src.presentation.schemas.condiciones_schemas import CondicionesResponse, DecisionRequest, DecisionResponse
+from src.presentation.schemas.condiciones_schemas import (
+    CondicionesResponse,
+    DecisionRequest,
+    DecisionResponse,
+    EventoTrazabilidadCondicionesResponse,
+)
 from src.presentation.schemas.cotizacion_schemas import (
     CotizacionResponse,
     SolicitudCotizacionRequest,
@@ -116,6 +123,43 @@ async def decidir_condiciones(
     except (CondicionesDesactualizadasError, CotizacionNoVigenteError) as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, "Condiciones desactualizadas o cotización no vigente.") from exc
     return _decision_response(condiciones.version_condiciones_generales, evento)
+
+
+@router.get(
+    "/{cotizacion_id}/trazabilidad-condiciones",
+    response_model=list[EventoTrazabilidadCondicionesResponse],
+    include_in_schema=False,
+)
+async def consultar_trazabilidad_condiciones(
+    cotizacion_id: uuid.UUID,
+    internal_token: str | None = Header(default=None, alias="X-Audit-Internal-Token"),
+    use_case: CondicionesCotizacionUseCase = Depends(get_condiciones_cotizacion_use_case),
+) -> list[EventoTrazabilidadCondicionesResponse]:
+    esperado = settings.TRAZABILIDAD_INTERNAL_TOKEN
+    if not esperado or not internal_token or not compare_digest(esperado, internal_token):
+        raise HTTPException(status_code=403, detail="Consulta interna no autorizada.")
+    decisiones = await use_case.decisiones_por_cotizacion(cotizacion_id)
+    return [
+        EventoTrazabilidadCondicionesResponse(
+            evento_id=decision.decision_condiciones_id,
+            cotizacion_id=cotizacion_id,
+            cliente_id=decision.cliente_id,
+            tipo=(
+                "CONDICIONES_ACEPTADAS"
+                if decision.decision.value == "ACEPTADA"
+                else "CONDICIONES_RECHAZADAS"
+            ),
+            ocurrido_en=decision.decidida_en,
+            origen="quotingengine_service",
+            actor_id=None,
+            resultado=decision.decision.value,
+            referencia_id=str(decision.decision_condiciones_id),
+            detalles={
+                "condiciones_cotizacion_id": str(decision.condiciones_cotizacion_id)
+            },
+        )
+        for decision in decisiones
+    ]
 
 
 def _decision_response(version: str, evento: DecisionCondiciones) -> DecisionResponse:

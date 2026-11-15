@@ -10,5 +10,8 @@ sqs:
 bucket:
   existingSecret: solventa-prod-app-secrets
 
+audit:
+  existingSecret: solventa-prod-app-secrets
+
 config:
   ENVIRONMENT: prod

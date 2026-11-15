@@ -22,8 +22,13 @@ from src.application.ports.proveedor_pago import (
 )
 from src.domain.eventos.entities import TIPO_PAGO_APROBADO, EventoOutbox
 from src.domain.eventos.repositories import EventoOutboxRepository
+from src.domain.pagos.auditoria import EventoTrazabilidadPago
 from src.domain.pagos.entities import EstadoPago, MetodoPago, PagoPrima
-from src.domain.pagos.repositories import PagoDuplicadoError, PagoPrimaRepository
+from src.domain.pagos.repositories import (
+    AuditoriaPagoRepository,
+    PagoDuplicadoError,
+    PagoPrimaRepository,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +93,7 @@ class ProcesarPagoPrimaUseCase:
     def __init__(
         self,
         pagos: PagoPrimaRepository,
+        auditoria: AuditoriaPagoRepository,
         eventos: EventoOutboxRepository,
         cotizaciones: CotizacionGateway,
         firmas: FirmaGateway,
@@ -100,6 +106,7 @@ class ProcesarPagoPrimaUseCase:
         ahora: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self.pagos = pagos
+        self.auditoria = auditoria
         self.eventos = eventos
         self.cotizaciones = cotizaciones
         self.firmas = firmas
@@ -151,6 +158,20 @@ class ProcesarPagoPrimaUseCase:
         )
         try:
             await self.pagos.crear(pago)
+            await self.auditoria.agregar(
+                self._evento_trazabilidad(
+                    pago,
+                    "PAGO_INICIADO",
+                    EstadoPago.PENDIENTE.value,
+                    "payments_service",
+                    correlation_id,
+                    detalles={
+                        "metodo_pago": pago.metodo_pago.value,
+                        "monto": str(pago.monto),
+                        "moneda": pago.moneda,
+                    },
+                )
+            )
             await self._commit()
         except PagoDuplicadoError:
             # Otro request ganó la carrera: la misma clave devuelve su pago; si no, hay un pago activo.
@@ -231,6 +252,15 @@ class ProcesarPagoPrimaUseCase:
         if not await self.pagos.actualizar(existente):
             await self._rollback()
             raise PagoEnCursoError("El pago se está procesando.")
+        await self.auditoria.agregar(
+            self._evento_trazabilidad(
+                existente,
+                "PAGO_REINTENTO",
+                EstadoPago.PENDIENTE.value,
+                "payments_service",
+                correlation_id,
+            )
+        )
         await self._commit()
         resultado = await self._cobrar(existente, solicitud, correlation_id)
         return ResultadoPago(pago=resultado.pago, creado=False)
@@ -282,6 +312,25 @@ class ProcesarPagoPrimaUseCase:
         if not await self.pagos.actualizar(pago):
             await self._rollback()
             raise PagoEnCursoError("El pago fue modificado concurrentemente.")
+        await self.auditoria.agregar(
+            self._evento_trazabilidad(
+                pago,
+                "PAGO_RESULTADO",
+                pago.estado.value,
+                self.proveedor_nombre,
+                pago.correlation_id,
+                detalles={
+                    "metodo_pago": pago.metodo_pago.value,
+                    "monto": str(pago.monto),
+                    "moneda": pago.moneda,
+                    **(
+                        {"codigo": pago.codigo_rechazo or pago.error_codigo}
+                        if pago.codigo_rechazo or pago.error_codigo
+                        else {}
+                    ),
+                },
+            )
+        )
         if publicar:
             await self.eventos.agregar(self._evento_pago_aprobado(pago))
         await self._commit()
@@ -291,6 +340,20 @@ class ProcesarPagoPrimaUseCase:
         pago.error_codigo = codigo[:60]
         pago.actualizado_en = self._ahora()
         if await self.pagos.actualizar(pago):
+            await self.auditoria.agregar(
+                self._evento_trazabilidad(
+                    pago,
+                    "PAGO_ERROR",
+                    codigo,
+                    self.proveedor_nombre,
+                    pago.correlation_id,
+                    detalles={
+                        "codigo": codigo,
+                        "monto": str(pago.monto),
+                        "moneda": pago.moneda,
+                    },
+                )
+            )
             await self._commit()
         else:
             await self._rollback()
@@ -318,4 +381,28 @@ class ProcesarPagoPrimaUseCase:
                     "proveedor_referencia": pago.proveedor_referencia,
                 },
             },
+        )
+
+    def _evento_trazabilidad(
+        self,
+        pago: PagoPrima,
+        tipo: str,
+        resultado: str,
+        origen: str,
+        correlation_id: str,
+        *,
+        actor_id: str | None = None,
+        detalles: dict | None = None,
+    ) -> EventoTrazabilidadPago:
+        return EventoTrazabilidadPago(
+            cotizacion_id=pago.cotizacion_id,
+            cliente_id=pago.cliente_id,
+            tipo=tipo,
+            ocurrido_en=self._ahora(),
+            origen=origen,
+            actor_id=actor_id,
+            resultado=resultado,
+            referencia_id=str(pago.pago_id),
+            correlation_id=correlation_id,
+            detalles=detalles or {},
         )

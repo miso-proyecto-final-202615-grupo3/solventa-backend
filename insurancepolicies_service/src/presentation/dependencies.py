@@ -23,6 +23,9 @@ from src.domain.polizas.repositories import PolizaRepository
 from src.infrastructure.persistence.firma_digital_repository_impl import (
     SqlAlchemyFirmaDigitalRepository,
 )
+from src.infrastructure.persistence.auditoria_poliza_repository_impl import (
+    SqlAlchemyAuditoriaPolizaRepository,
+)
 from src.infrastructure.persistence.generacion_certificado_repository_impl import (
     SqlAlchemyGeneracionCertificadoRepository,
 )
@@ -76,6 +79,7 @@ def get_capturar_firma_digital_use_case(
         db.rollback,
         settings.FIRMA_MAX_BYTES,
         settings.FIRMA_PROVEEDOR,
+        SqlAlchemyAuditoriaPolizaRepository(db),
     )
 
 
@@ -115,3 +119,9 @@ def get_descargar_certificado_use_case(
     ),
 ) -> DescargarCertificadoUseCase:
     return DescargarCertificadoUseCase(SqlAlchemyPolizaRepository(db), almacenamiento)
+
+
+def get_auditoria_poliza_repository(
+    db: AsyncSession = Depends(get_db),
+) -> SqlAlchemyAuditoriaPolizaRepository:
+    return SqlAlchemyAuditoriaPolizaRepository(db)

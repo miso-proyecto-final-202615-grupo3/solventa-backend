@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from src.core.config import settings
 from src.core.telemetry import setup_telemetry
 from src.presentation.routers import (
+    auditoria_emision,
     clientes,
     consentimientos,
     health,
@@ -45,6 +46,7 @@ app.include_router(quotingengine.router, prefix=settings.API_PREFIX)
 app.include_router(polizas.router, prefix=settings.API_PREFIX)
 app.include_router(insurancepolicies.router, prefix=settings.API_PREFIX)
 app.include_router(pagos.router, prefix=settings.API_PREFIX)
+app.include_router(auditoria_emision.router, prefix=settings.API_PREFIX)
 
 
 @app.get("/")

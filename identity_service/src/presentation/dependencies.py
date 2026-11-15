@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.ports.identity_provider import IdentityProvider
 from src.application.ports.kyc_aml import KycAmlProvider
+from src.application.ports.cotizacion_kyc import CotizacionKycGateway
 from src.application.use_cases.autenticar_cliente_use_case import (
     AutenticarClienteUseCase,
 )
@@ -41,6 +42,9 @@ from src.domain.clientes.repositories import ClienteRepository
 from src.infrastructure.gateways.cognito_identity_provider import CognitoIdentityProvider
 from src.domain.verificaciones_kyc_aml.repositories import DocumentoVerificacionRepository
 from src.infrastructure.gateways.kyc_aml_http_client import KycAmlHttpClient
+from src.infrastructure.gateways.quotingengine_kyc_http_client import (
+    QuotingEngineKycHttpClient,
+)
 from src.infrastructure.gateways.noop_identity_provider import NoopIdentityProvider
 from src.infrastructure.gateways.consentimiento_biometrico_registrado import (
     ConsentimientoBiometricoRegistrado,
@@ -54,6 +58,9 @@ from src.infrastructure.gateways.http_liveness_adapter_client import (
 from src.infrastructure.cache.consentimiento_cache import ConsentimientoCache
 from src.infrastructure.persistence.auditoria_consentimiento_repository_impl import (
     SqlAlchemyAuditoriaConsentimientoRepository,
+)
+from src.infrastructure.persistence.auditoria_kyc_aml_repository_impl import (
+    SqlAlchemyAuditoriaKycAmlRepository,
 )
 from src.infrastructure.persistence.cliente_repository_impl import (
     SqlAlchemyClienteRepository,
@@ -160,6 +167,14 @@ async def get_kyc_aml_provider() -> AsyncGenerator[KycAmlProvider, None]:
         await client.aclose()
 
 
+async def get_cotizacion_kyc_gateway() -> AsyncGenerator[CotizacionKycGateway, None]:
+    client = QuotingEngineKycHttpClient()
+    try:
+        yield client
+    finally:
+        await client.aclose()
+
+
 @lru_cache(maxsize=1)
 def get_documento_verificacion_repository() -> DocumentoVerificacionRepository:
     if settings.KYC_DOCUMENT_STORAGE == "local":
@@ -231,12 +246,15 @@ def get_iniciar_verificacion_kyc_aml_use_case(
     db: AsyncSession = Depends(get_db),
     documentos: DocumentoVerificacionRepository = Depends(get_documento_verificacion_repository),
     proveedor: KycAmlProvider = Depends(get_kyc_aml_provider),
+    cotizaciones: CotizacionKycGateway = Depends(get_cotizacion_kyc_gateway),
 ) -> IniciarVerificacionKycAmlUseCase:
     return IniciarVerificacionKycAmlUseCase(
         SqlAlchemyClienteRepository(db),
+        cotizaciones,
         SqlAlchemyVerificacionKycAmlRepository(db),
         documentos,
         proveedor,
+        SqlAlchemyAuditoriaKycAmlRepository(db),
         db.commit,
         db.rollback,
         settings.KYC_DOCUMENT_MAX_BYTES,
@@ -250,10 +268,17 @@ def get_consultar_verificacion_kyc_aml_use_case(
     return ConsultarVerificacionKycAmlUseCase(
         SqlAlchemyClienteRepository(db),
         SqlAlchemyVerificacionKycAmlRepository(db),
+        SqlAlchemyAuditoriaKycAmlRepository(db),
         proveedor,
         db.commit,
         db.rollback,
     )
+
+
+def get_auditoria_kyc_aml_repository(
+    db: AsyncSession = Depends(get_db),
+) -> SqlAlchemyAuditoriaKycAmlRepository:
+    return SqlAlchemyAuditoriaKycAmlRepository(db)
 
 
 @asynccontextmanager

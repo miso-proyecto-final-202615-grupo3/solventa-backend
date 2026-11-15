@@ -31,6 +31,7 @@ async def _sembrar_catalogo() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     async with engine.begin() as conn:
+        await conn.execute(text("SELECT pg_advisory_xact_lock(1397705812, 4)"))
         await conn.execute(text("CREATE SCHEMA IF NOT EXISTS insuranceclaims"))
         await conn.run_sync(Base.metadata.create_all)
     if settings.SEED_ON_STARTUP:

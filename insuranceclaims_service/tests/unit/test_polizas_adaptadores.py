@@ -73,7 +73,7 @@ async def test_lista_las_polizas_con_el_producto_del_catalogo():
     )
 
     host, path, headers = llamadas[0]
-    assert (host, path) == ("polizas", "/api/v1/insurancepolicies-service/polizas/mis-polizas")
+    assert (host, path) == ("polizas", "/polizas/mis-polizas")
     assert headers["x-client-id"] == str(CLIENTE) and headers["x-correlation-id"] == "corr-1"
     assert llamadas[1][:2] == ("cotizacion", "/api/v1/quotingengine-service/productos")
     [poliza] = polizas

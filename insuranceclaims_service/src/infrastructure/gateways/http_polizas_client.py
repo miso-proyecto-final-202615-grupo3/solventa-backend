@@ -1,8 +1,8 @@
 """Cliente HTTP de MS Pólizas (HU1.3.8, tarea #265) para el reporte de siniestros (HU4.1.1).
 
 Contrato real de MS Pólizas (rama `dev`, 12/11/2026):
-- `GET {pólizas}/api/v1/insurancepolicies-service/polizas/mis-polizas` con `X-Client-Id` → lista de pólizas.
-- `GET {pólizas}/api/v1/insurancepolicies-service/polizas/{poliza_id}` con `X-Client-Id` → la póliza,
+- `GET {pólizas}/polizas/mis-polizas` (sin `API_PREFIX`, igual que lo consume el BFF Web) con `X-Client-Id` → lista de pólizas.
+- `GET {pólizas}/polizas/{poliza_id}` con `X-Client-Id` → la póliza,
   `404` si no existe o `403` si es de otro cliente.
 Cada póliza trae `producto_id` (no el código). El código y el nombre del producto salen del catálogo del
 Motor de Cotización (`GET {cotización}/api/v1/quotingengine-service/productos`), fuente de los productos,
@@ -20,7 +20,7 @@ from src.application.ports.polizas import PolizaResumen, PolizasNoDisponibles
 
 logger = logging.getLogger(__name__)
 
-PREFIJO_POLIZAS = "/api/v1/insurancepolicies-service/polizas"
+PREFIJO_POLIZAS = "/polizas"
 RUTA_PRODUCTOS = "/api/v1/quotingengine-service/productos"
 
 

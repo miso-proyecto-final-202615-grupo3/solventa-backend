@@ -57,7 +57,7 @@ async def log_internal_errors(request, call_next):
 
 
 app.include_router(health.router)
-app.include_router(polizas.router)
+app.include_router(polizas.router, prefix=settings.API_PREFIX)
 app.include_router(firmas.router, prefix=settings.API_PREFIX)
 app.include_router(emision.router, prefix=settings.API_PREFIX)
 app.include_router(auditoria_emision.router, prefix=settings.API_PREFIX)

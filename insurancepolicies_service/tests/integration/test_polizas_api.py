@@ -12,6 +12,7 @@ from src.presentation.dependencies import get_auditoria_poliza_repository, get_p
 CLIENTE_ID = uuid.uuid4()
 OTRO_CLIENTE_ID = uuid.uuid4()
 POLIZA_ID = uuid.uuid4()
+PREFIJO = "/api/v1/insurancepolicies-service"
 
 
 def _poliza(cliente_id: uuid.UUID = CLIENTE_ID) -> Poliza:
@@ -76,7 +77,7 @@ def repository():
 
 async def test_lista_solo_las_polizas_del_cliente(async_client, repository):
     response = await async_client.get(
-        "/polizas/mis-polizas", headers={"X-Client-Id": str(CLIENTE_ID)}
+        f"{PREFIJO}/polizas/mis-polizas", headers={"X-Client-Id": str(CLIENTE_ID)}
     )
 
     assert response.status_code == 200
@@ -88,7 +89,7 @@ async def test_lista_solo_las_polizas_del_cliente(async_client, repository):
 
 async def test_cliente_no_puede_consultar_poliza_de_otro_cliente(async_client, repository):
     response = await async_client.get(
-        f"/polizas/{POLIZA_ID}", headers={"X-Client-Id": str(OTRO_CLIENTE_ID)}
+        f"{PREFIJO}/polizas/{POLIZA_ID}", headers={"X-Client-Id": str(OTRO_CLIENTE_ID)}
     )
 
     assert response.status_code == 403
@@ -96,9 +97,31 @@ async def test_cliente_no_puede_consultar_poliza_de_otro_cliente(async_client, r
 
 async def test_cliente_consulta_el_detalle_de_su_poliza(async_client, repository):
     response = await async_client.get(
-        f"/polizas/{POLIZA_ID}", headers={"X-Client-Id": str(CLIENTE_ID)}
+        f"{PREFIJO}/polizas/{POLIZA_ID}", headers={"X-Client-Id": str(CLIENTE_ID)}
     )
 
     assert response.status_code == 200
     assert response.json()["coberturas"][0]["deducible"] == "50000.00"
     assert response.json()["historial"][0]["resultado"] == "EMITIDA"
+
+
+async def test_consulta_requiere_cliente_y_poliza_existente(async_client, repository):
+    sin_cliente = await async_client.get(f"{PREFIJO}/polizas/mis-polizas")
+    inexistente = await async_client.get(
+        f"{PREFIJO}/polizas/{uuid.uuid4()}", headers={"X-Client-Id": str(CLIENTE_ID)}
+    )
+
+    assert sin_cliente.status_code == 422
+    assert inexistente.status_code == 404
+
+
+async def test_openapi_y_rutas_solo_exponen_el_prefijo_del_servicio(async_client):
+    paths = (await async_client.get("/openapi.json")).json()["paths"]
+    assert "get" in paths[f"{PREFIJO}/polizas/mis-polizas"]
+    assert "get" in paths[f"{PREFIJO}/polizas/{{poliza_id}}"]
+    assert "/polizas/mis-polizas" not in paths
+    assert "/polizas/{poliza_id}" not in paths
+
+    for path in ("/polizas/mis-polizas", f"/polizas/{POLIZA_ID}"):
+        response = await async_client.get(path, headers={"X-Client-Id": str(CLIENTE_ID)})
+        assert response.status_code == 404

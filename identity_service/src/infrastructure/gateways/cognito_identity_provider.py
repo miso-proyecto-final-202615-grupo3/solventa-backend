@@ -116,6 +116,36 @@ class CognitoIdentityProvider(IdentityProvider):
             token_type=auth_result.get("TokenType", "Bearer"),
         )
 
+    async def renovar_sesion(self, refresh_token: str) -> AutenticarResult:
+        try:
+            response = await run_in_threadpool(
+                self._client.admin_initiate_auth,
+                UserPoolId=self.user_pool_id,
+                ClientId=self.client_id,
+                AuthFlow="REFRESH_TOKEN_AUTH",
+                AuthParameters={"REFRESH_TOKEN": refresh_token},
+            )
+        except ClientError as exc:
+            codigo = exc.response.get("Error", {}).get("Code", "")
+            if codigo in ("NotAuthorizedException", "InvalidParameterException"):
+                raise InvalidCredentialsError("La sesión ya no es válida.") from exc
+            logger.exception("No se pudo renovar la sesión en Cognito.")
+            raise IdentityProviderError(str(exc)) from exc
+        except BotoCoreError as exc:
+            logger.exception("Error de AWS al renovar la sesión en Cognito.")
+            raise IdentityProviderError(str(exc)) from exc
+
+        auth_result = response.get("AuthenticationResult")
+        if not auth_result:
+            raise IdentityProviderError("No se obtuvo un resultado de renovación válido.")
+        return AutenticarResult(
+            access_token=auth_result["AccessToken"],
+            id_token=auth_result.get("IdToken", ""),
+            refresh_token=auth_result.get("RefreshToken"),
+            expires_in=auth_result.get("ExpiresIn"),
+            token_type=auth_result.get("TokenType", "Bearer"),
+        )
+
     async def eliminar_usuario(self, correo: str) -> None:
         try:
             await run_in_threadpool(

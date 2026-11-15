@@ -13,7 +13,7 @@ ambiente y su imagen Docker. Cada servicio se despliega como un pod independient
 | `identity_service` | Identidad y registro de clientes | `/api/v1/identity-service` |
 | `quotingengine_service` | Motor de cotización y suscripción | `/api/v1/quotingengine-service` |
 | `insurancepolicies_service` | Gestión de pólizas, firma digital manuscrita, emisión de la póliza y certificado PDF | `/api/v1/insurancepolicies-service` |
-| `insuranceclaims_service` | Gestión de siniestros (solo `/health` por ahora) | `/api/v1/insuranceclaims-service` |
+| `insuranceclaims_service` | Gestión de siniestros: reporte del siniestro, evidencias y ubicación ([detalle](docs/hu4.1.1-hu4.1.2-siniestros.md)) | `/api/v1/insuranceclaims-service` |
 | `payments_service` | Pago de la prima inicial con PayPal o tarjeta de crédito | `/api/v1/payments-service` |
 | `liveness_adapter` | Adaptador de retos y verificación de prueba de vida | `/api/v1/liveness-adapter` |
 

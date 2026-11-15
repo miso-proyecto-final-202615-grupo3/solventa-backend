@@ -1,0 +1,16 @@
+{
+  "polizas": [
+    {
+      "poliza_id": "8d2b6c1e-4a7f-4f0e-9a51-0c6b1d9e2f10",
+      "numero": "SLV-2026-08341",
+      "producto": { "codigo": "SEGURO_VIAJE", "nombre": "Seguro de viaje" },
+      "vigencia_desde": "2026-03-12",
+      "vigencia_hasta": "2027-03-12",
+      "tipos_siniestro": [
+        { "codigo": "GASTO_MEDICO", "nombre": "Gasto médico", "evidencia": { "fotos_max": 5, "videos_max": 0 } },
+        { "codigo": "EQUIPAJE", "nombre": "Pérdida o daño de equipaje", "evidencia": { "fotos_max": 5, "videos_max": 1 } },
+        { "codigo": "CANCELACION_VIAJE", "nombre": "Cancelación del viaje", "evidencia": { "fotos_max": 3, "videos_max": 0 } }
+      ]
+    }
+  ]
+}

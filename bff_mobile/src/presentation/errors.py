@@ -30,7 +30,11 @@ class ApiError(Exception):
 
     @classmethod
     def desde_identidad(cls, status_code: int, detail) -> "ApiError":
-        """Traduce un error del MS Identidad sin filtrar detalles internos de los 5xx."""
+        return cls.desde_servicio(status_code, detail)
+
+    @classmethod
+    def desde_servicio(cls, status_code: int, detail) -> "ApiError":
+        """Traduce un error de un servicio interno (`detail` = `{codigo, mensaje}`) sin filtrar detalles de los 5xx."""
         if status_code >= 500:
             return cls(503, "SERVICIO_NO_DISPONIBLE", "El servicio no está disponible.")
         if isinstance(detail, dict):

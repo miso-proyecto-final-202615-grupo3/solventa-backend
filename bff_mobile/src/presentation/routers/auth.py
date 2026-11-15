@@ -6,7 +6,7 @@ from src.infrastructure.gateways.identity_service_gateway import (
 )
 from src.presentation.dependencies import get_identity_service_gateway
 from src.presentation.id_token import correo_desde_id_token
-from src.presentation.schemas import LoginRequest, LoginResponse
+from src.presentation.schemas import LoginRequest, LoginResponse, RefreshSessionRequest
 
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
 
@@ -54,4 +54,24 @@ async def login(
         token_type=tokens.get("token_type", "Bearer"),
         correo=correo,
         cliente=cliente,
+    )
+
+
+@router.post("/refresh", response_model=LoginResponse, response_model_exclude_none=True)
+async def refresh(
+    payload: RefreshSessionRequest,
+    gateway: IdentityServiceGateway = Depends(get_identity_service_gateway),
+) -> LoginResponse:
+    try:
+        tokens = await gateway.renovar_sesion(payload.refresh_token)
+    except IdentityGatewayError as exc:
+        if exc.status_code >= 500:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="El servicio de identidad no está disponible.") from exc
+        raise HTTPException(status_code=exc.status_code, detail="La sesión ya no es válida.") from exc
+    return LoginResponse(
+        access_token=tokens["access_token"],
+        refresh_token=tokens.get("refresh_token") or payload.refresh_token,
+        expires_in=tokens.get("expires_in"),
+        token_type=tokens.get("token_type", "Bearer"),
+        correo=correo_desde_id_token(tokens.get("id_token")),
     )

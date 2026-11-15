@@ -1,0 +1,41 @@
+{
+  "_comentario": "Pólizas ficticias para el adaptador en memoria (POLIZAS_ADAPTER=memoria) mientras llega el endpoint interno de MS Pólizas (#265). cliente_id '*' = se asigna a cualquier cliente que las consulte. Sin datos reales.",
+  "polizas": [
+    {
+      "numero": "SLV-2026-08341",
+      "cliente_id": "*",
+      "estado": "EMITIDA",
+      "producto_codigo": "SEGURO_VIAJE",
+      "producto_nombre": "Seguro de viaje",
+      "vigencia_desde": "2026-03-12",
+      "vigencia_hasta": "2027-03-12"
+    },
+    {
+      "numero": "SLV-2026-09120",
+      "cliente_id": "*",
+      "estado": "EMITIDA",
+      "producto_codigo": "PROTECCION_DISPOSITIVOS",
+      "producto_nombre": "Protección de dispositivos",
+      "vigencia_desde": "2026-06-01",
+      "vigencia_hasta": "2027-06-01"
+    },
+    {
+      "numero": "SLV-2025-07120",
+      "cliente_id": "*",
+      "estado": "VENCIDA",
+      "producto_codigo": "SEGURO_VIAJE",
+      "producto_nombre": "Seguro de viaje",
+      "vigencia_desde": "2025-06-30",
+      "vigencia_hasta": "2026-06-30"
+    },
+    {
+      "numero": "SLV-2026-04410",
+      "cliente_id": "*",
+      "estado": "EMITIDA",
+      "producto_codigo": "MICROSEGURO_VIDA",
+      "producto_nombre": "Microseguro de vida",
+      "vigencia_desde": "2026-01-15",
+      "vigencia_hasta": "2027-01-15"
+    }
+  ]
+}

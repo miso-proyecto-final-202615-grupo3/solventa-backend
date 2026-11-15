@@ -1,16 +1,19 @@
 import hashlib
 import logging
+import uuid
 from collections.abc import AsyncGenerator
 
-from fastapi import Header
+from fastapi import Depends, Header
 
 from src.core.config import settings
 from src.infrastructure.gateways.identity_service_gateway import (
     IdentityServiceGateway,
 )
+from src.infrastructure.gateways.insuranceclaims_service_gateway import InsuranceClaimsServiceGateway
 from src.infrastructure.gateways.quotingengine_service_gateway import (
     QuotingEngineServiceGateway,
 )
+from src.presentation.cliente_resolver import ClienteIdResolver
 from src.presentation.errors import ApiError
 from src.presentation.jwt_validator import (
     ClienteAutenticado,
@@ -72,3 +75,20 @@ async def get_quotingengine_service_gateway() -> AsyncGenerator[
         yield gateway
     finally:
         await gateway.aclose()
+
+
+async def get_insuranceclaims_service_gateway() -> AsyncGenerator[InsuranceClaimsServiceGateway, None]:
+    gateway = InsuranceClaimsServiceGateway()
+    try:
+        yield gateway
+    finally:
+        await gateway.aclose()
+
+
+async def get_cliente_id(
+    cliente: ClienteAutenticado = Depends(get_cliente_autenticado),
+    identidad: IdentityServiceGateway = Depends(get_identity_service_gateway),
+    x_correlation_id: str | None = Header(default=None),
+) -> str:
+    """`cliente_id` del dueño del token (HU4.1.1). La app nunca lo envía."""
+    return await ClienteIdResolver(identidad).resolver(cliente.correo, x_correlation_id or str(uuid.uuid4()))

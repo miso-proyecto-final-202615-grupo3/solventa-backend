@@ -22,12 +22,26 @@ async def test_docs_y_openapi(async_client: AsyncClient):
 
     schema = await async_client.get("/openapi.json")
     assert schema.status_code == 200
-    assert set(schema.json()["paths"]) == {"/", "/health", "/metrics"}
+    base = "/api/v1/insuranceclaims-service"
+    assert set(schema.json()["paths"]) == {
+        "/",
+        "/health",
+        "/metrics",
+        f"{base}/siniestros",
+        f"{base}/siniestros/polizas-elegibles",
+        f"{base}/siniestros/{{siniestro_id}}",
+        f"{base}/tipos-siniestro",
+        f"{base}/siniestros/{{siniestro_id}}/evidencias",
+        f"{base}/siniestros/{{siniestro_id}}/evidencias/{{evidencia_id}}/confirmacion",
+        f"{base}/siniestros/{{siniestro_id}}/ubicacion",
+    }
 
 
 async def test_no_expone_otros_endpoints(async_client: AsyncClient):
-    for path in ("/api/v1/insuranceclaims-service/siniestros",):
+    for path in ("/api/v1/insuranceclaims-service/indemnizaciones", "/api/v1/insuranceclaims-service/eventos"):
         assert (await async_client.get(path)).status_code == 404
+    # La lista general de siniestros llega con HU4.2.1.
+    assert (await async_client.get("/api/v1/insuranceclaims-service/siniestros")).status_code == 405
 
 
 async def test_metricas(async_client: AsyncClient):

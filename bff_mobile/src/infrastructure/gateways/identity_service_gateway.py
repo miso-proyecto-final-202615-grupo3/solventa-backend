@@ -31,6 +31,12 @@ class IdentityServiceGateway:
             {"correo": correo, "password": password},
         )
 
+    async def renovar_sesion(self, refresh_token: str) -> dict:
+        return await self._post(
+            "/api/v1/identity-service/clientes/renovar-sesion",
+            {"refresh_token": refresh_token},
+        )
+
     async def obtener_resumen_movil(
         self, correo: str, installation_id: str | None
     ) -> dict:
@@ -48,6 +54,26 @@ class IdentityServiceGateway:
         if not response.is_success:
             raise IdentityGatewayError(response.status_code, body.get("detail", "El servicio de identidad devolvió un error."))
         return body
+
+    async def obtener_cliente_id(self, correo: str, correlation_id: str) -> str:
+        """`id` del cliente dueño del correo (HU4.1.1). Sin `installation_id`: solo interesa el cliente."""
+        try:
+            response = await self._client.get(
+                "/api/v1/identity-service/clientes/resumen-movil",
+                params={"correo": correo},
+                headers={"X-Correlation-Id": correlation_id},
+            )
+        except httpx.HTTPError as exc:
+            raise IdentityGatewayError(503, "El servicio de identidad no está disponible.") from exc
+        try:
+            body = response.json()
+        except ValueError:
+            body = {}
+        if not response.is_success:
+            raise IdentityGatewayError(response.status_code, body.get("detail", "El servicio de identidad devolvió un error."))
+        if not body.get("id"):
+            raise IdentityGatewayError(503, "El servicio de identidad devolvió una respuesta inválida.")
+        return str(body["id"])
 
     async def iniciar_activacion_movil(
         self,

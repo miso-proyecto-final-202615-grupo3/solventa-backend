@@ -11,6 +11,7 @@ from src.main import app
 from src.presentation.dependencies import get_identity_service_gateway
 
 LOGIN_PATH = "/api/v1/bff-mobile/auth/login"
+REFRESH_PATH = "/api/v1/bff-mobile/auth/refresh"
 CREDENCIALES = {"correo": "ana.perez@example.com", "password": "Secreta123"}
 
 
@@ -30,6 +31,12 @@ class FakeIdentityGateway:
 
     async def autenticar_cliente(self, correo: str, password: str) -> dict:
         self.llamadas.append((correo, password))
+        if self.error is not None:
+            status, detail = self.error
+            raise IdentityGatewayError(status, detail)
+        return self.resultado
+
+    async def renovar_sesion(self, refresh_token: str) -> dict:
         if self.error is not None:
             status, detail = self.error
             raise IdentityGatewayError(status, detail)
@@ -133,3 +140,13 @@ async def test_login_rechaza_campos_extra(bff_client: AsyncClient):
     response = await bff_client.post(LOGIN_PATH, json={**CREDENCIALES, "extra": 1})
 
     assert response.status_code == 422
+
+
+async def test_refresh_devuelve_tokens_renovados_y_conserva_refresh_token(bff_client: AsyncClient, fake_gateway):
+    fake_gateway.resultado = {"access_token": "access-nuevo", "id_token": _id_token({"email": "ana.perez@example.com"}), "expires_in": 3600}
+
+    response = await bff_client.post(REFRESH_PATH, json={"refresh_token": "refresh-123"})
+
+    assert response.status_code == 200
+    assert response.json()["access_token"] == "access-nuevo"
+    assert response.json()["refresh_token"] == "refresh-123"

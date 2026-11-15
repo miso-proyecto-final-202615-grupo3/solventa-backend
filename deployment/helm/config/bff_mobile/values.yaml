@@ -63,6 +63,8 @@ config:
   COGNITO_REGION: us-east-1
   ACTIVATION_TIMEOUT_SECONDS: "20"
   QUOTINGENGINE_SERVICE_URL: http://quotingengine-service:80
+  INSURANCECLAIMS_SERVICE_URL: http://insuranceclaims-service:80
+  CLAIMS_TIMEOUT_SECONDS: "8"
 
 resources:
   requests:

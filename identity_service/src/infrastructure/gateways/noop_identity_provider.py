@@ -30,6 +30,9 @@ class NoopIdentityProvider(IdentityProvider):
             "Autenticación no disponible en modo local (Cognito no configurado)."
         )
 
+    async def renovar_sesion(self, refresh_token: str) -> AutenticarResult:
+        raise InvalidCredentialsError("La sesión no es válida en modo local.")
+
     async def eliminar_usuario(self, correo: str) -> None:
         logger.warning(
             "NoopIdentityProvider: identidad para %s no existe (modo local).",

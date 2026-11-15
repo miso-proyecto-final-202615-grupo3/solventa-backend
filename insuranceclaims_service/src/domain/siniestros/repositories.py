@@ -9,6 +9,7 @@ from src.domain.siniestros.entities import (
     Indemnizacion,
     Siniestro,
 )
+from src.domain.siniestros.evidencias import EvidenciaSiniestro
 
 Entity = TypeVar("Entity")
 
@@ -36,7 +37,42 @@ class ActivacionPolizaRepository(Repository[ActivacionPoliza]):
 
 
 class SiniestroRepository(Repository[Siniestro]):
-    pass
+    @abstractmethod
+    async def obtener_por_clave_idempotencia(self, clave: str) -> Siniestro | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def obtener_de_cliente(self, siniestro_id: uuid.UUID, cliente_id: uuid.UUID) -> Siniestro | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def obtener_de_cliente_para_actualizar(
+        self, siniestro_id: uuid.UUID, cliente_id: uuid.UUID
+    ) -> Siniestro | None:
+        """Igual que `obtener_de_cliente`, pero bloquea la fila (`FOR UPDATE`) hasta el commit."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def actualizar(self, siniestro: Siniestro) -> Siniestro:
+        raise NotImplementedError
+
+
+class EvidenciaRepository(Repository[EvidenciaSiniestro]):
+    @abstractmethod
+    async def actualizar(self, evidencia: EvidenciaSiniestro) -> EvidenciaSiniestro:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def obtener_de_siniestro(self, evidencia_id: uuid.UUID, siniestro_id: uuid.UUID) -> EvidenciaSiniestro | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def listar_de_siniestro(self, siniestro_id: uuid.UUID) -> list[EvidenciaSiniestro]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def obtener_por_clave(self, siniestro_id: uuid.UUID, clave: str) -> EvidenciaSiniestro | None:
+        raise NotImplementedError
 
 
 class IndemnizacionRepository(Repository[Indemnizacion]):

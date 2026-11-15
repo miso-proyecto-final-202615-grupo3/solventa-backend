@@ -1,7 +1,8 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
+from typing import Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, EmailStr, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class LoginRequest(BaseModel):
@@ -12,6 +13,12 @@ class LoginRequest(BaseModel):
     correo: EmailStr
     password: str = Field(min_length=1, max_length=128)
     installation_id: uuid.UUID | None = None
+
+
+class RefreshSessionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    refresh_token: str = Field(min_length=1, max_length=4096)
 
 
 class ClienteMovil(BaseModel):
@@ -90,3 +97,121 @@ class RegistrarConsentimientoBiometricoResponse(BaseModel):
     decision: str
     version_terminos: str
     registrado_en: datetime
+
+
+# --- HU4.1.1 · Registrar un siniestro (contrato canónico: docs/planning/HU4.1.1-plan-tecnico.md §3) ---
+
+class EvidenciaReglas(BaseModel):
+    fotos_max: int = Field(ge=0)
+    videos_max: int = Field(ge=0)
+
+
+class TipoSiniestro(BaseModel):
+    codigo: str
+    nombre: str
+    evidencia: EvidenciaReglas
+
+
+class ProductoPoliza(BaseModel):
+    codigo: str
+    nombre: str
+
+
+class PolizaElegible(BaseModel):
+    poliza_id: uuid.UUID
+    numero: str
+    producto: ProductoPoliza
+    vigencia_desde: date
+    vigencia_hasta: date
+    tipos_siniestro: list[TipoSiniestro] = Field(min_length=1)
+
+
+class PolizasElegiblesResponse(BaseModel):
+    polizas: list[PolizaElegible]
+
+
+class ReportarSiniestroRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    poliza_id: uuid.UUID
+    tipo: str = Field(pattern=r"^[A-Z_]{3,40}$")
+    descripcion: str = Field(min_length=10, max_length=500)
+    ocurrido_en: AwareDatetime
+
+    @field_validator("descripcion", mode="before")
+    @classmethod
+    def _sin_espacios_extremos(cls, valor):
+        return valor.strip() if isinstance(valor, str) else valor
+
+
+class SiniestroResponse(BaseModel):
+    siniestro_id: uuid.UUID
+    numero: str
+    estado: str
+    poliza_id: uuid.UUID
+    poliza_numero: str | None
+    tipo: str
+    ocurrido_en: datetime
+    reportado_en: datetime
+
+
+# --- HU4.1.2 · Evidencias y ubicación (contrato canónico: docs/planning/HU4.1.2-plan-tecnico.md §3) ---
+
+class SolicitudCargaRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tipo: Literal["FOTO", "VIDEO"]
+    content_type: str = Field(min_length=3, max_length=50)
+    tamano_bytes: int = Field(gt=0)
+    origen: Literal["CAMARA", "GALERIA"]
+    capturada_en: AwareDatetime
+
+
+class CargaPrefirmada(BaseModel):
+    url: str
+    campos: dict[str, str]
+    expira_en: datetime
+    tamano_max_bytes: int
+
+
+class SolicitudCargaResponse(BaseModel):
+    evidencia_id: uuid.UUID
+    estado: str
+    carga: CargaPrefirmada | None = None  # null: la evidencia de esa Idempotency-Key ya está CARGADA
+
+
+class EvidenciaResponse(BaseModel):
+    evidencia_id: uuid.UUID
+    tipo: str
+    estado: str
+    tamano_bytes: int | None = None
+    capturada_en: datetime
+    cargada_en: datetime | None = None
+
+
+class UbicacionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    latitud: float = Field(ge=-90, le=90)
+    longitud: float = Field(ge=-180, le=180)
+    precision_m: float = Field(gt=0, le=5000)
+    fuente: Literal["GPS", "RED", "ULTIMA_CONOCIDA"]
+    capturada_en: AwareDatetime
+
+
+class UbicacionResponse(BaseModel):
+    latitud: float
+    longitud: float
+    precision_m: float
+    fuente: str
+    capturada_en: datetime
+
+
+class RegistrarUbicacionResponse(BaseModel):
+    ubicacion: UbicacionResponse
+    actualizada_en: datetime
+
+
+class SiniestroDetalleResponse(SiniestroResponse):
+    ubicacion: UbicacionResponse | None = None
+    evidencias: list[EvidenciaResponse] = []

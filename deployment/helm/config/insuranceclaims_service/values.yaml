@@ -59,6 +59,7 @@ config:
   API_PREFIX: /api/v1/insuranceclaims-service
   OTEL_EXPORTER_OTLP_ENDPOINT: http://cloudwatch-agent.amazon-cloudwatch.svc.cluster.local:4315
   OTEL_TRACES_EXPORTER: otlp
+  SEED_ON_STARTUP: "true"
   # HU4.1.1: pólizas de MS Pólizas (#265) y catálogo de productos del Motor de Cotización.
   POLIZAS_ADAPTER: http
   INSURANCEPOLICIES_SERVICE_URL: http://insurancepolicies-service:80
@@ -67,6 +68,7 @@ config:
   ESTADOS_POLIZA_ELEGIBLES: EMITIDA,VIGENTE
   # HU4.1.2: evidencias en S3 con SSE-KMS. Sin S3_ENDPOINT_URL (AWS); credenciales por EKS Pod Identity.
   AWS_REGION: us-east-1
+  ALMACEN_EVIDENCIAS: s3
   EVIDENCIAS_SSE: aws:kms
   EVIDENCIAS_PREFIX: siniestros/
   FOTO_MAX_MB: "5"

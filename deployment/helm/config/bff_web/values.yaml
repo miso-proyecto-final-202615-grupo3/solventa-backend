@@ -68,8 +68,10 @@ config:
   QUOTINGENGINE_SERVICE_URL: http://quotingengine-service:80
   INSURANCEPOLICIES_SERVICE_URL: http://insurancepolicies-service:80
   PAYMENTS_SERVICE_URL: http://payments-service:80
+  FIRMA_MAX_REQUEST_BYTES: "2097152"
   COGNITO_REGION: us-east-1
   COGNITO_AUDITOR_GROUP: Auditor
+  COGNITO_JWKS_TTL_SECONDS: 3600
 
 resources:
   requests:

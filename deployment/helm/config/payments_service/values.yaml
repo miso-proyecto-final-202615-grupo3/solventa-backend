@@ -65,8 +65,14 @@ config:
   AWS_REGION: us-east-1
   QUOTINGENGINE_SERVICE_URL: http://quotingengine-service:80
   INSURANCEPOLICIES_SERVICE_URL: http://insurancepolicies-service:80
+  SERVICES_TIMEOUT_SECONDS: 3.0
+  REQUIRE_FIRMA_DIGITAL: "true"
   PAYMENT_PROVIDER_URL: http://mock-paymentprovider:80
   PAYMENT_PROVIDER_NAME: mock_paymentprovider
+  PAYMENT_PROVIDER_TIMEOUT_SECONDS: 10.0
+  PAGO_PENDIENTE_TTL_SECONDS: 120
+  OUTBOX_POLL_SECONDS: 10.0
+  OUTBOX_BATCH_SIZE: 10
 
 resources:
   requests:

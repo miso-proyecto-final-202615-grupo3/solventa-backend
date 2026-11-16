@@ -11,12 +11,15 @@ class Settings(BaseSettings):
     QUOTINGENGINE_SERVICE_URL: str = "http://localhost:8003"
     INSURANCEPOLICIES_SERVICE_URL: str = "http://localhost:8004"
     PAYMENTS_SERVICE_URL: str = "http://localhost:8006"
+    PARTNERS_SERVICE_URL: str = "http://localhost:8007"
+    PARTNERS_INTERNAL_TOKEN: str = ""
     FIRMA_MAX_REQUEST_BYTES: int = Field(default=2 * 1024 * 1024, gt=0)
     TRAZABILIDAD_INTERNAL_TOKEN: str = ""
     COGNITO_REGION: str = ""
     COGNITO_USER_POOL_ID: str = ""
     COGNITO_CLIENT_ID: str = ""
     COGNITO_AUDITOR_GROUP: str = "Auditor"
+    COGNITO_SOCIOS_ADMIN_GROUP: str = "SociosAdmin"
     COGNITO_JWKS_TTL_SECONDS: int = 3600
     OTEL_EXPORTER_OTLP_ENDPOINT: str = "http://localhost:4317"
 

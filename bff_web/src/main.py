@@ -13,6 +13,7 @@ from src.presentation.routers import (
     pagos,
     polizas,
     quotingengine,
+    socios,
 )
 
 logger = logging.getLogger(__name__)
@@ -47,6 +48,7 @@ app.include_router(polizas.router, prefix=settings.API_PREFIX)
 app.include_router(insurancepolicies.router, prefix=settings.API_PREFIX)
 app.include_router(pagos.router, prefix=settings.API_PREFIX)
 app.include_router(auditoria_emision.router, prefix=settings.API_PREFIX)
+app.include_router(socios.router, prefix=settings.API_PREFIX)
 
 
 @app.get("/")

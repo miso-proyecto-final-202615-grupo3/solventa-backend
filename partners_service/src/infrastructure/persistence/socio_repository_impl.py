@@ -21,6 +21,7 @@ class SqlAlchemySocioRepository(SocioRepository):
                 registrado_por=socio.registrado_por,
             )
         )
+        await self.session.flush()
         self.session.add(
             EventoSocioModel(
                 id=evento.id,

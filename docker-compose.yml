@@ -295,6 +295,9 @@ services:
       PAYMENTS_SERVICE_URL: ${PAYMENTS_SERVICE_URL:-http://payments_service:8000}
       PARTNERS_SERVICE_URL: ${PARTNERS_SERVICE_URL:-http://partners_service:8000}
       PARTNERS_INTERNAL_TOKEN: ${PARTNERS_INTERNAL_TOKEN:-local-partners-token}
+      COGNITO_REGION: ${COGNITO_REGION:-${AWS_REGION:-us-east-1}}
+      COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
+      COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
     depends_on:
       identity_service:

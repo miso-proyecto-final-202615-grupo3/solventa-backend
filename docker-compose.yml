@@ -50,6 +50,10 @@ services:
     environment:
       DATABASE_URL: "${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@db:5432/identity_db}"
       PARTNERS_INTERNAL_TOKEN: ${PARTNERS_INTERNAL_TOKEN:-local-partners-token}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
+      COGNITO_SOCIO_GROUP: ${COGNITO_SOCIO_GROUP:-Socio}
+      COGNITO_ENABLED: "${COGNITO_ENABLED:-true}"
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
     depends_on:
       db:

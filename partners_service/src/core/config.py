@@ -10,6 +10,10 @@ class Settings(BaseSettings):
         "postgresql+asyncpg://postgres:postgres@localhost:5432/identity_db"
     )
     PARTNERS_INTERNAL_TOKEN: str = ""
+    AWS_REGION: str = "us-east-1"
+    COGNITO_USER_POOL_ID: str = ""
+    COGNITO_SOCIO_GROUP: str = "Socio"
+    COGNITO_ENABLED: bool = False
     OTEL_EXPORTER_OTLP_ENDPOINT: str = "http://localhost:4317"
 
     model_config = SettingsConfigDict(

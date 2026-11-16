@@ -17,6 +17,7 @@ class SocioModel(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     nombre: Mapped[str] = mapped_column(String(120), nullable=False)
+    correo: Mapped[str] = mapped_column(String(320), nullable=False, unique=True, index=True)
     tipo_socio: Mapped[str] = mapped_column(String(60), nullable=False)
     canal_integracion: Mapped[str] = mapped_column(String(60), nullable=False)
     estado: Mapped[str] = mapped_column(

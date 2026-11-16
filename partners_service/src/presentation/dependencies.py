@@ -9,6 +9,7 @@ from src.core.config import settings
 from src.core.database import SessionLocal
 from src.domain.socios.repositories import SocioRepository
 from src.infrastructure.persistence.socio_repository_impl import SqlAlchemySocioRepository
+from src.infrastructure.identity.cognito_socio_provider import CognitoSocioProvider
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -23,7 +24,8 @@ def get_socio_repository(db: AsyncSession = Depends(get_db)) -> SocioRepository:
 def get_registrar_socio_use_case(
     repository: SocioRepository = Depends(get_socio_repository),
 ) -> RegistrarSocioUseCase:
-    return RegistrarSocioUseCase(repository)
+    provider = CognitoSocioProvider() if settings.COGNITO_ENABLED else None
+    return RegistrarSocioUseCase(repository, provider)
 
 
 def require_internal_token(

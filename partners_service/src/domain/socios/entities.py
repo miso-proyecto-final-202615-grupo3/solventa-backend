@@ -14,6 +14,7 @@ class EstadoSocio(StrEnum):
 class Socio:
     id: UUID
     nombre: str
+    correo: str
     tipo_socio: str
     canal_integracion: str
     estado: EstadoSocio
@@ -24,6 +25,7 @@ class Socio:
     def registrar(
         cls,
         nombre: str,
+        correo: str,
         tipo_socio: str,
         canal_integracion: str,
         registrado_por: str,
@@ -33,9 +35,10 @@ class Socio:
         socio = cls(
             id=socio_id,
             nombre=nombre.strip(),
+            correo=correo.strip().lower(),
             tipo_socio=tipo_socio.strip(),
             canal_integracion=canal_integracion.strip(),
-            estado=EstadoSocio.PENDIENTE,
+            estado=EstadoSocio.ACTIVO,
             creado_en=creado_en,
             registrado_por=registrado_por,
         )

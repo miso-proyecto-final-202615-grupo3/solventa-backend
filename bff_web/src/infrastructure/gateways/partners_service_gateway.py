@@ -67,5 +67,21 @@ class PartnersServiceGateway:
             )
         return body
 
+    async def listar_socios(self, actor_id: str, correlation_id: str | None = None) -> list[dict[str, Any]]:
+        if not self.internal_token:
+            raise PartnersGatewayError(503, "El servicio de socios no está configurado.")
+        headers = {"X-Partners-Internal-Token": self.internal_token, "X-Actor-Id": actor_id}
+        if correlation_id:
+            headers["X-Correlation-Id"] = correlation_id
+        try:
+            response = await self._client.get(_SOCIOS, headers=headers)
+        except httpx.HTTPError as exc:
+            raise PartnersGatewayError(503, "El servicio de socios no está disponible.") from exc
+        if not response.is_success:
+            body = response.json()
+            detail = body.get("detail", "El servicio de socios devolvió un error.") if isinstance(body, dict) else "El servicio de socios devolvió un error."
+            raise PartnersGatewayError(response.status_code, detail)
+        return response.json()
+
     async def aclose(self) -> None:
         await self._client.aclose()

@@ -22,6 +22,9 @@ class InMemorySocioRepository(SocioRepository):
         self.socios.append(socio)
         self.eventos.append(evento)
 
+    async def listar(self) -> list[Socio]:
+        return list(self.socios)
+
 
 @pytest.fixture
 async def db_session():

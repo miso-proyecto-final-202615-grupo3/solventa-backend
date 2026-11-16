@@ -21,6 +21,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await conn.execute(text("SELECT pg_advisory_xact_lock(1397705812, 6)"))
         await conn.execute(text("CREATE SCHEMA IF NOT EXISTS partners"))
         await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(
+            text("ALTER TABLE partners.socios ADD COLUMN IF NOT EXISTS correo VARCHAR(320)")
+        )
+        await conn.execute(
+            text(
+                "UPDATE partners.socios SET correo = 'legacy-' || id::text || '@invalid.local' "
+                "WHERE correo IS NULL"
+            )
+        )
+        await conn.execute(text("ALTER TABLE partners.socios ALTER COLUMN correo SET NOT NULL"))
     try:
         yield
     finally:

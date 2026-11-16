@@ -1,3 +1,4 @@
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.socios.entities import EventoSocio, Socio
@@ -14,6 +15,7 @@ class SqlAlchemySocioRepository(SocioRepository):
             SocioModel(
                 id=socio.id,
                 nombre=socio.nombre,
+                correo=socio.correo,
                 tipo_socio=socio.tipo_socio,
                 canal_integracion=socio.canal_integracion,
                 estado=socio.estado.value,
@@ -32,3 +34,19 @@ class SqlAlchemySocioRepository(SocioRepository):
             )
         )
         await self.session.commit()
+
+    async def listar(self) -> list[Socio]:
+        result = await self.session.scalars(select(SocioModel).order_by(SocioModel.creado_en.desc()))
+        return [
+            Socio(
+                id=row.id,
+                nombre=row.nombre,
+                correo=row.correo,
+                tipo_socio=row.tipo_socio,
+                canal_integracion=row.canal_integracion,
+                estado=row.estado,
+                creado_en=row.creado_en,
+                registrado_por=row.registrado_por,
+            )
+            for row in result
+        ]

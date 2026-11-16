@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Header, status
 
 from src.application.use_cases.registrar_socio_use_case import RegistrarSocioUseCase
 from src.presentation.dependencies import (
+    get_socio_repository,
     get_registrar_socio_use_case,
     require_internal_token,
 )
@@ -23,8 +24,16 @@ async def registrar_socio(
 ) -> SocioResponse:
     socio = await use_case.ejecutar(
         nombre=payload.nombre,
+        correo=str(payload.correo),
         tipo_socio=payload.tipo_socio,
         canal_integracion=payload.canal_integracion,
         actor_id=actor_id,
     )
     return SocioResponse.desde_entidad(socio)
+
+
+@router.get("", response_model=list[SocioResponse])
+async def listar_socios(
+    repository=Depends(get_socio_repository),
+) -> list[SocioResponse]:
+    return [SocioResponse.desde_entidad(socio) for socio in await repository.listar()]

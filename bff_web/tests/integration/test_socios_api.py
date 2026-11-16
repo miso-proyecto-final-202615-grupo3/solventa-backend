@@ -37,6 +37,7 @@ async def test_registra_socio_y_propaga_actor_validado(socios_client):
     client, gateway = socios_client
     payload = {
         "nombre": "Banco Andino",
+        "correo": "socio@yopmail.com",
         "tipo_socio": "Banco",
         "canal_integracion": "API",
     }
@@ -53,7 +54,8 @@ async def test_rechaza_solicitud_sin_autenticacion(async_client):
     response = await async_client.post(
         BASE,
         json={
-            "nombre": "Banco Andino",
+        "nombre": "Banco Andino",
+        "correo": "socio@yopmail.com",
             "tipo_socio": "Banco",
             "canal_integracion": "API",
         },
@@ -67,7 +69,7 @@ async def test_rechaza_payload_invalido(socios_client):
 
     response = await client.post(
         BASE,
-        json={"nombre": " ", "tipo_socio": "Banco", "canal_integracion": "API"},
+        json={"nombre": " ", "correo": "socio@yopmail.com", "tipo_socio": "Banco", "canal_integracion": "API"},
     )
 
     assert response.status_code == 422

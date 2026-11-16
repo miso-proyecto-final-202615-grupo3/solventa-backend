@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from src.domain.socios.entities import EstadoSocio, Socio
 
@@ -10,6 +10,7 @@ class RegistrarSocioRequest(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     nombre: str = Field(min_length=1, max_length=120)
+    correo: EmailStr
     tipo_socio: str = Field(min_length=1, max_length=60)
     canal_integracion: str = Field(min_length=1, max_length=60)
 
@@ -24,6 +25,7 @@ class RegistrarSocioRequest(BaseModel):
 class SocioResponse(BaseModel):
     id: UUID
     nombre: str
+    correo: EmailStr
     tipo_socio: str
     canal_integracion: str
     estado: EstadoSocio
@@ -34,6 +36,7 @@ class SocioResponse(BaseModel):
         return cls(
             id=socio.id,
             nombre=socio.nombre,
+            correo=socio.correo,
             tipo_socio=socio.tipo_socio,
             canal_integracion=socio.canal_integracion,
             estado=socio.estado,

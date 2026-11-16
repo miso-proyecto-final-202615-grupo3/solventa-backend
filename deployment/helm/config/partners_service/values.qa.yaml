@@ -1,0 +1,11 @@
+image:
+  repository: partners-service
+
+database:
+  existingSecret: solventa-qa-app-secrets
+
+partners:
+  existingSecret: solventa-qa-app-secrets
+
+config:
+  ENVIRONMENT: qa

@@ -1,0 +1,11 @@
+image:
+  repository: 839553328585.dkr.ecr.us-east-1.amazonaws.com/solventa-partners-service
+
+database:
+  existingSecret: solventa-prod-app-secrets
+
+partners:
+  existingSecret: solventa-prod-app-secrets
+
+config:
+  ENVIRONMENT: prod

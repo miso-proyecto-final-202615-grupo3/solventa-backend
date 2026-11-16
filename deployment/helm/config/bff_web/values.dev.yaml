@@ -6,3 +6,6 @@ cognito:
 
 audit:
   existingSecret: solventa-dev-app-secrets
+
+partners:
+  existingSecret: solventa-dev-app-secrets

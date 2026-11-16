@@ -33,3 +33,5 @@ class ProductoSeguro:
     pais: str
     estado: EstadoProducto = EstadoProducto.ACTIVO
     producto_id: uuid.UUID = field(default_factory=uuid.uuid4)
+    condiciones_generales: str | None = None
+    version_condiciones_generales: str | None = None

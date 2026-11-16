@@ -44,17 +44,3 @@ spec:
                 name: bff-mobile
                 port:
                   number: 80
-          - path: /api/v1/identity-service
-            pathType: Prefix
-            backend:
-              service:
-                name: identity-service
-                port:
-                  number: 80
-          - path: /api/v1/quotingengine-service
-            pathType: Prefix
-            backend:
-              service:
-                name: quotingengine-service
-                port:
-                  number: 80

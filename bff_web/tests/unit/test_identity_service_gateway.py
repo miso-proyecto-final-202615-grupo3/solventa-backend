@@ -188,3 +188,29 @@ async def test_registrar_cliente_propaga_error_sin_cuerpo_json():
         assert "error" in exc.value.detail
     finally:
         await gateway.aclose()
+
+async def test_verificaciones_kyc_aml_reenvian_cuerpo_y_cabeceras():
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(202, json={"verificacion_id": "v1"})
+
+    gateway = IdentityServiceGateway(
+        base_url=BASE, transport=httpx.MockTransport(handler)
+    )
+    base = f"/api/v1/identity-service/clientes/{CLIENTE_ID}/verificaciones-kyc-aml"
+
+    await gateway.iniciar_verificacion_kyc_aml(
+        CLIENTE_ID, b"cuerpo", "multipart/form-data; boundary=x", {"idempotency-key": "k"}
+    )
+    await gateway.consultar_verificacion_kyc_aml(CLIENTE_ID, "v1", {"x-correlation-id": "c"})
+
+    assert calls[0].method == "POST"
+    assert calls[0].url.path == base
+    assert calls[0].content == b"cuerpo"
+    assert calls[0].headers["content-type"] == "multipart/form-data; boundary=x"
+    assert calls[0].headers["idempotency-key"] == "k"
+    assert calls[1].method == "GET"
+    assert calls[1].url.path == f"{base}/v1"
+    assert calls[1].headers["x-correlation-id"] == "c"

@@ -56,8 +56,16 @@ URL_PERFIL = f"{IDENTITY_SERVICE_URL}/clientes/{{cliente_id}}/perfil"
 URL_CONSENTIMIENTO = (
     f"{IDENTITY_SERVICE_URL}/clientes/{{cliente_id}}/consentimiento"
 )
+URL_VERIFICACIONES_KYC_AML = (
+    f"{IDENTITY_SERVICE_URL}/clientes/{{cliente_id}}/verificaciones-kyc-aml"
+)
 VERIFICACIONES_ACTIVAS = True
 TIMEOUT_SEGUNDOS = 15
+DATOS_CLIENTE_REGISTRADO = None
+CLIENTE_REGISTRADO = None
+TOKEN_ACCESO = None
+CLIENTE_ID_VERIFICACION_KYC_AML = None
+VERIFICACION_KYC_AML_ID = None
 
 
 def _ocultar_datos(valor):
@@ -89,6 +97,14 @@ def _enviar(metodo, url, **kwargs):
         print("Petición:")
         print(json.dumps(_ocultar_datos(
             kwargs["json"]), indent=2, ensure_ascii=False))
+    if "files" in kwargs:
+        print("Archivos enviados:")
+        for campo, archivo in kwargs["files"].items():
+            nombre, contenido, tipo = archivo
+            print(
+                f"  {campo}: nombre={nombre}, content_type={tipo}, "
+                f"tamaño={len(contenido)} bytes"
+            )
 
     response = requests.request(
         metodo, url, timeout=TIMEOUT_SEGUNDOS, **kwargs)
@@ -128,85 +144,73 @@ def _datos_cliente():
     }
 
 
-def _registrar_cliente():
-    datos = _datos_cliente()
-    response = _enviar("POST", URL_REGISTRO, json=datos)
-    _verificar(response.status_code == 201,
+def _registrar_y_autenticar_cliente():
+    global CLIENTE_REGISTRADO, DATOS_CLIENTE_REGISTRADO, TOKEN_ACCESO
+
+    DATOS_CLIENTE_REGISTRADO = _datos_cliente()
+    registro = _enviar("POST", URL_REGISTRO, json=DATOS_CLIENTE_REGISTRADO)
+    _verificar(registro.status_code == 201,
                "el registro del cliente responde HTTP 201")
-    if response.status_code != 201:
-        return None
-
-    cliente = response.json()
-    _verificar("id" in cliente,
-               "la respuesta de registro incluye el identificador del cliente")
-    return datos, cliente.get("id")
-
-
-def _autenticar(datos):
-    response = _enviar(
-        "POST",
-        URL_AUTENTICAR,
-        json={"correo": datos["correo"], "password": datos["password"]},
-    )
-    _verificar(response.status_code == 200,
-               "la autenticación responde HTTP 200")
-    if response.status_code != 200:
-        return None
-
-    resultado = response.json()
-    _verificar(bool(resultado.get("access_token")),
-               "la respuesta incluye un access token")
-    return resultado
-
-
-def test_case_1_registrar_y_autenticar_cliente():
-    """Registra un cliente y comprueba que luego pueda autenticarse."""
-    datos = _datos_cliente()
-    registro = _enviar("POST", URL_REGISTRO, json=datos)
-    _verificar(registro.status_code == 201, "el registro responde HTTP 201")
     if registro.status_code != 201:
         return
 
-    _autenticar(datos)
-
-
-def test_case_2_autenticar_y_obtener_perfil():
-    """Prepara un cliente, se autentica y comprueba que se obtiene su perfil."""
-    cliente = _registrar_cliente()
-    if cliente is None:
+    CLIENTE_REGISTRADO = registro.json()
+    _verificar(bool(CLIENTE_REGISTRADO.get("id")),
+               "la respuesta de registro incluye el identificador del cliente")
+    if not CLIENTE_REGISTRADO.get("id"):
         return
-    datos, cliente_id = cliente
 
-    autenticacion = _autenticar(datos)
-    if autenticacion is None or cliente_id is None:
+    autenticacion = _enviar(
+        "POST",
+        URL_AUTENTICAR,
+        json={
+            "correo": DATOS_CLIENTE_REGISTRADO["correo"],
+            "password": DATOS_CLIENTE_REGISTRADO["password"],
+        },
+    )
+    _verificar(autenticacion.status_code == 200,
+               "la autenticación responde HTTP 200")
+    if autenticacion.status_code != 200:
+        return
+
+    TOKEN_ACCESO = autenticacion.json().get("access_token")
+    _verificar(bool(TOKEN_ACCESO), "la respuesta incluye un access token")
+
+
+def _cabeceras_autorizacion():
+    _verificar(bool(TOKEN_ACCESO),
+               "existe un token de acceso para la solicitud")
+    return {"Authorization": f"Bearer {TOKEN_ACCESO or ''}"}
+
+
+def test_case_1_autenticar_y_obtener_perfil():
+    """Obtiene el perfil del cliente autenticado en la precondición."""
+    _verificar(CLIENTE_REGISTRADO is not None,
+               "existe un cliente registrado")
+    if CLIENTE_REGISTRADO is None or not CLIENTE_REGISTRADO.get("id"):
         return
 
     response = _enviar(
         "GET",
-        URL_PERFIL.format(cliente_id=cliente_id),
-        headers={
-            "Authorization": f"Bearer {autenticacion.get('access_token', '')}"},
+        URL_PERFIL.format(cliente_id=CLIENTE_REGISTRADO["id"]),
+        headers=_cabeceras_autorizacion(),
     )
     _verificar(response.status_code == 200,
                "la consulta de perfil responde HTTP 200")
     if response.status_code == 200:
-        _verificar(response.json().get("id") == cliente_id,
+        _verificar(response.json().get("id") == CLIENTE_REGISTRADO["id"],
                    "el perfil corresponde al cliente registrado")
 
 
-def test_case_3_revocar_consentimiento_y_denegar_perfil():
-    """Revoca el consentimiento y comprueba que el perfil sea denegado."""
-    cliente = _registrar_cliente()
-    if cliente is None:
-        return
-    datos, cliente_id = cliente
-
-    autenticacion = _autenticar(datos)
-    if autenticacion is None or cliente_id is None:
+def test_case_2_revocar_consentimiento_y_denegar_perfil():
+    """Revoca el consentimiento del cliente autenticado y comprueba el bloqueo."""
+    _verificar(CLIENTE_REGISTRADO is not None,
+               "existe un cliente registrado")
+    if CLIENTE_REGISTRADO is None or not CLIENTE_REGISTRADO.get("id"):
         return
 
-    headers = {
-        "Authorization": f"Bearer {autenticacion.get('access_token', '')}"}
+    cliente_id = CLIENTE_REGISTRADO["id"]
+    headers = _cabeceras_autorizacion()
     revocacion = _enviar(
         "PUT",
         URL_CONSENTIMIENTO.format(cliente_id=cliente_id),
@@ -228,6 +232,100 @@ def test_case_3_revocar_consentimiento_y_denegar_perfil():
                "el acceso al perfil responde HTTP 403 tras revocar")
 
 
+def test_case_3_iniciar_verificaciones_kyc_aml():
+    """Inicia KYC/AML para el cliente preparado en la precondición."""
+    global CLIENTE_ID_VERIFICACION_KYC_AML, VERIFICACION_KYC_AML_ID
+
+    _verificar(CLIENTE_REGISTRADO is not None,
+               "existe un cliente registrado para KYC/AML")
+    if CLIENTE_REGISTRADO is None or not CLIENTE_REGISTRADO.get("id"):
+        return
+    CLIENTE_ID_VERIFICACION_KYC_AML = CLIENTE_REGISTRADO["id"]
+    VERIFICACION_KYC_AML_ID = None
+    if CLIENTE_ID_VERIFICACION_KYC_AML is None:
+        return
+
+    archivos = {
+        "documento_frontal": (
+            "documento-frontal.jpg",
+            b"\xff\xd8\xff" + os.urandom(1024),
+            "image/jpeg",
+        ),
+        "documento_reverso": (
+            "documento-reverso.png",
+            b"\x89PNG\r\n\x1a\n" + os.urandom(1024),
+            "image/png",
+        ),
+    }
+    response = _enviar(
+        "POST",
+        URL_VERIFICACIONES_KYC_AML.format(
+            cliente_id=CLIENTE_ID_VERIFICACION_KYC_AML
+        ),
+        files=archivos,
+    )
+    _verificar(response.status_code == 202,
+               "el inicio de verificaciones KYC/AML responde HTTP 202")
+    if response.status_code != 202:
+        return
+
+    resultado = response.json()
+    verificacion_id = resultado.get("verificacion_id")
+    try:
+        uuid.UUID(verificacion_id)
+        identificador_valido = True
+    except (AttributeError, TypeError, ValueError):
+        identificador_valido = False
+    _verificar(identificador_valido,
+               "la respuesta incluye un identificador de verificación válido")
+    _verificar(resultado.get("estado") == "INICIADA",
+               "la respuesta indica que la verificación fue iniciada")
+    _verificar(bool(resultado.get("fecha")),
+               "la respuesta incluye la fecha de inicio")
+    if identificador_valido:
+        VERIFICACION_KYC_AML_ID = verificacion_id
+
+
+def test_case_4_consultar_resultado_verificaciones_kyc_aml():
+    """Consulta y valida el resultado KYC/AML del intento iniciado en el caso 4."""
+    _verificar(
+        CLIENTE_ID_VERIFICACION_KYC_AML is not None
+        and VERIFICACION_KYC_AML_ID is not None,
+        "hay un cliente y una verificación guardados para consultar",
+    )
+    if (
+        CLIENTE_ID_VERIFICACION_KYC_AML is None
+        or VERIFICACION_KYC_AML_ID is None
+    ):
+        return
+
+    response = _enviar(
+        "GET",
+        f"{URL_VERIFICACIONES_KYC_AML.format(cliente_id=CLIENTE_ID_VERIFICACION_KYC_AML)}"
+        f"/{VERIFICACION_KYC_AML_ID}",
+    )
+    _verificar(response.status_code == 200,
+               "la consulta de verificaciones KYC/AML responde HTTP 200")
+    if response.status_code != 200:
+        return
+
+    resultado = response.json()
+    _verificar(
+        resultado.get("verificacion_id") == VERIFICACION_KYC_AML_ID,
+        "la respuesta corresponde al identificador de verificación guardado",
+    )
+    _verificar(
+        resultado.get("cliente_id") == CLIENTE_ID_VERIFICACION_KYC_AML,
+        "la respuesta corresponde al identificador del cliente registrado",
+    )
+    _verificar(resultado.get("estado") == "APROBADO",
+               "el estado de las verificaciones es APROBADO")
+    _verificar(resultado.get("resultado_kyc") == "APROBADO",
+               "el resultado de KYC es APROBADO")
+    _verificar(resultado.get("resultado_aml") == "APROBADO",
+               "el resultado de AML es APROBADO")
+
+
 def _ejecutar_caso(nombre, caso):
     print(f"\n{'=' * 72}\n{nombre}\n{'=' * 72}")
     try:
@@ -240,13 +338,31 @@ def _ejecutar_caso(nombre, caso):
 
 
 if __name__ == "__main__":
-    resultados = [
-        _ejecutar_caso("Test Case 1: registro y autenticación",
-                       test_case_1_registrar_y_autenticar_cliente),
-        _ejecutar_caso("Test Case 2: autenticación y perfil",
-                       test_case_2_autenticar_y_obtener_perfil),
-        _ejecutar_caso("Test Case 3: revocación y acceso denegado",
-                       test_case_3_revocar_consentimiento_y_denegar_perfil),
-    ]
-    if VERIFICACIONES_ACTIVAS and not all(resultados):
+    precondicion_exitosa = _ejecutar_caso(
+        "Precondición: registrar y autenticar cliente",
+        _registrar_y_autenticar_cliente,
+    )
+    resultados = []
+    if precondicion_exitosa:
+        resultados = [
+            _ejecutar_caso(
+                "Test Case 1: autenticación y perfil",
+                test_case_1_autenticar_y_obtener_perfil,
+            ),
+            _ejecutar_caso(
+                "Test Case 2: revocación y acceso denegado",
+                test_case_2_revocar_consentimiento_y_denegar_perfil,
+            ),
+            _ejecutar_caso(
+                "Test Case 3: iniciar verificaciones KYC/AML",
+                test_case_3_iniciar_verificaciones_kyc_aml,
+            ),
+            _ejecutar_caso(
+                "Test Case 4: consultar resultado de KYC/AML",
+                test_case_4_consultar_resultado_verificaciones_kyc_aml,
+            ),
+        ]
+    if VERIFICACIONES_ACTIVAS and (
+        not precondicion_exitosa or not all(resultados)
+    ):
         sys.exit(1)

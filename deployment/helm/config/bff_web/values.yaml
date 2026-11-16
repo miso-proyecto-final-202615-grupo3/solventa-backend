@@ -1,7 +1,12 @@
 replicaCount: 1
+autoscaling:
+  enabled: true
+  cpuUtilization: 70
+  min: 1
+  max: 10
 fullnameOverride: bff-web
 
-containerName: backend-service
+containerName: bff-web
 serviceAccountName: solventa-app-sa
 
 image:
@@ -28,6 +33,9 @@ probes:
 database:
   enabled: false
 
+sqs:
+  enabled: false
+
 bucket:
   enabled: false
 
@@ -35,7 +43,16 @@ redis:
   enabled: false
 
 cognito:
-  enabled: false
+  enabled: true
+  existingSecret: secret-name
+  secretKeys:
+    - COGNITO_USER_POOL_ID
+    - COGNITO_CLIENT_ID
+
+audit:
+  enabled: true
+  existingSecret: secret-name
+  secretKey: TRAZABILIDAD_INTERNAL_TOKEN
 
 kmsKey:
   enabled: false
@@ -49,6 +66,12 @@ config:
   OTEL_TRACES_EXPORTER: otlp
   IDENTITY_SERVICE_URL: http://identity-service:80
   QUOTINGENGINE_SERVICE_URL: http://quotingengine-service:80
+  INSURANCEPOLICIES_SERVICE_URL: http://insurancepolicies-service:80
+  PAYMENTS_SERVICE_URL: http://payments-service:80
+  FIRMA_MAX_REQUEST_BYTES: "2097152"
+  COGNITO_REGION: us-east-1
+  COGNITO_AUDITOR_GROUP: Auditor
+  COGNITO_JWKS_TTL_SECONDS: 3600
 
 resources:
   requests:

@@ -18,16 +18,15 @@ from src.application.use_cases.consultar_catalogo_use_case import (
 )
 from src.domain.auditoria.entities import AuditoriaDecision
 from src.domain.auditoria.repositories import AuditoriaDecisionRepository
+from src.domain.condiciones.condiciones_cotizacion_repository import CondicionesCotizacionRepository
+from src.domain.condiciones.entities import CondicionesCotizacion
 from src.domain.cotizaciones.entities import Cotizacion, CotizacionCobertura
-from src.domain.cotizaciones.repositories import (
-    CotizacionCoberturaRepository,
-    CotizacionRepository,
-)
+from src.domain.cotizaciones.cotizacion_cobertura_repository import CotizacionCoberturaRepository
+from src.domain.cotizaciones.cotizacion_repository import CotizacionRepository
+from src.domain.cotizaciones.vigencia_propuesta import calcular_vigencia_propuesta
 from src.domain.productos.entities import Cobertura, EstadoProducto
-from src.domain.productos.repositories import (
-    CoberturaRepository,
-    ProductoSeguroRepository,
-)
+from src.domain.productos.cobertura_repository import CoberturaRepository
+from src.domain.productos.producto_seguro_repository import ProductoSeguroRepository
 from src.domain.reglas_rating.entities import ReglaRating
 
 TIPO_DECISION_RATING = "RATING"
@@ -45,6 +44,10 @@ class ParametrosInvalidosError(Exception):
 
 
 class CotizacionNoEncontradaError(Exception):
+    pass
+
+
+class CondicionesNoConfiguradasError(Exception):
     pass
 
 
@@ -68,6 +71,7 @@ class SolicitarCotizacionUseCase:
         strategies: PricingStrategyRegistry,
         unit_of_work: UnitOfWork,
         vigencia_dias: int,
+        condiciones_repository: CondicionesCotizacionRepository,
     ) -> None:
         self.producto_repository = producto_repository
         self.cobertura_repository = cobertura_repository
@@ -78,6 +82,7 @@ class SolicitarCotizacionUseCase:
         self.strategies = strategies
         self.unit_of_work = unit_of_work
         self.vigencia_dias = vigencia_dias
+        self.condiciones_repository = condiciones_repository
 
     async def solicitar(
         self,
@@ -89,6 +94,8 @@ class SolicitarCotizacionUseCase:
         producto = await self.producto_repository.obtener_por_codigo(producto_codigo)
         if producto is None or producto.estado != EstadoProducto.ACTIVO:
             raise ProductoNoEncontradoError(producto_codigo)
+        if not producto.condiciones_generales or not producto.version_condiciones_generales:
+            raise CondicionesNoConfiguradasError(producto_codigo)
         strategy = self.strategies.obtener(producto.codigo)
 
         # reglas (BD/caché) y señales externas no dependen entre sí: en paralelo
@@ -116,8 +123,36 @@ class SolicitarCotizacionUseCase:
         resultado_json = self._serializar_resultado(resultado)
         try:
             await self.cotizacion_repository.guardar(cotizacion)
+            if cotizacion.creada_en is None:
+                raise RuntimeError("La cotización guardada no tiene fecha de creación.")
+            vigencia_desde, vigencia_hasta = calcular_vigencia_propuesta(
+                cotizacion.creada_en, producto.codigo
+            )
             await self.cotizacion_cobertura_repository.guardar_todas(
                 [d for d, _ in detalles]
+            )
+            await self.condiciones_repository.guardar(
+                CondicionesCotizacion(
+                    cotizacion_id=cotizacion.cotizacion_id,
+                    version_condiciones_generales=producto.version_condiciones_generales,
+                    condiciones_generales=producto.condiciones_generales,
+                    condiciones_particulares={
+                        "prima_total": str(cotizacion.prima_total),
+                        "moneda": cotizacion.moneda,
+                        "vigencia_propuesta": {
+                            "desde": vigencia_desde.isoformat(),
+                            "hasta": vigencia_hasta.isoformat(),
+                        },
+                        "coberturas": [
+                            {
+                                "prima": str(detalle.prima),
+                                "limite_asegurado": str(detalle.limite_asegurado),
+                                "deducible": str(detalle.deducible),
+                            }
+                            for detalle, _ in detalles
+                        ],
+                    },
+                )
             )
             await self.auditoria_repository.guardar(
                 AuditoriaDecision(

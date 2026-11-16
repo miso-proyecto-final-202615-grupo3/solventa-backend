@@ -6,6 +6,7 @@ from src.presentation.schemas.auditoria_schemas import (
 from src.presentation.schemas.auth_schemas import (
     AutenticarResponse,
     PasswordVerify,
+    RefreshSessionRequest,
 )
 from src.presentation.schemas.cliente_schemas import (
     ClienteCreate,
@@ -22,8 +23,18 @@ from src.presentation.schemas.consentimiento_schemas import (
     ActualizarConsentimientoRequest,
     ConsentimientoResponse,
 )
+from src.presentation.schemas.verificacion_kyc_aml_schemas import (
+    EstadoResultadoVerificacion,
+    EstadoValidacion,
+    IniciarVerificacionKycAmlResponse,
+    VerificacionKycAmlResponse,
+)
 
 __all__ = [
+    "EstadoResultadoVerificacion",
+    "EstadoValidacion",
+    "IniciarVerificacionKycAmlResponse",
+    "VerificacionKycAmlResponse",
     "AuditoriaConsentimientoResponse",
     "AutenticarResponse",
     "ActualizarConsentimientoRequest",
@@ -40,4 +51,5 @@ __all__ = [
     "ResumenMovilResponse",
     "VerificarActivacionMovilResponse",
     "PasswordVerify",
+    "RefreshSessionRequest",
 ]

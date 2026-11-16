@@ -169,6 +169,9 @@ class FailingIdentityProvider(IdentityProvider):
     async def autenticar_usuario(self, correo: str, password: str):
         raise IdentityProviderError("cognito falló")
 
+    async def renovar_sesion(self, refresh_token: str):
+        raise IdentityProviderError("cognito falló")
+
     async def eliminar_usuario(self, correo: str) -> None:
         pass
 

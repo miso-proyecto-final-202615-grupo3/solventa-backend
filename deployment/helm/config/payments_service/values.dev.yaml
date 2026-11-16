@@ -1,0 +1,11 @@
+image:
+  repository: 179201404385.dkr.ecr.us-east-1.amazonaws.com/solventa-payments-service
+
+database:
+  existingSecret: solventa-dev-app-secrets
+
+sqs:
+  existingSecret: solventa-dev-app-secrets
+
+audit:
+  existingSecret: solventa-dev-app-secrets

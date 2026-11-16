@@ -14,14 +14,16 @@ services:
       AWS_REGION: ${AWS_REGION:-}
       COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
       COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
-      COGNITO_ENABLED: ${COGNITO_ENABLED:-}
+      COGNITO_ENABLED: "${COGNITO_ENABLED:-true}"
       REDIS_ENDPOINT: "${REDIS_ENDPOINT:-redis://redis:6379/0}"
       REDIS_AUTH_TOKEN: ${REDIS_AUTH_TOKEN:-}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
       KYC_SERVICE_URL: ${KYC_SERVICE_URL:-http://mock_kyc:8000}
+      KYC_TIMEOUT_SECONDS: ${KYC_TIMEOUT_SECONDS:-5.0}
+      KYC_DOCUMENT_STORAGE: ${KYC_DOCUMENT_STORAGE:-s3}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-}
+      KMS_KEY_ARN: ${KMS_KEY_ARN:-}
       LIVENESS_ADAPTER_URL: ${LIVENESS_ADAPTER_URL:-http://liveness_adapter:8000}
-      AWS_PROFILE: ${AWS_PROFILE:-default}
-      AWS_SDK_LOAD_CONFIG: "1"
       OPEN_FINANCE_URL: ${OPEN_FINANCE_URL:-http://mock_openfinance:8000}
       OPEN_FINANCE_TIMEOUT_SECONDS: ${OPEN_FINANCE_TIMEOUT_SECONDS:-0.2}
       GRPC_ENABLED: ${GRPC_ENABLED:-true}
@@ -93,6 +95,131 @@ services:
       lgtm:
         condition: service_started
 
+  insurancepolicies_service:
+    build:
+      context: .
+      dockerfile: docker/services/Dockerfile.insurancepolicies_service
+    container_name: solventa-insurancepolicies-service
+    ports:
+      - "8004:8000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@db:5432/identity_db}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+      FIRMA_STORAGE: ${FIRMA_STORAGE:-s3}
+      CERTIFICADO_STORAGE: ${CERTIFICADO_STORAGE:-s3}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-}
+      QUOTINGENGINE_SERVICE_URL: ${QUOTINGENGINE_SERVICE_URL:-http://quotingengine_service:8000}
+      IDENTITY_SERVICE_URL: ${IDENTITY_SERVICE_URL:-http://identity_service:8000}
+      # SQS remoto por defecto (AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY salen de .env). Sin URL de
+      # cola, el proceso correspondiente no se inicia. Para LocalStack, ver .env.example.
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      SQS_ENDPOINT_URL: ${SQS_ENDPOINT_URL:-}
+      PAGO_APROBADO_QUEUE_URL: ${PAGO_APROBADO_QUEUE_URL:-}
+      POLIZA_EMITIDA_QUEUE_URL: ${POLIZA_EMITIDA_QUEUE_URL:-}
+    depends_on:
+      db:
+        condition: service_healthy
+      lgtm:
+        condition: service_started
+      # localstack:
+      #   condition: service_started
+
+  insuranceclaims_service:
+    build:
+      context: .
+      dockerfile: docker/services/Dockerfile.insuranceclaims_service
+    container_name: solventa-insuranceclaims-service
+    ports:
+      - "8005:8000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@db:5432/identity_db}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+      # HU4.1.1: pólizas reales de MS Pólizas (#265) y nombres de producto del Motor de Cotización.
+      # POLIZAS_ADAPTER=memoria usa pólizas ficticias (demos sin MS Pólizas).
+      POLIZAS_ADAPTER: ${POLIZAS_ADAPTER:-http}
+      INSURANCEPOLICIES_SERVICE_URL: ${INSURANCEPOLICIES_SERVICE_URL:-http://insurancepolicies_service:8000}
+      QUOTINGENGINE_SERVICE_URL: ${QUOTINGENGINE_SERVICE_URL:-http://quotingengine_service:8000}
+      # HU4.1.2: evidencias en MinIO (S3 local). La app sube a S3_PUBLIC_ENDPOINT_URL:
+      # 10.0.2.2 desde el emulador; con teléfono físico, la IP del PC o `adb reverse tcp:9000 tcp:9000` + localhost.
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_PUBLIC_ENDPOINT_URL: ${S3_PUBLIC_ENDPOINT_URL:-http://10.0.2.2:9000}
+      S3_BUCKET_NAME: ${MINIO_BUCKET:-solventa-local-storage}
+      EVIDENCIAS_SSE: AES256
+      # Credenciales de MinIO, solo locales (sobrescriben las de AWS del .env para este servicio).
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-solventa}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-solventa-local-minio}
+      # Sin perfil: el .env puede traer AWS_PROFILE para Cognito y ese perfil no existe en el contenedor.
+      AWS_PROFILE: ""
+    depends_on:
+      db:
+        condition: service_healthy
+      lgtm:
+        condition: service_started
+      minio:
+        condition: service_healthy
+
+  payments_service:
+    build:
+      context: .
+      dockerfile: docker/services/Dockerfile.payments_service
+    container_name: solventa-payments-service
+    ports:
+      - "8006:8000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@db:5432/identity_db}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+      QUOTINGENGINE_SERVICE_URL: ${QUOTINGENGINE_SERVICE_URL:-http://quotingengine_service:8000}
+      INSURANCEPOLICIES_SERVICE_URL: ${INSURANCEPOLICIES_SERVICE_URL:-http://insurancepolicies_service:8000}
+      PAYMENT_PROVIDER_URL: ${PAYMENT_PROVIDER_URL:-http://mock_paymentprovider:8000}
+      REQUIRE_FIRMA_DIGITAL: ${REQUIRE_FIRMA_DIGITAL:-true}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      SQS_ENDPOINT_URL: ${SQS_ENDPOINT_URL:-}
+      PAGO_APROBADO_QUEUE_URL: ${PAGO_APROBADO_QUEUE_URL:-}
+    depends_on:
+      db:
+        condition: service_healthy
+      lgtm:
+        condition: service_started
+      mock_paymentprovider:
+        condition: service_started
+      # localstack:
+      #   condition: service_started
+
+  mock_paymentprovider:
+    build:
+      context: .
+      dockerfile: docker/services/Dockerfile.mock_paymentprovider
+    container_name: solventa-mock-paymentprovider
+    ports:
+      - "8204:8000"
+
+  # LocalStack: solo para probar SQS en local (PagoAprobado y PolizaEmitida). Por defecto se usa el
+  # SQS remoto. Para activarlo, descomenta este servicio y los `depends_on` de payments_service e
+  # insurancepolicies_service, y apunta las variables SQS a LocalStack como indica .env.example.
+  # localstack:
+  #   image: localstack/localstack:latest
+  #   container_name: solventa-localstack
+  #   ports:
+  #     - "4566:4566"
+  #   environment:
+  #     SERVICES: sqs
+  #     # Desde marzo de 2026 la imagen `latest` exige un token de cuenta de LocalStack.
+  #     LOCALSTACK_AUTH_TOKEN: ${LOCALSTACK_AUTH_TOKEN:-}
+  #   volumes:
+  #     - ./scripts/localstack/init-sqs.sh:/etc/localstack/init/ready.d/init-sqs.sh:ro
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health >/dev/null"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 10
+  #     start_period: 15s
+
   mock_kyc:
     build:
       context: .
@@ -104,6 +231,7 @@ services:
       - .env
     environment:
       MOCK_KYC_STATUS: ${MOCK_KYC_STATUS:-PASSED}
+      MOCK_AML_STATUS: ${MOCK_AML_STATUS:-PASSED}
       MOCK_DIDIT_STATUS: ${MOCK_DIDIT_STATUS:-Approved}
 
   mock_openfinance:
@@ -146,11 +274,17 @@ services:
     environment:
       IDENTITY_SERVICE_URL: ${IDENTITY_SERVICE_URL:-http://identity_service:8000}
       QUOTINGENGINE_SERVICE_URL: ${QUOTINGENGINE_SERVICE_URL:-http://quotingengine_service:8000}
+      INSURANCEPOLICIES_SERVICE_URL: ${INSURANCEPOLICIES_SERVICE_URL:-http://insurancepolicies_service:8000}
+      PAYMENTS_SERVICE_URL: ${PAYMENTS_SERVICE_URL:-http://payments_service:8000}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
     depends_on:
       identity_service:
         condition: service_started
       quotingengine_service:
+        condition: service_started
+      insurancepolicies_service:
+        condition: service_started
+      payments_service:
         condition: service_started
 
   bff_mobile:
@@ -172,11 +306,14 @@ services:
       COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
       COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
       QUOTINGENGINE_SERVICE_URL: ${QUOTINGENGINE_SERVICE_URL:-http://quotingengine_service:8000}
+      INSURANCECLAIMS_SERVICE_URL: ${INSURANCECLAIMS_SERVICE_URL:-http://insuranceclaims_service:8000}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
     depends_on:
       identity_service:
         condition: service_started
       quotingengine_service:
+        condition: service_started
+      insuranceclaims_service:
         condition: service_started
 
   db:
@@ -231,6 +368,29 @@ services:
       - lgtm_data:/data
     restart: unless-stopped
 
+  # S3 local para las evidencias de siniestros (HU4.1.2). La imagen oficial de MinIO dejó de publicarse en
+  # Docker Hub; esta es la última de Bitnami (sin mantenimiento): solo para desarrollo local.
+  minio:
+    image: bitnamilegacy/minio:2025.4.22
+    container_name: solventa-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-solventa}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-solventa-local-minio}
+      MINIO_DEFAULT_BUCKETS: ${MINIO_BUCKET:-solventa-local-storage}
+      # Llave local para SSE-S3 (sin valor fuera de este contenedor; en AWS se usa KMS).
+      MINIO_KMS_SECRET_KEY: ${MINIO_KMS_SECRET_KEY:-solventa-local:4z4XtHbZV/gcfb/KQ1SSESUEABlx4s+f9TtFfkhAnls=}
+    volumes:
+      - minio_data:/bitnami/minio/data
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
 volumes:
   postgres_data:
   lgtm_data:
+  minio_data:

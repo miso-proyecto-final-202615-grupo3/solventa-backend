@@ -1,0 +1,5 @@
+image:
+  repository: mock-paymentprovider
+
+config:
+  ENVIRONMENT: qa

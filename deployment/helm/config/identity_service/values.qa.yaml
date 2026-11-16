@@ -16,5 +16,8 @@ redis:
 kmsKey:
   existingSecret: solventa-qa-app-secrets
 
+audit:
+  existingSecret: solventa-qa-app-secrets
+
 config:
   ENVIRONMENT: qa

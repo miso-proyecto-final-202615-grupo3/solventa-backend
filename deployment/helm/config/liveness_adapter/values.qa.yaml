@@ -4,14 +4,8 @@ image:
 redis:
   existingSecret: solventa-qa-app-secrets
 
-extraSecretEnv:
-  - name: ADMIN_TOKEN
-    existingSecret: solventa-qa-app-secrets
-    secretKey: LIVENESS_ADMIN_TOKEN
-  - name: DIDIT_API_KEY
-    existingSecret: solventa-qa-app-secrets
-    secretKey: DIDIT_API_KEY
-    optional: true
+livenessAdapter:
+  existingSecret: solventa-qa-app-secrets
 
 config:
   ENVIRONMENT: qa

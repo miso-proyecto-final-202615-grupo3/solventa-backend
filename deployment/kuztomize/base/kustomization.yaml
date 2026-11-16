@@ -2,5 +2,4 @@ kind: Kustomization
 resources:
   - ingress.yaml
   - aws-secretsmanager-store.yaml
-  - opentelemetry-collector.yaml
   - shared-app-service-account.yaml

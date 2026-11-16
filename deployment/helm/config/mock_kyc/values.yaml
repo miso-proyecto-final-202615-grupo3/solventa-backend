@@ -1,7 +1,12 @@
 replicaCount: 1
+autoscaling:
+  enabled: true
+  cpuUtilization: 70
+  min: 1
+  max: 10
 fullnameOverride: mock-kyc
 
-containerName: backend-service
+containerName: mock-kyc
 serviceAccountName: solventa-app-sa
 
 image:
@@ -28,6 +33,9 @@ probes:
 database:
   enabled: false
 
+sqs:
+  enabled: false
+
 bucket:
   enabled: false
 
@@ -45,6 +53,7 @@ config:
   VERSION: "0.1.0"
   ENVIRONMENT: dev
   MOCK_KYC_STATUS: PASSED
+  MOCK_AML_STATUS: PASSED
 
 resources:
   requests:

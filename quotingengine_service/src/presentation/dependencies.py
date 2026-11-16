@@ -26,6 +26,7 @@ from src.application.use_cases.consultar_catalogo_use_case import (
 from src.application.use_cases.solicitar_cotizacion_use_case import (
     SolicitarCotizacionUseCase,
 )
+from src.application.use_cases.condiciones_cotizacion_use_case import CondicionesCotizacionUseCase
 from src.core.config import settings
 from src.core.database import SessionLocal
 from src.infrastructure.cache.regla_rating_cache import ReglaRatingCache
@@ -44,6 +45,8 @@ from src.infrastructure.persistence.cotizacion_cobertura_repository_impl import 
 from src.infrastructure.persistence.cotizacion_repository_impl import (
     SqlAlchemyCotizacionRepository,
 )
+from src.infrastructure.persistence.condiciones_cotizacion_repository_impl import SqlAlchemyCondicionesCotizacionRepository
+from src.infrastructure.persistence.decision_condiciones_repository_impl import SqlAlchemyDecisionCondicionesRepository
 from src.infrastructure.persistence.producto_seguro_repository_impl import (
     SqlAlchemyProductoSeguroRepository,
 )
@@ -152,4 +155,16 @@ def get_solicitar_cotizacion_use_case(
         registry,
         SqlAlchemyUnitOfWork(db),
         settings.COTIZACION_VIGENCIA_DIAS,
+        SqlAlchemyCondicionesCotizacionRepository(db),
+    )
+
+
+def get_condiciones_cotizacion_use_case(
+    db: AsyncSession = Depends(get_db),
+) -> CondicionesCotizacionUseCase:
+    return CondicionesCotizacionUseCase(
+        SqlAlchemyCotizacionRepository(db),
+        SqlAlchemyCondicionesCotizacionRepository(db),
+        SqlAlchemyDecisionCondicionesRepository(db),
+        SqlAlchemyUnitOfWork(db),
     )

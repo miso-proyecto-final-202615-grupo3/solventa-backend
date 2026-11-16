@@ -1,5 +1,11 @@
 image:
   repository: 839553328585.dkr.ecr.us-east-1.amazonaws.com/solventa-bff-web
 
+cognito:
+  existingSecret: solventa-prod-app-secrets
+
+audit:
+  existingSecret: solventa-prod-app-secrets
+
 config:
   ENVIRONMENT: prod

@@ -50,6 +50,36 @@ class QuotingEngineServiceGateway:
             f"/api/v1/quotingengine-service/cotizaciones/{cotizacion_id}",
         )
 
+    async def obtener_condiciones(self, cotizacion_id: str) -> dict[str, Any]:
+        return await self._request(
+            "GET",
+            f"/api/v1/quotingengine-service/cotizaciones/{cotizacion_id}/condiciones",
+        )
+
+    async def registrar_decision_condiciones(
+        self, cotizacion_id: str, payload: bytes, content_type: str = "application/json"
+    ) -> dict[str, Any]:
+        return await self._request(
+            "POST",
+            f"/api/v1/quotingengine-service/cotizaciones/{cotizacion_id}/condiciones/decisiones",
+            payload,
+            content_type,
+        )
+
+    async def consultar_trazabilidad_condiciones(
+        self, cotizacion_id: str, internal_token: str
+    ) -> list[dict[str, Any]]:
+        result = await self._request(
+            "GET",
+            f"/api/v1/quotingengine-service/cotizaciones/{cotizacion_id}/trazabilidad-condiciones",
+            headers={"X-Audit-Internal-Token": internal_token},
+        )
+        if not isinstance(result, list) or not all(isinstance(item, dict) for item in result):
+            raise QuotingEngineGatewayError(
+                502, "El servicio de cotización devolvió una respuesta inválida."
+            )
+        return result
+
     async def aclose(self) -> None:
         await self._client.aclose()
 
@@ -59,15 +89,16 @@ class QuotingEngineServiceGateway:
         path: str,
         payload: bytes | None = None,
         content_type: str = "application/json",
+        headers: dict[str, str] | None = None,
     ) -> Any:
         try:
             kwargs = (
                 {
                     "content": payload,
-                    "headers": {"content-type": content_type},
+                    "headers": {"content-type": content_type, **(headers or {})},
                 }
                 if payload is not None
-                else {}
+                else {"headers": headers} if headers is not None else {}
             )
             response = await self._client.request(method, path, **kwargs)
         except httpx.HTTPError as exc:

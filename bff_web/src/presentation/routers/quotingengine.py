@@ -65,6 +65,41 @@ async def obtener_cotizacion(
     )
 
 
+@router.get(
+    "/cotizaciones/{cotizacion_id}/condiciones",
+    status_code=status.HTTP_200_OK,
+)
+async def obtener_condiciones(
+    cotizacion_id: UUID,
+    gateway: QuotingEngineServiceGateway = Depends(
+        get_quotingengine_service_gateway
+    ),
+) -> dict[str, Any]:
+    return await _ejecutar(
+        lambda: gateway.obtener_condiciones(str(cotizacion_id))
+    )
+
+
+@router.post(
+    "/cotizaciones/{cotizacion_id}/condiciones/decisiones",
+    status_code=status.HTTP_201_CREATED,
+)
+async def registrar_decision_condiciones(
+    cotizacion_id: UUID,
+    request: Request,
+    gateway: QuotingEngineServiceGateway = Depends(
+        get_quotingengine_service_gateway
+    ),
+) -> dict[str, Any]:
+    payload = await request.body()
+    content_type = request.headers.get("content-type", "application/json")
+    return await _ejecutar(
+        lambda: gateway.registrar_decision_condiciones(
+            str(cotizacion_id), payload, content_type
+        )
+    )
+
+
 async def _ejecutar(
     operation: Callable[[], Awaitable[Any]],
 ) -> Any:

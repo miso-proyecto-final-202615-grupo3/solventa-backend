@@ -19,10 +19,14 @@ jobs:
           - bff_mobile
           - identity_service
           - quotingengine_service
+          - insurancepolicies_service
+          - insuranceclaims_service
+          - payments_service
           - liveness_adapter
           - mock_kyc
           - mock_opendata
           - mock_openfinance
+          - mock_paymentprovider
 
     steps:
       - uses: actions/checkout@v4
@@ -61,7 +65,7 @@ jobs:
 
   build:
     name: Docker Build ${{ matrix.service }}
-    needs: test
+    needs: [test]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -71,9 +75,13 @@ jobs:
           - bff_mobile
           - identity_service
           - quotingengine_service
+          - insurancepolicies_service
+          - insuranceclaims_service
+          - payments_service
           - mock_kyc
           - mock_opendata
           - mock_openfinance
+          - mock_paymentprovider
           - liveness_adapter
 
     steps:

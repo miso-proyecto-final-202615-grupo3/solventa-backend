@@ -1,0 +1,94 @@
+replicaCount: 1
+autoscaling:
+  enabled: true
+  cpuUtilization: 70
+  min: 1
+  max: 10
+fullnameOverride: insurancepolicies-service
+
+containerName: insurancepolicies-service
+serviceAccountName: solventa-app-sa
+
+image:
+  repository: insurancepolicies-service
+  pullPolicy: Always
+  tag: "latest"
+
+http:
+  containerPort: 8000
+  servicePort: 80
+
+probes:
+  readiness:
+    path: /health
+    port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  liveness:
+    path: /
+    port: http
+    initialDelaySeconds: 20
+    periodSeconds: 20
+
+database:
+  enabled: true
+  existingSecret: secret-name
+  secretKey: DATABASE_URL
+
+sqs:
+  enabled: true
+  existingSecret: secret-name
+  secretKeys:
+    - PAGO_APROBADO_QUEUE_URL
+    - POLIZA_EMITIDA_QUEUE_URL
+
+bucket:
+  enabled: true
+  existingSecret: secret-name
+  secretKey: S3_BUCKET_NAME
+
+cognito:
+  enabled: false
+
+audit:
+  enabled: true
+  existingSecret: secret-name
+  secretKey: TRAZABILIDAD_INTERNAL_TOKEN
+
+redis:
+  enabled: false
+
+kmsKey:
+  enabled: false
+
+config:
+  PROJECT_NAME: solventa-insurancepolicies-service
+  VERSION: "0.1.0"
+  ENVIRONMENT: dev
+  API_PREFIX: /api/v1/insurancepolicies-service
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://cloudwatch-agent.amazon-cloudwatch.svc.cluster.local:4315
+  OTEL_TRACES_EXPORTER: otlp
+  AWS_REGION: us-east-1
+  FIRMA_STORAGE: s3
+  FIRMA_MAX_BYTES: "1048576"
+  FIRMA_PROVEEDOR: CANVAS_MANUSCRITA
+  CERTIFICADO_STORAGE: s3
+  CERTIFICADO_ZONA_HORARIA: America/Bogota
+  CERTIFICADO_EN_PROCESO_TTL_SECONDS: 300
+  QUOTINGENGINE_SERVICE_URL: http://quotingengine-service:80
+  IDENTITY_SERVICE_URL: http://identity-service:80
+  SERVICES_TIMEOUT_SECONDS: 3.0
+  SQS_WAIT_SECONDS: 20
+  SQS_MAX_MESSAGES: 5
+  SQS_VISIBILITY_TIMEOUT_SECONDS: 120
+  OUTBOX_POLL_SECONDS: 2.0
+  OUTBOX_BATCH_SIZE: 10
+
+# El render del certificado PDF (WeasyPrint) necesita más memoria que el resto de servicios.
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 1Gi

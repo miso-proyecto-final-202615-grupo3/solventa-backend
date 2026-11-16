@@ -14,6 +14,7 @@ PRODUCTO_PATH = f"{PRODUCTOS_PATH}/auto"
 COTIZACIONES_PATH = "/api/v1/quotingengine-service/cotizaciones"
 COTIZACION_ID = "95b19edf-6c4b-4437-99db-d84d0ef482fc"
 PAYLOAD = b'{"cliente_id":"cliente-1","producto_codigo":"auto","parametros":{}}'
+DECISION_PAYLOAD = b'{"condiciones_cotizacion_id":"5a84beea-6422-4c0c-89e7-5e5e0cbac68d","decision":"RECHAZADA"}'
 
 
 async def test_reenvia_operaciones_al_servicio_de_cotizacion():
@@ -83,5 +84,60 @@ async def test_falla_con_502_si_el_servicio_devuelve_json_invalido():
         with pytest.raises(QuotingEngineGatewayError) as exc:
             await gateway.listar_productos()
         assert exc.value.status_code == 502
+    finally:
+        await gateway.aclose()
+
+
+async def test_reenvia_condiciones_y_decision():
+    calls: list[httpx.Request] = []
+    condiciones = {"condiciones_cotizacion_id": "5a84beea-6422-4c0c-89e7-5e5e0cbac68d"}
+    decision = {"decision": "RECHAZADA", "cliente_id": "d0af9a19-872e-4e16-bc56-e8217d4ff024"}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json=condiciones) if request.method == "GET" else httpx.Response(201, json=decision)
+
+    gateway = QuotingEngineServiceGateway(base_url=BASE, transport=httpx.MockTransport(handler))
+    try:
+        assert await gateway.obtener_condiciones(COTIZACION_ID) == condiciones
+        assert await gateway.registrar_decision_condiciones(
+            COTIZACION_ID, DECISION_PAYLOAD, "application/vnd.api+json"
+        ) == decision
+        condiciones_url = f"{BASE}{COTIZACIONES_PATH}/{COTIZACION_ID}/condiciones"
+        assert [(call.method, str(call.url)) for call in calls] == [
+            ("GET", condiciones_url),
+            ("POST", f"{condiciones_url}/decisiones"),
+        ]
+        assert calls[1].content == DECISION_PAYLOAD
+        assert calls[1].headers["content-type"] == "application/vnd.api+json"
+    finally:
+        await gateway.aclose()
+
+
+@pytest.mark.parametrize("codigo", [404, 409, 422, 503])
+async def test_decision_propaga_respuesta_de_error(codigo):
+    detalle = [{"loc": ["body", "decision"], "msg": "Error"}] if codigo == 422 else "Error de cotización."
+    gateway = QuotingEngineServiceGateway(
+        base_url=BASE,
+        transport=httpx.MockTransport(lambda request: httpx.Response(codigo, json={"detail": detalle})),
+    )
+    try:
+        with pytest.raises(QuotingEngineGatewayError) as exc:
+            await gateway.registrar_decision_condiciones(COTIZACION_ID, DECISION_PAYLOAD)
+        assert exc.value.status_code == codigo
+        assert exc.value.detail == detalle
+    finally:
+        await gateway.aclose()
+
+
+async def test_condiciones_sin_conexion_devuelve_503():
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("No disponible", request=request)
+
+    gateway = QuotingEngineServiceGateway(base_url=BASE, transport=httpx.MockTransport(handler))
+    try:
+        with pytest.raises(QuotingEngineGatewayError) as exc:
+            await gateway.obtener_condiciones(COTIZACION_ID)
+        assert exc.value.status_code == 503
     finally:
         await gateway.aclose()

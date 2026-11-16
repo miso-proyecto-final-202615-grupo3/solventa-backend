@@ -1,0 +1,10 @@
+{
+  "siniestro_id": "c41f0e2a-9b7d-4e55-8a0c-2f6d1b3e9a77",
+  "numero": "SIN-2026-C41F0E2A",
+  "estado": "REPORTADO",
+  "poliza_id": "8d2b6c1e-4a7f-4f0e-9a51-0c6b1d9e2f10",
+  "poliza_numero": "SLV-2026-08341",
+  "tipo": "GASTO_MEDICO",
+  "ocurrido_en": "2026-11-10T19:30:00Z",
+  "reportado_en": "2026-11-10T20:02:11Z"
+}

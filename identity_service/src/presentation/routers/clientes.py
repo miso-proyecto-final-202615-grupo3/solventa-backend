@@ -22,10 +22,6 @@ from src.application.use_cases.registrar_cliente_use_case import (
     DuplicateClienteError,
     RegistrarClienteUseCase,
 )
-from src.application.use_cases.verificar_kyc_use_case import (
-    KycClienteNoEncontradoError,
-    VerificarKycUseCase,
-)
 from src.application.use_cases.iniciar_activacion_movil_use_case import (
     ClienteNoRegistradoError,
     ConsentimientoBiometricoRequeridoError,
@@ -59,10 +55,11 @@ from src.presentation.dependencies import (
     get_gestionar_consentimiento_biometrico_use_case,
     get_gestionar_consentimiento_use_case,
     get_registrar_cliente_use_case,
-    get_verificar_kyc_use_case,
     get_iniciar_activacion_movil_use_case,
     get_verificar_activacion_movil_use_case,
+    get_identity_provider,
 )
+from src.application.ports.identity_provider import IdentityProvider
 from src.presentation.schemas import (
     AutenticarResponse,
     ActualizarConsentimientoRequest,
@@ -71,6 +68,7 @@ from src.presentation.schemas import (
     ConsentimientoResponse,
     EstadoConsentimientoBiometricoResponse,
     PasswordVerify,
+    RefreshSessionRequest,
     RegistrarConsentimientoBiometricoRequest,
     RegistrarConsentimientoBiometricoResponse,
     IniciarActivacionMovilRequest,
@@ -352,6 +350,26 @@ async def autenticar_cliente(
     )
 
 
+@router.post("/renovar-sesion", response_model=AutenticarResponse, status_code=status.HTTP_200_OK)
+async def renovar_sesion(
+    payload: RefreshSessionRequest,
+    identity_provider: IdentityProvider = Depends(get_identity_provider),
+) -> AutenticarResponse:
+    try:
+        resultado = await identity_provider.renovar_sesion(payload.refresh_token)
+    except InvalidCredentialsError as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="La sesión ya no es válida.") from exc
+    except IdentityProviderError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="No se pudo renovar la sesión en este momento.") from exc
+    return AutenticarResponse(
+        access_token=resultado.access_token,
+        id_token=resultado.id_token,
+        refresh_token=resultado.refresh_token or payload.refresh_token,
+        expires_in=resultado.expires_in,
+        token_type=resultado.token_type,
+    )
+
+
 @router.put(
     "/{cliente_id}/consentimiento",
     response_model=ConsentimientoResponse,
@@ -406,23 +424,3 @@ async def obtener_perfil_cliente(
             detail="El cliente indicado no existe.",
         ) from exc
     return ClienteResponse.model_validate(perfil)
-
-
-@router.post(
-    "/{cliente_id}/verificar-kyc",
-    response_model=ClienteResponse,
-    status_code=status.HTTP_200_OK,
-)
-async def verificar_kyc(
-    cliente_id: uuid.UUID,
-    use_case: VerificarKycUseCase = Depends(get_verificar_kyc_use_case),
-) -> ClienteResponse:
-    try:
-        cliente = await use_case.ejecutar(cliente_id)
-    except KycClienteNoEncontradoError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="El cliente indicado no existe.",
-        ) from exc
-
-    return _cliente_response(cliente)

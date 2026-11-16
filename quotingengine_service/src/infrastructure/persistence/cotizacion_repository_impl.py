@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.cotizaciones.entities import Cotizacion, EstadoCotizacion
-from src.domain.cotizaciones.repositories import CotizacionRepository
+from src.domain.cotizaciones.cotizacion_repository import CotizacionRepository
 from src.infrastructure.persistence.models import CotizacionModel
 
 

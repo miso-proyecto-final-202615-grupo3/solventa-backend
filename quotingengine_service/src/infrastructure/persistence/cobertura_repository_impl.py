@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.productos.entities import Cobertura, EstadoCobertura
-from src.domain.productos.repositories import CoberturaRepository
+from src.domain.productos.cobertura_repository import CoberturaRepository
 from src.infrastructure.persistence.models import CoberturaModel
 
 

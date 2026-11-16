@@ -1,0 +1,83 @@
+replicaCount: 1
+autoscaling:
+  enabled: true
+  cpuUtilization: 70
+  min: 1
+  max: 10
+fullnameOverride: payments-service
+
+containerName: payments-service
+serviceAccountName: solventa-app-sa
+
+image:
+  repository: payments-service
+  pullPolicy: Always
+  tag: "latest"
+
+http:
+  containerPort: 8000
+  servicePort: 80
+
+probes:
+  readiness:
+    path: /health
+    port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  liveness:
+    path: /health
+    port: http
+    initialDelaySeconds: 20
+    periodSeconds: 20
+
+database:
+  enabled: true
+  existingSecret: secret-name
+  secretKey: DATABASE_URL
+
+sqs:
+  enabled: true
+  existingSecret: secret-name
+  secretKeys:
+    - PAGO_APROBADO_QUEUE_URL
+
+bucket:
+  enabled: false
+cognito:
+  enabled: false
+
+audit:
+  enabled: true
+  existingSecret: secret-name
+  secretKey: TRAZABILIDAD_INTERNAL_TOKEN
+redis:
+  enabled: false
+kmsKey:
+  enabled: false
+
+config:
+  PROJECT_NAME: solventa-payments-service
+  VERSION: "0.1.0"
+  ENVIRONMENT: dev
+  API_PREFIX: /api/v1/payments-service
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://cloudwatch-agent.amazon-cloudwatch.svc.cluster.local:4315
+  OTEL_TRACES_EXPORTER: otlp
+  AWS_REGION: us-east-1
+  QUOTINGENGINE_SERVICE_URL: http://quotingengine-service:80
+  INSURANCEPOLICIES_SERVICE_URL: http://insurancepolicies-service:80
+  SERVICES_TIMEOUT_SECONDS: 3.0
+  REQUIRE_FIRMA_DIGITAL: "true"
+  PAYMENT_PROVIDER_URL: http://mock-paymentprovider:80
+  PAYMENT_PROVIDER_NAME: mock_paymentprovider
+  PAYMENT_PROVIDER_TIMEOUT_SECONDS: 10.0
+  PAGO_PENDIENTE_TTL_SECONDS: 120
+  OUTBOX_POLL_SECONDS: 10.0
+  OUTBOX_BATCH_SIZE: 10
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

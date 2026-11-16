@@ -1,0 +1,83 @@
+replicaCount: 1
+autoscaling:
+  enabled: true
+  cpuUtilization: 70
+  min: 1
+  max: 10
+fullnameOverride: insuranceclaims-service
+
+containerName: insuranceclaims-service
+serviceAccountName: solventa-app-sa
+
+image:
+  repository: insuranceclaims-service
+  pullPolicy: Always
+  tag: "latest"
+
+http:
+  containerPort: 8000
+  servicePort: 80
+
+probes:
+  readiness:
+    path: /health
+    port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  liveness:
+    path: /health
+    port: http
+    initialDelaySeconds: 20
+    periodSeconds: 20
+
+database:
+  enabled: true
+  existingSecret: secret-name
+  secretKey: DATABASE_URL
+
+sqs:
+  enabled: false
+
+# HU4.1.2: bucket de almacenamiento y llave KMS de datos (mismos secretos que identity_service).
+bucket:
+  enabled: true
+  existingSecret: secret-name
+  secretKey: S3_BUCKET_NAME
+cognito:
+  enabled: false
+redis:
+  enabled: false
+kmsKey:
+  enabled: true
+  existingSecret: secret-name
+  secretKey: KMS_KEY_ARN
+
+config:
+  PROJECT_NAME: solventa-insuranceclaims-service
+  VERSION: "0.1.0"
+  ENVIRONMENT: dev
+  API_PREFIX: /api/v1/insuranceclaims-service
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://cloudwatch-agent.amazon-cloudwatch.svc.cluster.local:4315
+  OTEL_TRACES_EXPORTER: otlp
+  SEED_ON_STARTUP: "true"
+  # HU4.1.1: pólizas de MS Pólizas (#265) y catálogo de productos del Motor de Cotización.
+  POLIZAS_ADAPTER: http
+  INSURANCEPOLICIES_SERVICE_URL: http://insurancepolicies-service:80
+  QUOTINGENGINE_SERVICE_URL: http://quotingengine-service:80
+  POLIZAS_TIMEOUT_SECONDS: "3"
+  ESTADOS_POLIZA_ELEGIBLES: EMITIDA,VIGENTE
+  # HU4.1.2: evidencias en S3 con SSE-KMS. Sin S3_ENDPOINT_URL (AWS); credenciales por EKS Pod Identity.
+  AWS_REGION: us-east-1
+  ALMACEN_EVIDENCIAS: s3
+  EVIDENCIAS_SSE: aws:kms
+  EVIDENCIAS_PREFIX: siniestros/
+  FOTO_MAX_MB: "5"
+  VIDEO_MAX_MB: "50"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

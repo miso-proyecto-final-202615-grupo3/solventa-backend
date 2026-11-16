@@ -12,6 +12,9 @@ ambiente y su imagen Docker. Cada servicio se despliega como un pod independient
 | `bff_mobile` | Backend For Frontend de la app móvil Android | `/api/v1/bff-mobile` |
 | `identity_service` | Identidad y registro de clientes | `/api/v1/identity-service` |
 | `quotingengine_service` | Motor de cotización y suscripción | `/api/v1/quotingengine-service` |
+| `insurancepolicies_service` | Gestión de pólizas, firma digital manuscrita, emisión de la póliza y certificado PDF | `/api/v1/insurancepolicies-service` |
+| `insuranceclaims_service` | Gestión de siniestros: reporte del siniestro, evidencias y ubicación ([detalle](docs/hu4.1.1-hu4.1.2-siniestros.md)) | `/api/v1/insuranceclaims-service` |
+| `payments_service` | Pago de la prima inicial con PayPal o tarjeta de crédito | `/api/v1/payments-service` |
 | `liveness_adapter` | Adaptador de retos y verificación de prueba de vida | `/api/v1/liveness-adapter` |
 
 ## Requisitos
@@ -34,20 +37,12 @@ Levantar el servicio desde la raíz del repositorio:
 uvicorn src.main:app --reload --app-dir identity_service
 ```
 
-La API queda en `http://localhost:8002` y el health check en
-`http://localhost:8002/health`.
+La API queda en `http://localhost:8002` y el health check en `http://localhost:8002/health`.
 
-Quoting Engine expone consulta de productos en
-`GET /api/v1/quotingengine-service/productos` y solicitud de cotización en
-`POST /api/v1/quotingengine-service/cotizaciones`. Los BFF Web y Mobile actúan como
-fachada y reenvían esas operaciones. Identity entrega el perfil del cliente por gRPC
-en el puerto interno `50051`, validando el consentimiento antes de consultar Open Finance.
-Open Data se consulta desde Quoting Engine; ambos proveedores degradan de forma controlada.
-
-Para ejecutar Quoting Engine fuera de Compose:
+Para ejecutar fuera de Compose:
 
 ```powershell
-cd quotingengine_service
+cd identity_service
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements-dev.txt
@@ -62,8 +57,6 @@ Desde la carpeta del servicio (usa su `pytest.ini`):
 cd identity_service
 python -m pytest -v
 ```
-
-El mismo comando aplica dentro de `quotingengine_service`.
 
 ## Docker
 
@@ -88,6 +81,33 @@ docker build -f docker/services/Dockerfile.identity_service -t solventa/identity
 - Requiere: GitHub Environments (`dev`/`qa`/`prod`) con
   `AWS_REGION`, `AWS_ROLE_ARN` y `DATABASE_URL`, y los repos ECR configurados en los `values`.
 
+### Autoescalado
+
+Todos los servicios del chart `backend-service` incluyen en sus `values.yaml`
+la sección `autoscaling`, deshabilitada por defecto:
+
+```yaml
+autoscaling:
+  enabled: false
+  cpuUtilization: 70
+  min: 1
+  max: 10
+```
+
+Para activar el HPA de un servicio en un ambiente, establece
+`autoscaling.enabled: true` en el `values.<ambiente>.yaml` correspondiente.
+El HPA `autoscaling/v2` utiliza el promedio de utilización de CPU como
+porcentaje del `resources.requests.cpu` de los contenedores. Requiere la API de
+métricas de recursos disponible en el clúster, por ejemplo, Metrics Server.
+Su comportamiento es común a todos los servicios: espera 300 segundos para
+reducir y usa políticas de 20 % o un pod por minuto; para aumentar usa 100 % o
+cuatro pods cada 15 segundos, seleccionando `Max` en ambos casos.
+
+Con HPA activo, el Deployment no fija `replicas`; con HPA desactivado se usa
+`replicaCount`. Al desactivar el HPA, el Deployment vuelve al `replicaCount`
+configurado. Los flujos de despliegue actualizan el release sin eliminarlo y
+reinician gradualmente el Deployment para actualizar la imagen `latest`.
+
 ## Stack local (Docker Compose)
 
 ```bash
@@ -100,55 +120,42 @@ docker compose up --build
 | `bff_mobile` | `http://localhost:8001` (desde el emulador Android: `http://10.0.2.2:8001`) |
 | `identity_service` | `http://localhost:8002` |
 | `quotingengine_service` | `http://localhost:8003` |
+| `insurancepolicies_service` | `http://localhost:8004` |
+| `insuranceclaims_service` | `http://localhost:8005` |
+| `payments_service` | `http://localhost:8006` |
 | gRPC de Identidad | `localhost:50051` |
-| `mock_kyc` | `http://localhost:8202` |
 | `mock_openfinance` | `http://localhost:8200` |
 | `mock_opendata` | `http://localhost:8201` |
+| `mock_kyc` | `http://localhost:8202` |
 | `liveness_adapter` | `http://localhost:8203` |
+| `mock_paymentprovider` | `http://localhost:8204` |
+| `localstack` (SQS, opcional) | `http://localhost:4566`; su servicio está comentado en `docker-compose.yml` |
 
-Los mocks locales usan HTTP. En ambientes desplegados, configura `OPEN_FINANCE_URL`
-y `OPEN_DATA_URL` con los endpoints HTTPS de los proveedores.
+## Pasarela simulada y SQS local
 
-La consulta de productos queda expuesta por los BFF en `GET /api/v1/bff-web/productos`
-y `GET /api/v1/bff-mobile/productos`; la cotización recibe `producto_codigo`, el
-saldo pendiente del crédito y la ubicación del inmueble.
+`mock_paymentprovider` (`http://localhost:8204`) simula la pasarela con operaciones síncronas, sin redirecciones
+ni webhooks, y sin guardar estado. La documentación interactiva está en `/docs`.
 
-## Prueba de vida (HU3.1.1)
+| Operación | Escenario |
+| --- | --- |
+| `POST /paypal/payments` | `payer_email` que empieza por `declined` → `INSTRUMENT_DECLINED`; por `nofunds` → `INSUFFICIENT_FUNDS`; otro → `COMPLETED` |
+| `POST /credit-card/tokens` | Tokeniza los datos enviados por `payments_service`; devuelve `tok_<MARCA>_<últimos4>` |
+| `POST /credit-card/charges` | Últimos 4 del token: `0002` → `card_declined`, `9995` → `insufficient_funds`, `0069` → `expired_card`; otro → `succeeded` |
 
-Diseño del experimento HA12: `liveness_adapter` es el único servicio que conoce a los proveedores
-(Strategy `LivenessProvider` + `LivenessProviderFactory`). El proveedor activo se cambia en caliente:
+Por defecto los servicios usan el **SQS remoto** de AWS: define las URL de las colas existentes en `.env`
+(`PAGO_APROBADO_QUEUE_URL` y `POLIZA_EMITIDA_QUEUE_URL`) y credenciales `AWS_*` con permisos sobre ellas; sin URL, el
+proceso que depende de esa cola no se inicia. Para probar SQS en local, descomenta el servicio `localstack` y sus
+`depends_on` en `docker-compose.yml` y usa las variables comentadas de `.env.example`. `scripts/localstack/init-sqs.sh`
+crea las colas `solventa-pago-aprobado` y `solventa-poliza-emitida`, cada una con su DLQ (5 recepciones). La imagen
+`localstack/localstack:latest` exige `LOCALSTACK_AUTH_TOKEN` (token de una cuenta de LocalStack). Para ver los eventos:
 
 ```bash
-curl -H "X-Admin-Token: $LIVENESS_ADMIN_TOKEN" http://localhost:8203/api/v1/liveness-adapter/admin/liveness-provider
-curl -X PUT -H "X-Admin-Token: $LIVENESS_ADMIN_TOKEN" -H "Content-Type: application/json" \
-  -d '{"provider":"didit"}' http://localhost:8203/api/v1/liveness-adapter/admin/liveness-provider
+aws --endpoint-url http://localhost:4566 --region us-east-1 \
+  sqs receive-message --queue-url http://localhost:4566/000000000000/solventa-pago-aprobado
 ```
 
-- `propio` (por defecto): reto del servidor + 3 frames verificados con MediaPipe. Riesgo aceptado: no es PAD certificado.
-- `didit` (demo, `DIDIT_ENABLED=false` por defecto): API real de sesiones de Didit o `mock_kyc`, con topes
-  `DIDIT_MAX_SESIONES_DIA` / `DIDIT_MAX_SESIONES_MES` para no salir de la cuota gratuita.
-- Sin `LIVENESS_ADMIN_TOKEN` en `.env`, `/admin` responde 403. En EKS el servicio no tiene ingress (usar `port-forward`).
-- Probes: `/api/v1/liveness-adapter/health` (vida del proceso) y `/api/v1/liveness-adapter/ready`
-  (modelo de MediaPipe precargado y Redis disponible; tarda unos segundos al arrancar).
-- Logs de trazabilidad: `liveness_provider=<nombre> correlation_id=<id> status=<approved|rejected>`.
-  Si se rechaza un gesto, `propio_gesture_rejected` registra ángulos y parpadeo redondeados (nunca la imagen).
-- Prueba de concurrencia en PostgreSQL (criterio de terminado):
-  `POSTGRES_TEST_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/appdata python -m pytest -m postgres identity_service/tests/integration/test_concurrencia_intentos.py`
-- Plan y decisiones: [docs/planning/HU3.1.1-plan-tecnico.md](docs/planning/HU3.1.1-plan-tecnico.md).
-
-## Consentimiento biométrico (HU3.1.3)
-
-- BFF Móvil (JWT; el correo sale del token):
-  - `GET /api/v1/bff-mobile/consentimientos/biometrico` → `{otorgado, version_vigente, version_aceptada, decidido_en}`.
-  - `POST /api/v1/bff-mobile/consentimientos/biometrico` `{decision: ACEPTADO|RECHAZADO, version_terminos, installation_id, decidido_en}`
-    → `201 {decision, version_terminos, registrado_en}`. Errores: `401`, `409 VERSION_TERMINOS_DESACTUALIZADA`,
-    `422` (datos o `decidido_en` fuera de rango: más de 5 min en el futuro o más de 24 h atrás), `503`.
-- Identity guarda **cada decisión, también el rechazo**, en `identity.consentimientos_biometricos` (solo inserción):
-  decisión, versión del texto legal, instalación, canal, `decidido_en` (cliente) y `registrado_en` (servidor).
-  Vale la última decisión, y solo otorga si acepta la versión vigente (`BIOMETRIC_TERMS_VERSION`).
-- Sin consentimiento vigente, `POST /activacion/sesiones` responde `403 CONSENTIMIENTO_BIOMETRICO_REQUERIDO`
-  (`REQUIRE_BIOMETRIC_CONSENT=true` por defecto; `false` solo para demostraciones).
-- Contrato canónico: [docs/contracts/consentimiento-biometrico](docs/contracts/consentimiento-biometrico).
+En ambientes desplegados la cola SQS, los permisos del servicio y el repositorio ECR de `mock-paymentprovider`
+no los crea este repositorio.
 
 ## Cognito en local vs. EKS
 

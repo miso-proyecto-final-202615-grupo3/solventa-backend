@@ -49,7 +49,7 @@ services:
       - "8007:8000"
     environment:
       DATABASE_URL: "${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@db:5432/identity_db}"
-      PARTNERS_INTERNAL_TOKEN: ${PARTNERS_INTERNAL_TOKEN:-}
+      PARTNERS_INTERNAL_TOKEN: ${PARTNERS_INTERNAL_TOKEN:-local-partners-token}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
     depends_on:
       db:
@@ -294,7 +294,7 @@ services:
       INSURANCEPOLICIES_SERVICE_URL: ${INSURANCEPOLICIES_SERVICE_URL:-http://insurancepolicies_service:8000}
       PAYMENTS_SERVICE_URL: ${PAYMENTS_SERVICE_URL:-http://payments_service:8000}
       PARTNERS_SERVICE_URL: ${PARTNERS_SERVICE_URL:-http://partners_service:8000}
-      PARTNERS_INTERNAL_TOKEN: ${PARTNERS_INTERNAL_TOKEN:-}
+      PARTNERS_INTERNAL_TOKEN: ${PARTNERS_INTERNAL_TOKEN:-local-partners-token}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
     depends_on:
       identity_service:

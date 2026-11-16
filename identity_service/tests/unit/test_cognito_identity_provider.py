@@ -5,6 +5,9 @@ import src.infrastructure.gateways.cognito_identity_provider as mod
 from src.application.ports.identity_provider import (
     IdentityProviderError,
     InvalidCredentialsError,
+    PasswordRecoveryCodeError,
+    PasswordRecoveryPasswordError,
+    PasswordRecoveryRateLimitError,
 )
 from src.infrastructure.gateways.cognito_identity_provider import CognitoIdentityProvider
 
@@ -24,8 +27,12 @@ class FakeCognitoClient:
         self.deleted: list[dict] = []
         self.auth_calls: list[dict] = []
         self.challenge_calls: list[dict] = []
+        self.forgot_password_calls: list[dict] = []
+        self.confirm_forgot_password_calls: list[dict] = []
         self.fail_crear: bool = False
         self.fail_autenticar: bool = False
+        self.fail_forgot_password: str | None = None
+        self.fail_confirm_forgot_password: str | None = None
         self.devolver_challenge: bool = False
 
     def admin_create_user(self, **kwargs):
@@ -69,6 +76,29 @@ class FakeCognitoClient:
     def admin_respond_to_auth_challenge(self, **kwargs):
         self.challenge_calls.append(kwargs)
         return {"AuthenticationResult": AUTH_RESULT}
+
+    def forgot_password(self, **kwargs):
+        self.forgot_password_calls.append(kwargs)
+        if self.fail_forgot_password:
+            raise ClientError(
+                {"Error": {"Code": self.fail_forgot_password, "Message": "test"}},
+                "ForgotPassword",
+            )
+        return {"CodeDeliveryDetails": {"DeliveryMedium": "EMAIL"}}
+
+    def confirm_forgot_password(self, **kwargs):
+        self.confirm_forgot_password_calls.append(kwargs)
+        if self.fail_confirm_forgot_password:
+            raise ClientError(
+                {
+                    "Error": {
+                        "Code": self.fail_confirm_forgot_password,
+                        "Message": "test",
+                    }
+                },
+                "ConfirmForgotPassword",
+            )
+        return {}
 
 
 @pytest.fixture
@@ -160,3 +190,71 @@ async def test_renueva_sesion_con_refresh_token(provider):
     assert resultado.access_token == "access-123"
     assert client.auth_calls[0]["AuthFlow"] == "REFRESH_TOKEN_AUTH"
     assert client.auth_calls[0]["AuthParameters"] == {"REFRESH_TOKEN": "refresh-123"}
+
+
+async def test_solicita_codigo_de_recuperacion_sin_exponer_el_destino(provider):
+    identity, client = provider
+
+    await identity.solicitar_recuperacion_clave("ana@example.com")
+
+    assert client.forgot_password_calls[0] == {
+        "ClientId": "client-1",
+        "Username": "ana@example.com",
+    }
+
+
+async def test_no_revela_si_usuario_no_existe_al_solicitar_codigo(provider):
+    identity, client = provider
+    client.fail_forgot_password = "UserNotFoundException"
+
+    await identity.solicitar_recuperacion_clave("nadie@example.com")
+
+
+async def test_no_falla_si_el_correo_no_tiene_destino_verificado(provider):
+    identity, client = provider
+    client.fail_forgot_password = "InvalidParameterException"
+
+    await identity.solicitar_recuperacion_clave("ana@example.com")
+
+
+async def test_confirma_codigo_y_nueva_clave(provider):
+    identity, client = provider
+
+    await identity.confirmar_recuperacion_clave(
+        "ana@example.com", "123456", "NuevaClave123"
+    )
+
+    assert client.confirm_forgot_password_calls[0] == {
+        "ClientId": "client-1",
+        "Username": "ana@example.com",
+        "ConfirmationCode": "123456",
+        "Password": "NuevaClave123",
+    }
+
+
+async def test_rechaza_codigo_invalido_o_vencido(provider):
+    identity, client = provider
+    client.fail_confirm_forgot_password = "CodeMismatchException"
+
+    with pytest.raises(PasswordRecoveryCodeError):
+        await identity.confirmar_recuperacion_clave(
+            "ana@example.com", "000000", "NuevaClave123"
+        )
+
+
+async def test_rechaza_clave_que_no_cumple_la_politica_de_cognito(provider):
+    identity, client = provider
+    client.fail_confirm_forgot_password = "InvalidPasswordException"
+
+    with pytest.raises(PasswordRecoveryPasswordError):
+        await identity.confirmar_recuperacion_clave(
+            "ana@example.com", "123456", "corta"
+        )
+
+
+async def test_limita_intentos_de_recuperacion(provider):
+    identity, client = provider
+    client.fail_forgot_password = "LimitExceededException"
+
+    with pytest.raises(PasswordRecoveryRateLimitError):
+        await identity.solicitar_recuperacion_clave("ana@example.com")

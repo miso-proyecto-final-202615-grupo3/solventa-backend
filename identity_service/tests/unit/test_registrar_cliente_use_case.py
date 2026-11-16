@@ -175,6 +175,14 @@ class FailingIdentityProvider(IdentityProvider):
     async def eliminar_usuario(self, correo: str) -> None:
         pass
 
+    async def solicitar_recuperacion_clave(self, correo: str) -> None:
+        raise IdentityProviderError("cognito falló")
+
+    async def confirmar_recuperacion_clave(
+        self, correo: str, codigo: str, nueva_clave: str
+    ) -> None:
+        raise IdentityProviderError("cognito falló")
+
 
 async def test_propaga_error_de_identidad():
     repo = InMemoryClienteRepository()

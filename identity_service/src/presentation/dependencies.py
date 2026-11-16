@@ -30,6 +30,7 @@ from src.application.use_cases.consultar_auditoria_consentimiento_use_case impor
     ConsultarAuditoriaConsentimientoUseCase,
 )
 from src.application.use_cases.registrar_cliente_use_case import RegistrarClienteUseCase
+from src.application.use_cases.recuperar_clave_use_case import RecuperarClaveUseCase
 from src.application.use_cases.consultar_verificacion_kyc_aml_use_case import (
     ConsultarVerificacionKycAmlUseCase,
 )
@@ -157,6 +158,12 @@ def get_autenticar_cliente_use_case(
     identity_provider: IdentityProvider = Depends(get_identity_provider),
 ) -> AutenticarClienteUseCase:
     return AutenticarClienteUseCase(identity_provider)
+
+
+def get_recuperar_clave_use_case(
+    identity_provider: IdentityProvider = Depends(get_identity_provider),
+) -> RecuperarClaveUseCase:
+    return RecuperarClaveUseCase(identity_provider)
 
 
 async def get_kyc_aml_provider() -> AsyncGenerator[KycAmlProvider, None]:

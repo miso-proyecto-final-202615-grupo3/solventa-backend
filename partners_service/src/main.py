@@ -26,7 +26,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
         await conn.execute(
             text(
-                "UPDATE partners.socios SET correo = 'legacy-' || id::text || '@invalid.local' "
+                "UPDATE partners.socios SET correo = 'legacy-' || id::text || '@solventa.co' "
                 "WHERE correo IS NULL"
             )
         )

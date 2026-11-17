@@ -10,8 +10,7 @@ ambiente y su imagen Docker. Cada servicio se despliega como un pod independient
 | --- | --- | --- |
 | `bff_web` | Backend For Frontend del cliente web | `/api/v1/bff-web` |
 | `bff_mobile` | Backend For Frontend de la app móvil Android | `/api/v1/bff-mobile` |
-| `identity_service` | Identidad y registro de clientes | `/api/v1/identity-service` |
-| `partners_service` | Registro y onboarding de socios de distribución | `/api/v1/partners-service` |
+| `identity_service` | Identidad, registro de clientes y socios | `/api/v1/identity-service` |
 | `quotingengine_service` | Motor de cotización y suscripción | `/api/v1/quotingengine-service` |
 | `insurancepolicies_service` | Gestión de pólizas, firma digital manuscrita, emisión de la póliza y certificado PDF | `/api/v1/insurancepolicies-service` |
 | `insuranceclaims_service` | Gestión de siniestros: reporte del siniestro, evidencias y ubicación ([detalle](docs/hu4.1.1-hu4.1.2-siniestros.md)) | `/api/v1/insuranceclaims-service` |
@@ -30,16 +29,6 @@ cd identity_service
 python -m venv .venv
 source .venv/bin/activate        # Windows PowerShell: .\.venv\Scripts\Activate.ps1
 pip install -r requirements-dev.txt
-```
-
-El servicio de socios usa su propio esquema (`partners`) en PostgreSQL:
-
-```powershell
-cd partners_service
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements-dev.txt
-uvicorn src.main:app --reload
 ```
 
 Levantar el servicio desde la raíz del repositorio:
@@ -130,7 +119,6 @@ docker compose up --build
 | `bff_web` | `http://localhost:8000` |
 | `bff_mobile` | `http://localhost:8001` (desde el emulador Android: `http://10.0.2.2:8001`) |
 | `identity_service` | `http://localhost:8002` |
-| `partners_service` | `http://localhost:8007` |
 | `quotingengine_service` | `http://localhost:8003` |
 | `insurancepolicies_service` | `http://localhost:8004` |
 | `insuranceclaims_service` | `http://localhost:8005` |
@@ -183,8 +171,4 @@ no los crea este repositorio.
   corre el servicio con tus credenciales AWS del host (`aws sso login` / access keys válidas).
 - **EKS:** la autenticación es automática con **Pod Identity** (no se pasan credenciales al pod).
 - **Backoffice de socios:** BFF Web exige el grupo Cognito `SociosAdmin`; crea el grupo y asigna
-  operadores autorizados en el User Pool. El `partners_service` no tiene ruta pública en el ALB y
-  solo acepta solicitudes internas con `PARTNERS_INTERNAL_TOKEN`.
-- **Secretos de despliegue:** agrega `PARTNERS_INTERNAL_TOKEN` a la propiedad correspondiente de
-  AWS Secrets Manager para dev/qa/prod. El ExternalSecret de este repo la proyecta al BFF y al
-  `partners_service`; la infraestructura de AWS se mantiene en `solventa-infrastructure`.
+  operadores autorizados en el User Pool. Identity Service persiste los socios en su esquema `identity`.

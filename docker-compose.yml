@@ -40,27 +40,6 @@ services:
       lgtm:
         condition: service_started
 
-  partners_service:
-    build:
-      context: .
-      dockerfile: docker/services/Dockerfile.partners_service
-    container_name: solventa-partners-service
-    ports:
-      - "8007:8000"
-    environment:
-      DATABASE_URL: "${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@db:5432/identity_db}"
-      PARTNERS_INTERNAL_TOKEN: ${PARTNERS_INTERNAL_TOKEN:-local-partners-token}
-      AWS_REGION: ${AWS_REGION:-us-east-1}
-      COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
-      COGNITO_SOCIO_GROUP: ${COGNITO_SOCIO_GROUP:-Socio}
-      COGNITO_ENABLED: "${COGNITO_ENABLED:-true}"
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
-    depends_on:
-      db:
-        condition: service_healthy
-      lgtm:
-        condition: service_started
-
   liveness_adapter:
     build:
       context: .
@@ -297,8 +276,6 @@ services:
       QUOTINGENGINE_SERVICE_URL: ${QUOTINGENGINE_SERVICE_URL:-http://quotingengine_service:8000}
       INSURANCEPOLICIES_SERVICE_URL: ${INSURANCEPOLICIES_SERVICE_URL:-http://insurancepolicies_service:8000}
       PAYMENTS_SERVICE_URL: ${PAYMENTS_SERVICE_URL:-http://payments_service:8000}
-      PARTNERS_SERVICE_URL: ${PARTNERS_SERVICE_URL:-http://partners_service:8000}
-      PARTNERS_INTERNAL_TOKEN: ${PARTNERS_INTERNAL_TOKEN:-local-partners-token}
       COGNITO_REGION: ${COGNITO_REGION:-${AWS_REGION:-us-east-1}}
       COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
       COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
@@ -311,8 +288,6 @@ services:
       insurancepolicies_service:
         condition: service_started
       payments_service:
-        condition: service_started
-      partners_service:
         condition: service_started
 
   bff_mobile:

@@ -1,25 +1,14 @@
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 
-from src.application.use_cases.registrar_socio_use_case import (
-    DuplicateSocioError,
-    RegistrarSocioUseCase,
-)
-from src.presentation.dependencies import (
-    get_socio_repository,
-    get_registrar_socio_use_case,
-    require_internal_token,
-)
-from src.presentation.schemas import RegistrarSocioRequest, SocioResponse
+from src.application.use_cases.registrar_socio_use_case import DuplicateSocioError, RegistrarSocioUseCase
+from src.domain.socios.repositories import SocioRepository
+from src.presentation.dependencies import get_socio_repository, get_registrar_socio_use_case
+from src.presentation.schemas.socio_schemas import RegistrarSocioRequest, SocioResponse
 
 router = APIRouter(prefix="/socios", tags=["Socios"])
 
 
-@router.post(
-    "",
-    response_model=SocioResponse,
-    status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_internal_token)],
-)
+@router.post("", response_model=SocioResponse, status_code=status.HTTP_201_CREATED)
 async def registrar_socio(
     payload: RegistrarSocioRequest,
     actor_id: str = Header(alias="X-Actor-Id", min_length=1, max_length=100),
@@ -39,7 +28,5 @@ async def registrar_socio(
 
 
 @router.get("", response_model=list[SocioResponse])
-async def listar_socios(
-    repository=Depends(get_socio_repository),
-) -> list[SocioResponse]:
+async def listar_socios(repository: SocioRepository = Depends(get_socio_repository)) -> list[SocioResponse]:
     return [SocioResponse.desde_entidad(socio) for socio in await repository.listar()]

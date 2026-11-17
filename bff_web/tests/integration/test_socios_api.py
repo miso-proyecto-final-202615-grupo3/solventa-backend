@@ -1,7 +1,7 @@
 import pytest
 
 from src.presentation.dependencies import (
-    get_partners_service_gateway,
+    get_identity_socios_gateway,
     require_socios_admin,
 )
 from src.main import app
@@ -28,7 +28,7 @@ class GatewaySocios:
 async def socios_client(async_client):
     gateway = GatewaySocios()
     app.dependency_overrides[require_socios_admin] = lambda: "operator-sub"
-    app.dependency_overrides[get_partners_service_gateway] = lambda: gateway
+    app.dependency_overrides[get_identity_socios_gateway] = lambda: gateway
     yield async_client, gateway
     app.dependency_overrides.clear()
 

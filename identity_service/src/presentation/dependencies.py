@@ -40,6 +40,7 @@ from src.application.use_cases.iniciar_verificacion_kyc_aml_use_case import (
 from src.core.config import settings
 from src.core.database import SessionLocal
 from src.domain.clientes.repositories import ClienteRepository
+from src.domain.socios.repositories import SocioRepository
 from src.infrastructure.gateways.cognito_identity_provider import CognitoIdentityProvider
 from src.domain.verificaciones_kyc_aml.repositories import DocumentoVerificacionRepository
 from src.infrastructure.gateways.kyc_aml_http_client import KycAmlHttpClient
@@ -75,6 +76,9 @@ from src.infrastructure.persistence.activacion_movil_repository_impl import (
 from src.infrastructure.persistence.verificacion_kyc_aml_repository_impl import (
     SqlAlchemyVerificacionKycAmlRepository,
 )
+from src.infrastructure.identity.cognito_socio_provider import CognitoSocioProvider
+from src.infrastructure.persistence.socio_repository_impl import SqlAlchemySocioRepository
+from src.application.use_cases.registrar_socio_use_case import RegistrarSocioUseCase
 from src.infrastructure.storage.documento_verificacion_s3_repository import (
     S3DocumentoVerificacionRepository,
 )
@@ -101,6 +105,17 @@ def get_cliente_repository(
     db: AsyncSession = Depends(get_db),
 ) -> ClienteRepository:
     return SqlAlchemyClienteRepository(db)
+
+
+def get_socio_repository(db: AsyncSession = Depends(get_db)) -> SocioRepository:
+    return SqlAlchemySocioRepository(db)
+
+
+def get_registrar_socio_use_case(
+    repository: SocioRepository = Depends(get_socio_repository),
+) -> RegistrarSocioUseCase:
+    provider = CognitoSocioProvider() if settings.COGNITO_ENABLED else None
+    return RegistrarSocioUseCase(repository, provider)
 
 
 def get_consentimiento_repository(

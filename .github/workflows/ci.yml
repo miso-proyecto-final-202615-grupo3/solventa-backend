@@ -18,7 +18,6 @@ jobs:
           - bff_web
           - bff_mobile
           - identity_service
-          - partners_service
           - quotingengine_service
           - insurancepolicies_service
           - insuranceclaims_service
@@ -75,7 +74,6 @@ jobs:
           - bff_web
           - bff_mobile
           - identity_service
-          - partners_service
           - quotingengine_service
           - insurancepolicies_service
           - insuranceclaims_service

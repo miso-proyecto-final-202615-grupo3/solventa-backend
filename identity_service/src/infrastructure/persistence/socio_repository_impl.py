@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domain.socios.entities import EventoSocio, Socio
+from src.domain.socios.entities import EstadoSocio, EventoSocio, Socio
 from src.domain.socios.repositories import SocioRepository
 from src.infrastructure.persistence.models import EventoSocioModel, SocioModel
 
@@ -11,9 +11,12 @@ class SqlAlchemySocioRepository(SocioRepository):
         self.session = session
 
     async def existe_por_correo(self, correo: str) -> bool:
-        return await self.session.scalar(
-            select(SocioModel.id).where(SocioModel.correo == correo.strip().lower())
-        ) is not None
+        return (
+            await self.session.scalar(
+                select(SocioModel.id).where(SocioModel.correo == correo.strip().lower())
+            )
+            is not None
+        )
 
     async def registrar(self, socio: Socio, evento: EventoSocio) -> None:
         self.session.add(
@@ -49,7 +52,7 @@ class SqlAlchemySocioRepository(SocioRepository):
                 correo=row.correo,
                 tipo_socio=row.tipo_socio,
                 canal_integracion=row.canal_integracion,
-                estado=row.estado,
+                estado=EstadoSocio(row.estado),
                 creado_en=row.creado_en,
                 registrado_por=row.registrado_por,
             )

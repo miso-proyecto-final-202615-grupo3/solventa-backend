@@ -65,6 +65,29 @@ class ClienteModel(Base):
     )
 
 
+class SocioModel(Base):
+    __tablename__ = "socios"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    nombre: Mapped[str] = mapped_column(String(120), nullable=False)
+    correo: Mapped[str] = mapped_column(String(320), nullable=False, unique=True, index=True)
+    tipo_socio: Mapped[str] = mapped_column(String(60), nullable=False)
+    canal_integracion: Mapped[str] = mapped_column(String(60), nullable=False)
+    estado: Mapped[str] = mapped_column(String(20), nullable=False, default="PENDIENTE", server_default="PENDIENTE")
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    registrado_por: Mapped[str] = mapped_column(String(100), nullable=False)
+
+
+class EventoSocioModel(Base):
+    __tablename__ = "eventos_socio"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    socio_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("socios.id"), nullable=False, index=True)
+    accion: Mapped[str] = mapped_column(String(30), nullable=False)
+    actor_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    ocurrido_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class ConsentimientoModel(Base):
     __tablename__ = "consentimientos"
     __table_args__ = (

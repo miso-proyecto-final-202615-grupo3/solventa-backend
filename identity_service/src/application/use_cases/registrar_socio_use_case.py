@@ -9,12 +9,7 @@ class DuplicateSocioError(Exception):
 
 
 class RegistrarSocioUseCase:
-    def __init__(
-        self,
-        repository: SocioRepository,
-        identity_provider=None,
-        reloj=lambda: datetime.now(UTC),
-    ) -> None:
+    def __init__(self, repository: SocioRepository, identity_provider=None, reloj=lambda: datetime.now(UTC)) -> None:
         self.repository = repository
         self.identity_provider = identity_provider
         self.reloj = reloj

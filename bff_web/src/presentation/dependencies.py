@@ -2,8 +2,8 @@ from collections.abc import AsyncGenerator
 
 from fastapi import Header, HTTPException
 
-from src.infrastructure.gateways.partners_service_gateway import (
-    PartnersServiceGateway,
+from src.infrastructure.gateways.identity_socios_gateway import (
+    IdentitySociosGateway,
 )
 from src.infrastructure.gateways.identity_service_gateway import (
     IdentityServiceGateway,
@@ -37,8 +37,8 @@ async def get_identity_service_gateway() -> AsyncGenerator[IdentityServiceGatewa
         await gateway.aclose()
 
 
-async def get_partners_service_gateway() -> AsyncGenerator[PartnersServiceGateway, None]:
-    gateway = PartnersServiceGateway()
+async def get_identity_socios_gateway() -> AsyncGenerator[IdentitySociosGateway, None]:
+    gateway = IdentitySociosGateway()
     try:
         yield gateway
     finally:

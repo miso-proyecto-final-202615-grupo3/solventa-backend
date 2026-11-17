@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     COGNITO_USER_POOL_ID: str = ""
     COGNITO_CLIENT_ID: str = ""
     COGNITO_ENABLED: bool = False
+    COGNITO_SOCIO_GROUP: str = "Socio"
     CONSENT_TERMS_VERSION: str = "1.0"
     CONSENT_CACHE_TTL_SECONDS: int = 300
     REDIS_ENDPOINT: str = "redis://localhost:6379/0"

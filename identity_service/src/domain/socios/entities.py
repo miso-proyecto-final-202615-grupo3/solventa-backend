@@ -42,14 +42,13 @@ class Socio:
             creado_en=creado_en,
             registrado_por=registrado_por,
         )
-        evento = EventoSocio(
+        return socio, EventoSocio(
             id=uuid4(),
             socio_id=socio_id,
             accion="REGISTRO",
             actor_id=registrado_por,
             ocurrido_en=creado_en,
         )
-        return socio, evento
 
 
 @dataclass(frozen=True)

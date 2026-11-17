@@ -98,6 +98,14 @@ class EvidenciaNoEncontrada(ErrorSiniestro):
     mensaje = "No encontramos la evidencia."
 
 
+class EvidenciaNoDisponible(ErrorSiniestro):
+    """HU4.2.1: solo se pueden ver las evidencias ya cargadas y verificadas."""
+
+    status_code = 409
+    codigo = "EVIDENCIA_NO_DISPONIBLE"
+    mensaje = "Esta evidencia todavía no está disponible para verla."
+
+
 class CargaNoEncontrada(ErrorSiniestro):
     status_code = 409
     codigo = "CARGA_NO_ENCONTRADA"

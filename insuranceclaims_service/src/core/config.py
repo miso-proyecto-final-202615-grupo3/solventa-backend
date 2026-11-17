@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     S3_PUBLIC_ENDPOINT_URL: str = ""
     FOTO_MAX_MB: int = 5
     VIDEO_MAX_MB: int = 50
+    # HU4.2.1: vigencia de la URL de lectura de una evidencia.
+    EVIDENCIAS_DESCARGA_TTL_SECONDS: int = 300
 
     model_config = SettingsConfigDict(
         env_file=".env",

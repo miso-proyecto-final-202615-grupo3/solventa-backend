@@ -2,7 +2,7 @@ import uuid
 from dataclasses import asdict, fields
 from typing import Generic, TypeVar
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import Base
@@ -116,6 +116,22 @@ class SqlAlchemySiniestroRepository(
             .with_for_update()
         )
         return self._a_entidad(model)
+
+    async def listar_de_cliente(
+        self, cliente_id: uuid.UUID, poliza_id: uuid.UUID | None, limite: int, desplazamiento: int
+    ) -> tuple[list[Siniestro], int]:
+        filtro = [SiniestroModel.cliente_id == cliente_id]
+        if poliza_id is not None:
+            filtro.append(SiniestroModel.poliza_id == poliza_id)
+        total = await self.session.scalar(select(func.count()).select_from(SiniestroModel).where(*filtro))
+        modelos = await self.session.scalars(
+            select(SiniestroModel)
+            .where(*filtro)
+            .order_by(SiniestroModel.reportado_en.desc(), SiniestroModel.siniestro_id)
+            .limit(limite)
+            .offset(desplazamiento)
+        )
+        return [self._a_entidad(m) for m in modelos.all()], int(total or 0)
 
 
 class SqlAlchemyEvidenciaRepository(

@@ -56,6 +56,13 @@ class SiniestroRepository(Repository[Siniestro]):
     async def actualizar(self, siniestro: Siniestro) -> Siniestro:
         raise NotImplementedError
 
+    @abstractmethod
+    async def listar_de_cliente(
+        self, cliente_id: uuid.UUID, poliza_id: uuid.UUID | None, limite: int, desplazamiento: int
+    ) -> tuple[list[Siniestro], int]:
+        """Siniestros del cliente (opcionalmente de una póliza), más reciente primero, y el total sin paginar."""
+        raise NotImplementedError
+
 
 class EvidenciaRepository(Repository[EvidenciaSiniestro]):
     @abstractmethod

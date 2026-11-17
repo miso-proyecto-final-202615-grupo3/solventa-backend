@@ -1,7 +1,12 @@
 """Almacén de evidencias en memoria, solo para pruebas (`ALMACEN_EVIDENCIAS=memoria`)."""
 from datetime import UTC, datetime, timedelta
 
-from src.application.ports.almacen_evidencias import AlmacenNoDisponible, CargaPrefirmada, MetadatosObjeto
+from src.application.ports.almacen_evidencias import (
+    AlmacenNoDisponible,
+    CargaPrefirmada,
+    DescargaPrefirmada,
+    MetadatosObjeto,
+)
 
 
 class AlmacenEvidenciasEnMemoria:
@@ -39,6 +44,10 @@ class AlmacenEvidenciasEnMemoria:
         self._verificar()
         self.objetos.pop(clave, None)
         self.eliminados.append(clave)
+
+    async def generar_descarga(self, clave: str, content_type: str, ttl: timedelta) -> DescargaPrefirmada:
+        self._verificar()
+        return DescargaPrefirmada(url=f"https://almacen.test/{clave}?firma=simulada", expira_en=self._reloj() + ttl)
 
     async def aclose(self) -> None:
         return None

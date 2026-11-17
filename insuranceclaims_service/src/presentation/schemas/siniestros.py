@@ -100,3 +100,12 @@ class PolizaElegibleResponse(BaseModel):
 
 class PolizasElegiblesResponse(BaseModel):
     polizas: list[PolizaElegibleResponse]
+
+
+class SiniestrosResponse(BaseModel):
+    """`GET /siniestros` (HU4.2.1): página de siniestros del cliente, más reciente primero."""
+
+    siniestros: list[SiniestroResponse]
+    pagina: int
+    tamano: int
+    total: int

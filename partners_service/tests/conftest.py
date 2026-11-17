@@ -18,6 +18,9 @@ class InMemorySocioRepository(SocioRepository):
         self.socios: list[Socio] = []
         self.eventos: list[EventoSocio] = []
 
+    async def existe_por_correo(self, correo: str) -> bool:
+        return any(socio.correo == correo.strip().lower() for socio in self.socios)
+
     async def registrar(self, socio: Socio, evento: EventoSocio) -> None:
         self.socios.append(socio)
         self.eventos.append(evento)

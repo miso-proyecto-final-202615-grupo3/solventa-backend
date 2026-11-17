@@ -4,6 +4,10 @@ from src.domain.socios.entities import Socio
 from src.domain.socios.repositories import SocioRepository
 
 
+class DuplicateSocioError(Exception):
+    pass
+
+
 class RegistrarSocioUseCase:
     def __init__(
         self,
@@ -23,6 +27,8 @@ class RegistrarSocioUseCase:
         canal_integracion: str,
         actor_id: str,
     ) -> Socio:
+        if await self.repository.existe_por_correo(correo):
+            raise DuplicateSocioError("Ya existe un socio con ese correo.")
         socio, evento = Socio.registrar(
             nombre=nombre,
             correo=correo,

@@ -56,3 +56,21 @@ async def test_rechaza_campos_vacios(socios_client):
 
     assert response.status_code == 422
     assert repository.socios == []
+
+
+async def test_rechaza_correo_duplicado(socios_client):
+    client, repository = socios_client
+    payload = {
+        "nombre": "Banco Andino",
+        "correo": "socio@yopmail.com",
+        "tipo_socio": "Banco",
+        "canal_integracion": "API",
+    }
+    headers = {"X-Partners-Internal-Token": "test-internal-token", "X-Actor-Id": "operator-123"}
+
+    assert (await client.post("/api/v1/partners-service/socios", headers=headers, json=payload)).status_code == 201
+    response = await client.post("/api/v1/partners-service/socios", headers=headers, json=payload)
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "Ya existe un socio con ese correo."}
+    assert len(repository.socios) == 1

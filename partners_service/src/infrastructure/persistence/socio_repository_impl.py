@@ -10,6 +10,11 @@ class SqlAlchemySocioRepository(SocioRepository):
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
+    async def existe_por_correo(self, correo: str) -> bool:
+        return await self.session.scalar(
+            select(SocioModel.id).where(SocioModel.correo == correo.strip().lower())
+        ) is not None
+
     async def registrar(self, socio: Socio, evento: EventoSocio) -> None:
         self.session.add(
             SocioModel(

@@ -44,3 +44,22 @@ async def test_falla_cerrado_si_falta_secreto_interno():
         await gateway.aclose()
 
     assert error.value.status_code == 503
+
+
+async def test_no_expone_el_token_interno_en_error_del_servicio():
+    async def handle(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, json={"detail": "fallo interno"})
+
+    gateway = PartnersServiceGateway(
+        base_url="http://partners.test",
+        internal_token="internal-secret",
+        transport=httpx.MockTransport(handle),
+    )
+    try:
+        with pytest.raises(PartnersGatewayError) as error:
+            await gateway.registrar_socio({"nombre": "Banco"}, "operator-123")
+    finally:
+        await gateway.aclose()
+
+    assert error.value.status_code == 500
+    assert "internal-secret" not in str(error.value.detail)

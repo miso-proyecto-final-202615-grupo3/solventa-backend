@@ -109,3 +109,21 @@ def test_perfil_vacio_se_ignora(monkeypatch):
     almacen = S3AlmacenEvidencias.desde_configuracion("b", "us-east-1", "AES256", None, "http://minio:9000", None)
 
     assert almacen.bucket == "b"
+
+
+async def test_descarga_firmada_de_un_solo_objeto():
+    """HU4.2.1: GET prefirmado para la llave exacta, con vencimiento y sin credenciales a la vista."""
+    from urllib.parse import parse_qs, urlparse
+
+    almacen = S3AlmacenEvidencias("bucket-evidencias", "aws:kms", "arn:aws:kms:llave", _cliente(), reloj=lambda: AHORA)
+
+    descarga = await almacen.generar_descarga(CLAVE, "image/jpeg", timedelta(minutes=5))
+
+    url = urlparse(descarga.url)
+    query = parse_qs(url.query)
+    assert "bucket-evidencias" in descarga.url and url.path.endswith(CLAVE)
+    assert query["X-Amz-Expires"] == ["300"]
+    assert query["response-content-type"] == ["image/jpeg"]
+    assert query["response-content-disposition"] == ["inline"]
+    assert "X-Amz-Signature" in query and "prueba" not in query.get("X-Amz-Signature", [""])[0]
+    assert descarga.expira_en == AHORA + timedelta(minutes=5)

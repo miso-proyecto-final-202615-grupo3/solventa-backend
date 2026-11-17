@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     COGNITO_USER_POOL_ID: str = ""
     COGNITO_CLIENT_ID: str = ""
     COGNITO_AUDITOR_GROUP: str = "Auditor"
+    COGNITO_SOCIOS_ADMIN_GROUP: str = "SociosAdmin"
     COGNITO_JWKS_TTL_SECONDS: int = 3600
     OTEL_EXPORTER_OTLP_ENDPOINT: str = "http://localhost:4317"
 

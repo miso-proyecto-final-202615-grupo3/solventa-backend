@@ -5,8 +5,11 @@ from src.presentation.schemas.auditoria_schemas import (
 )
 from src.presentation.schemas.auth_schemas import (
     AutenticarResponse,
+    ConfirmacionRecuperacionClaveRequest,
+    MensajeResponse,
     PasswordVerify,
     RefreshSessionRequest,
+    SolicitudRecuperacionClaveRequest,
 )
 from src.presentation.schemas.cliente_schemas import (
     ClienteCreate,
@@ -37,6 +40,7 @@ __all__ = [
     "VerificacionKycAmlResponse",
     "AuditoriaConsentimientoResponse",
     "AutenticarResponse",
+    "ConfirmacionRecuperacionClaveRequest",
     "ActualizarConsentimientoRequest",
     "ClienteAuditadoResponse",
     "ClienteCreate",
@@ -52,4 +56,6 @@ __all__ = [
     "VerificarActivacionMovilResponse",
     "PasswordVerify",
     "RefreshSessionRequest",
+    "MensajeResponse",
+    "SolicitudRecuperacionClaveRequest",
 ]

@@ -10,7 +10,7 @@ ambiente y su imagen Docker. Cada servicio se despliega como un pod independient
 | --- | --- | --- |
 | `bff_web` | Backend For Frontend del cliente web | `/api/v1/bff-web` |
 | `bff_mobile` | Backend For Frontend de la app móvil Android | `/api/v1/bff-mobile` |
-| `identity_service` | Identidad y registro de clientes | `/api/v1/identity-service` |
+| `identity_service` | Identidad, registro de clientes y socios | `/api/v1/identity-service` |
 | `quotingengine_service` | Motor de cotización y suscripción | `/api/v1/quotingengine-service` |
 | `insurancepolicies_service` | Gestión de pólizas, firma digital manuscrita, emisión de la póliza y certificado PDF | `/api/v1/insurancepolicies-service` |
 | `insuranceclaims_service` | Gestión de siniestros: reporte del siniestro, evidencias y ubicación ([detalle](docs/hu4.1.1-hu4.1.2-siniestros.md)) | `/api/v1/insuranceclaims-service` |
@@ -170,3 +170,5 @@ no los crea este repositorio.
   con `COGNITO_ENABLED=true`, `COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID` y `AWS_REGION`, y
   corre el servicio con tus credenciales AWS del host (`aws sso login` / access keys válidas).
 - **EKS:** la autenticación es automática con **Pod Identity** (no se pasan credenciales al pod).
+- **Backoffice de socios:** BFF Web exige el grupo Cognito `SociosAdmin`; crea el grupo y asigna
+  operadores autorizados en el User Pool. Identity Service persiste los socios en su esquema `identity`.

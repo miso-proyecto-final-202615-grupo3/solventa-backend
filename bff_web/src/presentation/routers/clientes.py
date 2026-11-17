@@ -48,6 +48,41 @@ async def autenticar_cliente(
         ) from exc
 
 
+@router.post("/recuperar-clave", status_code=status.HTTP_202_ACCEPTED)
+async def solicitar_recuperacion_clave(
+    request: Request,
+    gateway: IdentityServiceGateway = Depends(get_identity_service_gateway),
+) -> dict:
+    try:
+        return await gateway.solicitar_recuperacion_clave(
+            await request.body(),
+            request.headers.get("content-type", "application/json"),
+        )
+    except IdentityGatewayError as exc:
+        raise HTTPException(
+            status_code=exc.status_code, detail=exc.detail
+        ) from exc
+
+
+@router.post(
+    "/recuperar-clave/confirmar",
+    status_code=status.HTTP_200_OK,
+)
+async def confirmar_recuperacion_clave(
+    request: Request,
+    gateway: IdentityServiceGateway = Depends(get_identity_service_gateway),
+) -> dict:
+    try:
+        return await gateway.confirmar_recuperacion_clave(
+            await request.body(),
+            request.headers.get("content-type", "application/json"),
+        )
+    except IdentityGatewayError as exc:
+        raise HTTPException(
+            status_code=exc.status_code, detail=exc.detail
+        ) from exc
+
+
 @router.put(
     "/{cliente_id}/consentimiento",
     status_code=status.HTTP_200_OK,

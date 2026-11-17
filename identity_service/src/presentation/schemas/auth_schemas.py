@@ -16,6 +16,24 @@ class RefreshSessionRequest(BaseModel):
     refresh_token: str = Field(min_length=1, max_length=4096)
 
 
+class SolicitudRecuperacionClaveRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    correo: EmailStr
+
+
+class ConfirmacionRecuperacionClaveRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    correo: EmailStr
+    codigo: str = Field(min_length=4, max_length=32)
+    nueva_clave: str = Field(min_length=8, max_length=128)
+
+
+class MensajeResponse(BaseModel):
+    mensaje: str
+
+
 class AutenticarResponse(BaseModel):
     """Tokens emitidos tras una autenticación exitosa."""
 

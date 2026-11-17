@@ -8,6 +8,9 @@ from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query
 from src.application.ports.identity_provider import (
     IdentityProviderError,
     InvalidCredentialsError,
+    PasswordRecoveryCodeError,
+    PasswordRecoveryPasswordError,
+    PasswordRecoveryRateLimitError,
 )
 from src.application.use_cases.autenticar_cliente_use_case import (
     AutenticarClienteUseCase,
@@ -51,6 +54,7 @@ from src.domain.activacion_movil.entities import DatosDispositivo
 from src.domain.clientes.entities import Cliente
 from src.presentation.dependencies import (
     get_autenticar_cliente_use_case,
+    get_recuperar_clave_use_case,
     get_consultar_resumen_movil_use_case,
     get_gestionar_consentimiento_biometrico_use_case,
     get_gestionar_consentimiento_use_case,
@@ -62,6 +66,8 @@ from src.presentation.dependencies import (
 from src.application.ports.identity_provider import IdentityProvider
 from src.presentation.schemas import (
     AutenticarResponse,
+    ConfirmacionRecuperacionClaveRequest,
+    MensajeResponse,
     ActualizarConsentimientoRequest,
     ClienteCreate,
     ClienteResponse,
@@ -69,6 +75,7 @@ from src.presentation.schemas import (
     EstadoConsentimientoBiometricoResponse,
     PasswordVerify,
     RefreshSessionRequest,
+    SolicitudRecuperacionClaveRequest,
     RegistrarConsentimientoBiometricoRequest,
     RegistrarConsentimientoBiometricoResponse,
     IniciarActivacionMovilRequest,
@@ -348,6 +355,68 @@ async def autenticar_cliente(
         expires_in=resultado.expires_in,
         token_type=resultado.token_type,
     )
+
+
+@router.post(
+    "/recuperar-clave",
+    response_model=MensajeResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def solicitar_recuperacion_clave(
+    payload: SolicitudRecuperacionClaveRequest,
+    use_case=Depends(get_recuperar_clave_use_case),
+) -> MensajeResponse:
+    try:
+        await use_case.solicitar(str(payload.correo))
+    except PasswordRecoveryRateLimitError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Demasiados intentos. Intenta más tarde.",
+        ) from exc
+    except IdentityProviderError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="No pudimos procesar la solicitud en este momento.",
+        ) from exc
+    return MensajeResponse(
+        mensaje="Si existe una cuenta con ese correo verificado, enviaremos un código."
+    )
+
+
+@router.post(
+    "/recuperar-clave/confirmar",
+    response_model=MensajeResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def confirmar_recuperacion_clave(
+    payload: ConfirmacionRecuperacionClaveRequest,
+    use_case=Depends(get_recuperar_clave_use_case),
+) -> MensajeResponse:
+    try:
+        await use_case.confirmar(
+            str(payload.correo), payload.codigo, payload.nueva_clave
+        )
+    except PasswordRecoveryCodeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El código es inválido o venció. Solicita uno nuevo.",
+        ) from exc
+    except PasswordRecoveryPasswordError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="La contraseña no cumple la política de seguridad.",
+        ) from exc
+    except PasswordRecoveryRateLimitError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Demasiados intentos. Intenta más tarde.",
+        ) from exc
+    except IdentityProviderError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="No pudimos actualizar la contraseña en este momento.",
+        ) from exc
+    return MensajeResponse(mensaje="Contraseña actualizada. Ya puedes iniciar sesión.")
 
 
 @router.post("/renovar-sesion", response_model=AutenticarResponse, status_code=status.HTTP_200_OK)

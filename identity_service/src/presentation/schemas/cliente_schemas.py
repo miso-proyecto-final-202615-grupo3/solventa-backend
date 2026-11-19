@@ -13,7 +13,7 @@ _CEDULA_PATTERN = re.compile(r"^\d{5,10}$")
 EDAD_MINIMA = 18
 
 
-class ClienteCreate(BaseModel):
+class ClienteDatos(BaseModel):
     """Payload de registro de un nuevo cliente asegurado."""
 
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
@@ -23,7 +23,6 @@ class ClienteCreate(BaseModel):
     tipo_documento: TipoDocumento = TipoDocumento.CC
     numero_identificacion: str = Field(min_length=5, max_length=30)
     correo: EmailStr
-    password: str = Field(min_length=8, max_length=128)
     consentimiento_datos: bool = False
     fecha_nacimiento: date
     pais_residencia: str = Field(min_length=2, max_length=60)
@@ -68,6 +67,14 @@ class ClienteCreate(BaseModel):
                 "El teléfono debe contener solo dígitos, espacios, '+', '-' o paréntesis."
             )
         return value
+
+
+class ClienteCreate(ClienteDatos):
+    password: str = Field(min_length=8, max_length=128)
+
+
+class ProspectoCreate(ClienteDatos):
+    pass
 
 
 class ClienteResponse(BaseModel):

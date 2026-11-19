@@ -24,6 +24,9 @@ class NoopIdentityProvider(IdentityProvider):
             correo,
         )
 
+    async def registrar_prospecto(self, correo: str, password: str) -> None:
+        await self.registrar_usuario(correo, password)
+
     async def autenticar_usuario(
         self, correo: str, password: str
     ) -> AutenticarResult:

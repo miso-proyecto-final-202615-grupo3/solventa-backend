@@ -3,6 +3,8 @@ from httpx import ASGITransport, AsyncClient
 
 from src.infrastructure.gateways.identity_service_gateway import IdentityGatewayError
 from src.main import app
+
+pytestmark = pytest.mark.usefixtures("cliente_autenticado")
 from src.presentation.dependencies import get_identity_service_gateway
 
 CLIENTE_ID = "95b19edf-6c4b-4437-99db-d84d0ef482fc"

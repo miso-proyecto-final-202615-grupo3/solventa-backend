@@ -135,7 +135,7 @@ def _datos_cliente():
         "apellidos": "Prueba Sistema",
         "tipo_documento": "CC",
         "numero_identificacion": str(uuid.uuid4().int)[:10],
-        "correo": f"system-{identificador}@example.com",
+        "correo": f"cliente-prueba-{identificador}@example.com",
         "password": "SystemTest123!",
         "consentimiento_datos": True,
         "fecha_nacimiento": "1990-05-15",
@@ -178,9 +178,9 @@ def _registrar_y_autenticar_cliente():
 
 
 def _cabeceras_autorizacion():
-    _verificar(bool(TOKEN_ACCESO),
-               "existe un token de acceso para la solicitud")
-    return {"Authorization": f"Bearer {TOKEN_ACCESO or ''}"}
+    if not TOKEN_ACCESO:
+        raise ValueError("No hay token de acceso para autorizar la solicitud.")
+    return {"Authorization": f"Bearer {TOKEN_ACCESO}"}
 
 
 def test_case_1_autenticar_y_obtener_perfil():
@@ -263,6 +263,7 @@ def test_case_3_iniciar_verificaciones_kyc_aml():
             cliente_id=CLIENTE_ID_VERIFICACION_KYC_AML
         ),
         files=archivos,
+        headers=_cabeceras_autorizacion() if SERVICIO == "bff-web" else {},
     )
     _verificar(response.status_code == 202,
                "el inicio de verificaciones KYC/AML responde HTTP 202")
@@ -303,6 +304,7 @@ def test_case_4_consultar_resultado_verificaciones_kyc_aml():
         "GET",
         f"{URL_VERIFICACIONES_KYC_AML.format(cliente_id=CLIENTE_ID_VERIFICACION_KYC_AML)}"
         f"/{VERIFICACION_KYC_AML_ID}",
+        headers=_cabeceras_autorizacion() if SERVICIO == "bff-web" else {},
     )
     _verificar(response.status_code == 200,
                "la consulta de verificaciones KYC/AML responde HTTP 200")

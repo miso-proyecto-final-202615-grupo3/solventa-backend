@@ -19,5 +19,8 @@ kmsKey:
 audit:
   existingSecret: solventa-qa-app-secrets
 
+partners:
+  existingSecret: solventa-qa-app-secrets
+
 config:
   ENVIRONMENT: qa

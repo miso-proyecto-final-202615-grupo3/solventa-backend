@@ -11,9 +11,10 @@ from src.infrastructure.gateways.quotingengine_service_gateway import (
 from src.presentation.dependencies import get_quotingengine_service_gateway
 
 router = APIRouter(tags=["Cotización"])
+public_router = APIRouter(tags=["Cotización"])
 
 
-@router.get("/productos", status_code=status.HTTP_200_OK)
+@public_router.get("/productos", status_code=status.HTTP_200_OK)
 async def listar_productos(
     gateway: QuotingEngineServiceGateway = Depends(
         get_quotingengine_service_gateway
@@ -22,7 +23,7 @@ async def listar_productos(
     return await _ejecutar(gateway.listar_productos)
 
 
-@router.get("/productos/{codigo}", status_code=status.HTTP_200_OK)
+@public_router.get("/productos/{codigo}", status_code=status.HTTP_200_OK)
 async def obtener_producto(
     codigo: str,
     gateway: QuotingEngineServiceGateway = Depends(

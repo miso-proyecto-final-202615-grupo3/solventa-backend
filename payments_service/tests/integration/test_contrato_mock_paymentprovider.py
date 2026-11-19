@@ -101,12 +101,12 @@ async def test_tarjeta_contra_el_mock_con_token_del_servicio(cliente_mock, numer
 
 
 @pytest.fixture
-async def client(db_session: AsyncSession, cliente_mock) -> AsyncGenerator[AsyncClient, None]:
+async def client(db_session: AsyncSession, cliente_mock, cotizacion_vigente) -> AsyncGenerator[AsyncClient, None]:
     async def _db():
         yield db_session
 
     app.dependency_overrides[get_db] = _db
-    app.dependency_overrides[get_cotizacion_gateway] = lambda: CotizacionesFalsas()
+    app.dependency_overrides[get_cotizacion_gateway] = lambda: CotizacionesFalsas(cotizacion_vigente)
     app.dependency_overrides[get_firma_gateway] = lambda: FirmasFalsas()
     app.dependency_overrides[get_proveedores_pago] = lambda: {
         MetodoPago.PAYPAL: PayPalProveedor(cliente_mock),

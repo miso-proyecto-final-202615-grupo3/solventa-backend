@@ -130,6 +130,26 @@ async def test_registra_usuario_crea_credencial(provider):
     assert client.passwords[0]["Permanent"] is True
 
 
+async def test_prospecto_no_verifica_correo_ni_envia_mensaje(provider):
+    identity, client = provider
+    await identity.registrar_prospecto("ana@example.com", "solv1020304050")
+    assert client.created[0]["MessageAction"] == "SUPPRESS"
+    assert {"Name": "email_verified", "Value": "false"} in client.created[0]["UserAttributes"]
+    assert client.passwords[0]["Password"] == "solv1020304050"
+
+
+async def test_prospecto_elimina_identidad_si_cognito_rechaza_password(provider, monkeypatch):
+    identity, client = provider
+
+    def rechazar(**kwargs):
+        raise ClientError({"Error": {"Code": "InvalidPasswordException", "Message": "test"}}, "AdminSetUserPassword")
+
+    monkeypatch.setattr(client, "admin_set_user_password", rechazar)
+    with pytest.raises(IdentityProviderError):
+        await identity.registrar_prospecto("ana@example.com", "solv1020304050")
+    assert client.deleted[0]["Username"] == "ana@example.com"
+
+
 async def test_registra_usuario_envuelve_error_de_cognito(provider, caplog):
     identity, client = provider
     client.fail_crear = True

@@ -1,13 +1,21 @@
 from collections.abc import AsyncGenerator
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from pagos_fakes import cotizacion
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
+from src.application.ports.cotizaciones import CotizacionPago
 from src.core.database import Base
 from src.infrastructure.persistence import models  # noqa: F401
 from src.main import app
+
+
+@pytest.fixture
+def cotizacion_vigente() -> CotizacionPago:
+    return cotizacion(expira_en=datetime.now(UTC) + timedelta(days=5))
 
 
 @pytest.fixture

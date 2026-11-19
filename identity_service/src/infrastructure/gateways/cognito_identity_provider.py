@@ -38,6 +38,13 @@ class CognitoIdentityProvider(IdentityProvider):
         self._client = boto3.client("cognito-idp", region_name=self.region_name)
 
     async def registrar_usuario(self, correo: str, password: str) -> None:
+        await self._registrar(correo, password, verificar_correo=True)
+
+    async def registrar_prospecto(self, correo: str, password: str) -> None:
+        await self._registrar(correo, password, verificar_correo=False)
+
+    async def _registrar(self, correo: str, password: str, verificar_correo: bool) -> None:
+        creado = False
         try:
             await run_in_threadpool(
                 self._client.admin_create_user,
@@ -45,10 +52,11 @@ class CognitoIdentityProvider(IdentityProvider):
                 Username=correo,
                 UserAttributes=[
                     {"Name": "email", "Value": correo},
-                    {"Name": "email_verified", "Value": "true"},
+                    {"Name": "email_verified", "Value": str(verificar_correo).lower()},
                 ],
                 MessageAction="SUPPRESS",
             )
+            creado = True
             await run_in_threadpool(
                 self._client.admin_set_user_password,
                 UserPoolId=self.user_pool_id,
@@ -58,6 +66,8 @@ class CognitoIdentityProvider(IdentityProvider):
             )
         except (ClientError, BotoCoreError) as exc:
             logger.exception("No se pudo registrar el usuario en Cognito.")
+            if creado:
+                await self.eliminar_usuario(correo)
             raise IdentityProviderError(str(exc)) from exc
 
     async def autenticar_usuario(

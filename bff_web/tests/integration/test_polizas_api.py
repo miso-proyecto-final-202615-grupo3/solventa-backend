@@ -9,6 +9,8 @@ from src.infrastructure.gateways.insurancepolicies_service_gateway import (
     InsurancePoliciesServiceGateway,
 )
 from src.main import app
+
+pytestmark = pytest.mark.usefixtures("cliente_autenticado")
 from src.presentation.dependencies import get_insurancepolicies_service_gateway
 
 CLIENTE_ID = uuid.uuid4()

@@ -268,7 +268,8 @@ def _registrar_y_autenticar_cliente():
 
 
 def _cabeceras_autorizacion():
-    _verificar(bool(TOKEN_ACCESO), "hay un token para autorizar la solicitud")
+    if not TOKEN_ACCESO:
+        raise ValueError("No hay token de acceso para autorizar la solicitud.")
     return {"Authorization": f"Bearer {TOKEN_ACCESO}"}
 
 

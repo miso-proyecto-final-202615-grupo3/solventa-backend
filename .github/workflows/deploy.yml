@@ -25,6 +25,7 @@ jobs:
       matrix:
         service_name:
           - bff_web
+          - bff_socios
           - bff_mobile
           - identity_service
           - quotingengine_service
@@ -94,6 +95,7 @@ jobs:
       matrix:
         service_name:
           - bff_web
+          - bff_socios
           - bff_mobile
           - identity_service
           - quotingengine_service

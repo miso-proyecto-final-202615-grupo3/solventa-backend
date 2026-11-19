@@ -32,6 +32,9 @@ class AutenticarResult:
 
 
 class IdentityProvider(ABC):
+    async def registrar_prospecto(self, correo: str, password: str) -> None:
+        raise NotImplementedError
+
     @abstractmethod
     async def registrar_usuario(self, correo: str, password: str) -> None:
         raise NotImplementedError

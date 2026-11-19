@@ -37,6 +37,13 @@ spec:
                 name: bff-web
                 port:
                   number: 80
+          - path: /api/v1/bff-socios
+            pathType: Prefix
+            backend:
+              service:
+                name: bff-socios
+                port:
+                  number: 80
           - path: /api/v1/bff-mobile
             pathType: Prefix
             backend:

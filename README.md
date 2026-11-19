@@ -9,6 +9,7 @@ ambiente y su imagen Docker. Cada servicio se despliega como un pod independient
 | Servicio | Descripción | Prefijo de API |
 | --- | --- | --- |
 | `bff_web` | Backend For Frontend del cliente web | `/api/v1/bff-web` |
+| `bff_socios` | API de integración para socios | `/api/v1/bff-socios` |
 | `bff_mobile` | Backend For Frontend de la app móvil Android | `/api/v1/bff-mobile` |
 | `identity_service` | Identidad, registro de clientes y socios | `/api/v1/identity-service` |
 | `quotingengine_service` | Motor de cotización y suscripción | `/api/v1/quotingengine-service` |
@@ -118,6 +119,7 @@ docker compose up --build
 | --- | --- |
 | `bff_web` | `http://localhost:8000` |
 | `bff_mobile` | `http://localhost:8001` (desde el emulador Android: `http://10.0.2.2:8001`) |
+| `bff_socios` | `http://localhost:8007` |
 | `identity_service` | `http://localhost:8002` |
 | `quotingengine_service` | `http://localhost:8003` |
 | `insurancepolicies_service` | `http://localhost:8004` |
@@ -130,6 +132,14 @@ docker compose up --build
 | `liveness_adapter` | `http://localhost:8203` |
 | `mock_paymentprovider` | `http://localhost:8204` |
 | `localstack` (SQS, opcional) | `http://localhost:4566`; su servicio está comentado en `docker-compose.yml` |
+
+### Autenticación de BFF Web
+
+Las operaciones bajo `/api/v1/bff-web` requieren `Authorization: Bearer <access_token>`
+de Cognito, excepto el registro y autenticación de clientes, las dos operaciones de
+recuperación de clave y las consultas `GET /productos` y `GET /productos/{codigo}`.
+Las rutas de auditoría y administración de socios también exigen su grupo Cognito
+correspondiente. Los endpoints operativos fuera del prefijo, como `/health`, permanecen públicos.
 
 ## Pasarela simulada y SQS local
 
@@ -172,3 +182,11 @@ no los crea este repositorio.
 - **EKS:** la autenticación es automática con **Pod Identity** (no se pasan credenciales al pod).
 - **Backoffice de socios:** BFF Web exige el grupo Cognito `SociosAdmin`; crea el grupo y asigna
   operadores autorizados en el User Pool. Identity Service persiste los socios en su esquema `identity`.
+
+Para ejecutar `python tests/system/test_partners_embedded_insurance_process.py local`, configura las
+URLs de BFF Web y BFF Socios según `tests/system/.env.example` y proporciona
+`SYSTEM_TESTS_SOCIOS_ADMIN_USER_EMAIL` y `SYSTEM_TESTS_SOCIOS_ADMIN_USER_PASSWORD` como variables
+de entorno. El usuario debe pertenecer al grupo `SociosAdmin` y el Identity Service debe estar
+configurado con Cognito; el proveedor local `NoopIdentityProvider` no autentica usuarios. El script
+usa BFF Web para autenticar al administrador mediante Identity Service y crear el socio y su API key;
+el proceso de venta usa BFF Socios. No guardes contraseñas en el repositorio.

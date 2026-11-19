@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,6 +10,7 @@ from src.domain.consentimiento.entities import ConsentimientoInicial
 from src.infrastructure.persistence.models import (
     AuditoriaConsentimientoModel,
     ClienteModel,
+    ClienteSocioModel,
     ConsentimientoModel,
 )
 
@@ -36,7 +39,7 @@ class SqlAlchemyClienteRepository(ClienteRepository):
         return result.scalar_one_or_none() is not None
 
     async def guardar(
-        self, cliente: Cliente, consentimiento: ConsentimientoInicial
+        self, cliente: Cliente, consentimiento: ConsentimientoInicial, socio_id: UUID | None = None
     ) -> None:
         db_obj = ClienteModel(
             id=cliente.id.value,
@@ -74,6 +77,8 @@ class SqlAlchemyClienteRepository(ClienteRepository):
                 canal=consentimiento.canal,
             )
         )
+        if socio_id is not None:
+            self.session.add(ClienteSocioModel(cliente_id=cliente.id.value, socio_id=socio_id))
         await self.session.commit()
         await self.session.refresh(db_obj)
 

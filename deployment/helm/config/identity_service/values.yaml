@@ -60,6 +60,11 @@ audit:
   existingSecret: secret-name
   secretKey: TRAZABILIDAD_INTERNAL_TOKEN
 
+partners:
+  enabled: true
+  existingSecret: secret-name
+  secretKey: SOCIOS_API_KEY_ENCRYPTION_KEY
+
 redis:
   enabled: true
   existingSecret: secret-name
@@ -101,7 +106,7 @@ config:
 
 resources:
   requests:
-    cpu: 100m
+    cpu: 200m
     memory: 128Mi
   limits:
     cpu: 500m

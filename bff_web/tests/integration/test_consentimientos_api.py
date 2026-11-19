@@ -5,6 +5,8 @@ from src.infrastructure.gateways.identity_service_gateway import (
     IdentityGatewayError,
 )
 from src.main import app
+
+pytestmark = pytest.mark.usefixtures("cliente_autenticado")
 from src.presentation.dependencies import get_identity_service_gateway
 
 AUDITORIA = {

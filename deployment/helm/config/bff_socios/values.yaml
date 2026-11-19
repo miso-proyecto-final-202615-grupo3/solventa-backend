@@ -1,0 +1,63 @@
+replicaCount: 1
+autoscaling:
+  enabled: true
+  cpuUtilization: 70
+  min: 1
+  max: 10
+fullnameOverride: bff-socios
+
+containerName: bff-socios
+serviceAccountName: solventa-app-sa
+
+image:
+  repository: bff-socios
+  pullPolicy: Always
+  tag: "latest"
+
+http:
+  containerPort: 8000
+  servicePort: 80
+
+probes:
+  readiness:
+    path: /health
+    port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  liveness:
+    path: /
+    port: http
+    initialDelaySeconds: 20
+    periodSeconds: 20
+
+database:
+  enabled: false
+sqs:
+  enabled: false
+bucket:
+  enabled: false
+redis:
+  enabled: false
+cognito:
+  enabled: false
+kmsKey:
+  enabled: false
+
+config:
+  PROJECT_NAME: solventa-bff-socios
+  VERSION: "0.1.0"
+  API_PREFIX: /api/v1/bff-socios
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://cloudwatch-agent.amazon-cloudwatch.svc.cluster.local:4315
+  OTEL_TRACES_EXPORTER: otlp
+  IDENTITY_SERVICE_URL: http://identity-service:80
+  QUOTINGENGINE_SERVICE_URL: http://quotingengine-service:80
+  INSURANCEPOLICIES_SERVICE_URL: http://insurancepolicies-service:80
+  PAYMENTS_SERVICE_URL: http://payments-service:80
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

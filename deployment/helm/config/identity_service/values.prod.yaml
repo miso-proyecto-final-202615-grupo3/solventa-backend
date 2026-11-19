@@ -19,5 +19,8 @@ kmsKey:
 audit:
   existingSecret: solventa-prod-app-secrets
 
+partners:
+  existingSecret: solventa-prod-app-secrets
+
 config:
   ENVIRONMENT: prod

@@ -9,6 +9,8 @@ from src.infrastructure.gateways.identity_service_gateway import (
 from src.main import app
 from src.presentation.dependencies import get_identity_service_gateway
 
+pytestmark = pytest.mark.usefixtures("cliente_autenticado")
+
 PAYLOAD = {
     "nombres": "Ana",
     "apellidos": "Pérez",

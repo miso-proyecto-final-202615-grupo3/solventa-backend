@@ -204,7 +204,7 @@ class ProcesoSocios:
         identificador = uuid.uuid4().hex
         datos = {
             "nombre": f"Socio prueba {identificador}",
-            "correo": f"socio-{identificador}@example.com",
+            "correo": f"socio-prueba-{identificador}@example.com",
             "tipo_socio": "BANCO",
             "canal_integracion": "API",
         }
@@ -228,7 +228,7 @@ class ProcesoSocios:
             "apellidos": "Prueba Sistema",
             "tipo_documento": "CC",
             "numero_identificacion": str(uuid.uuid4().int % 9000000000 + 1000000000),
-            "correo": f"system-{identificador}@example.com",
+            "correo": f"cliente-prueba-{identificador}@example.com",
             "consentimiento_datos": True,
             "fecha_nacimiento": "1990-05-15",
             "pais_residencia": "Colombia",

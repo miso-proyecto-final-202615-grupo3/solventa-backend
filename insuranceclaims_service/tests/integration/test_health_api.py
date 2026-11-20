@@ -34,14 +34,15 @@ async def test_docs_y_openapi(async_client: AsyncClient):
         f"{base}/siniestros/{{siniestro_id}}/evidencias",
         f"{base}/siniestros/{{siniestro_id}}/evidencias/{{evidencia_id}}/confirmacion",
         f"{base}/siniestros/{{siniestro_id}}/ubicacion",
+        f"{base}/siniestros/{{siniestro_id}}/evidencias/{{evidencia_id}}/descarga",
     }
 
 
 async def test_no_expone_otros_endpoints(async_client: AsyncClient):
     for path in ("/api/v1/insuranceclaims-service/indemnizaciones", "/api/v1/insuranceclaims-service/eventos"):
         assert (await async_client.get(path)).status_code == 404
-    # La lista general de siniestros llega con HU4.2.1.
-    assert (await async_client.get("/api/v1/insuranceclaims-service/siniestros")).status_code == 405
+    # HU4.2.1: la lista de siniestros existe, pero siempre es la de un cliente (sin X-Cliente-Id no responde).
+    assert (await async_client.get("/api/v1/insuranceclaims-service/siniestros")).status_code == 422
 
 
 async def test_metricas(async_client: AsyncClient):

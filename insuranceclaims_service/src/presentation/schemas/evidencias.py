@@ -121,3 +121,18 @@ class SiniestroDetalleResponse(SiniestroResponse):
             ubicacion=UbicacionResponse.desde(siniestro),
             evidencias=[EvidenciaResponse.desde(e) for e in evidencias],
         )
+
+
+class DescargaEvidenciaResponse(BaseModel):
+    """`GET …/evidencias/{id}/descarga` (HU4.2.1): URL de lectura temporal. Nunca se registra."""
+
+    evidencia_id: uuid.UUID
+    tipo: str
+    content_type: str
+    tamano_bytes: int | None
+    url: str
+    expira_en: datetime
+
+    @field_serializer("expira_en")
+    def _serializar(self, valor: datetime) -> str:
+        return _iso(valor)

@@ -40,3 +40,14 @@ def test_confirmacion_ubicacion_y_detalle_cumplen_el_contrato():
 
 def test_error_comun():
     assert set(_muestra("error-limite-evidencias.json")) == {"codigo", "mensaje", "correlation_id"}
+
+
+def test_descarga_cumple_el_contrato():
+    """HU4.2.1: URL de lectura temporal de una evidencia cargada."""
+    from src.presentation.schemas import DescargaEvidenciaResponse
+
+    descarga = DescargaEvidenciaResponse.model_validate(_muestra("descarga-response.json"))
+
+    assert descarga.url.startswith("https://") and "X-Amz-Expires=300" in descarga.url
+    assert descarga.expira_en.tzinfo is not None
+    assert set(_muestra("error-evidencia-no-disponible.json")) == {"codigo", "mensaje", "correlation_id"}

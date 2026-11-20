@@ -215,3 +215,23 @@ class RegistrarUbicacionResponse(BaseModel):
 class SiniestroDetalleResponse(SiniestroResponse):
     ubicacion: UbicacionResponse | None = None
     evidencias: list[EvidenciaResponse] = []
+
+
+# --- HU4.2.1 · Consultar siniestros y ver evidencias (contrato canónico: docs/planning/HU4.2.1-plan-tecnico.md §3) ---
+
+class SiniestrosResponse(BaseModel):
+    siniestros: list[SiniestroResponse]
+    pagina: int
+    tamano: int
+    total: int
+
+
+class DescargaEvidenciaResponse(BaseModel):
+    """URL de lectura temporal de una evidencia. Nunca se registra en logs."""
+
+    evidencia_id: uuid.UUID
+    tipo: str
+    content_type: str
+    tamano_bytes: int | None = None
+    url: str
+    expira_en: datetime

@@ -1,5 +1,5 @@
 from collections.abc import AsyncGenerator, Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,10 +10,12 @@ from src.application.use_cases.consultar_siniestro_use_case import ConsultarSini
 from src.application.use_cases.evidencias_use_cases import (
     ConfirmarCargaEvidenciaUseCase,
     ConsultarDetalleSiniestroUseCase,
+    ObtenerDescargaEvidenciaUseCase,
     RegistrarUbicacionUseCase,
     SolicitarCargaEvidenciaUseCase,
 )
 from src.application.use_cases.listar_polizas_elegibles_use_case import ListarPolizasElegiblesUseCase
+from src.application.use_cases.listar_siniestros_use_case import ListarSiniestrosUseCase
 from src.application.use_cases.reportar_siniestro_use_case import ReportarSiniestroUseCase
 from src.core.config import settings
 from src.core.database import SessionLocal
@@ -175,3 +177,21 @@ def get_consultar_detalle_siniestro_use_case(
     reloj: Callable[[], datetime] = Depends(get_reloj),
 ) -> ConsultarDetalleSiniestroUseCase:
     return ConsultarDetalleSiniestroUseCase(siniestros, evidencias, reloj)
+
+
+# --- HU4.2.1 · Consultar siniestros y ver evidencias ----------------------------------------
+
+def get_listar_siniestros_use_case(
+    repo: SiniestroRepository = Depends(get_siniestro_repository),
+) -> ListarSiniestrosUseCase:
+    return ListarSiniestrosUseCase(repo)
+
+
+def get_obtener_descarga_evidencia_use_case(
+    siniestros: SiniestroRepository = Depends(get_siniestro_repository),
+    evidencias: EvidenciaRepository = Depends(get_evidencia_repository),
+    almacen: AlmacenEvidenciasPort = Depends(get_almacen),
+) -> ObtenerDescargaEvidenciaUseCase:
+    return ObtenerDescargaEvidenciaUseCase(
+        siniestros, evidencias, almacen, timedelta(seconds=settings.EVIDENCIAS_DESCARGA_TTL_SECONDS)
+    )

@@ -190,3 +190,22 @@ async def test_minio_flujo_de_confirmacion_completo(minio):
             await session.commit()
         await engine.dispose()
         invalidar_cache()
+
+
+@pytest.mark.minio
+async def test_minio_descarga_firmada_entrega_el_archivo_y_otra_llave_no(minio):
+    """HU4.2.1: la URL de lectura devuelve el archivo; alterarla para otra llave la invalida."""
+    clave = f"siniestros/pruebas/{uuid.uuid4()}.jpg"
+    carga = await minio.generar_carga(clave, "image/jpeg", 5 * 1024 * 1024, timedelta(minutes=5))
+    assert (await _subir(carga, JPEG)).status_code in (200, 204)
+
+    descarga = await minio.generar_descarga(clave, "image/jpeg", timedelta(minutes=5))
+    async with httpx.AsyncClient() as http:
+        respuesta = await http.get(descarga.url)
+        otra = await http.get(descarga.url.replace(clave, f"siniestros/pruebas/{uuid.uuid4()}.jpg"))
+    await minio.eliminar(clave)
+
+    assert respuesta.status_code == 200
+    assert respuesta.content == JPEG
+    assert respuesta.headers["content-type"] == "image/jpeg"
+    assert otra.status_code == 403

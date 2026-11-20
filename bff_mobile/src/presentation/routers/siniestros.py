@@ -4,7 +4,7 @@ El cliente sale del token (`get_cliente_id`); la descripción nunca se registra 
 """
 import uuid
 
-from fastapi import APIRouter, Depends, Header, Response, status
+from fastapi import APIRouter, Depends, Header, Query, Response, status
 
 from src.infrastructure.gateways.insuranceclaims_service_gateway import (
     ClaimsGatewayError,
@@ -17,6 +17,7 @@ from src.presentation.schemas import (
     ReportarSiniestroRequest,
     SiniestroDetalleResponse,
     SiniestroResponse,
+    SiniestrosResponse,
 )
 
 router = APIRouter(prefix="/siniestros", tags=["Siniestros"])
@@ -77,6 +78,25 @@ async def reportar_siniestro(
         raise ApiError.desde_servicio(exc.status_code, exc.detail) from exc
     response.status_code = status.HTTP_200_OK if status_code == status.HTTP_200_OK else status.HTTP_201_CREATED
     return SiniestroResponse.model_validate(body)
+
+
+@router.get("", response_model=SiniestrosResponse, responses=_RESPUESTAS)
+async def listar_siniestros(
+    poliza_id: uuid.UUID | None = Query(default=None),
+    pagina: int = Query(default=1, ge=1),
+    tamano: int = Query(default=20, ge=1, le=50),
+    correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
+    cliente_id: str = Depends(get_cliente_id),
+    gateway: InsuranceClaimsServiceGateway = Depends(get_insuranceclaims_service_gateway),
+) -> SiniestrosResponse:
+    """Siniestros del cliente, más reciente primero; `poliza_id` filtra por póliza (HU4.2.1)."""
+    try:
+        body = await gateway.listar_siniestros(
+            cliente_id, _correlation(correlation_id), str(poliza_id) if poliza_id else None, pagina, tamano
+        )
+    except ClaimsGatewayError as exc:
+        raise ApiError.desde_servicio(exc.status_code, exc.detail) from exc
+    return SiniestrosResponse.model_validate(body)
 
 
 @router.get("/{siniestro_id}", response_model=SiniestroDetalleResponse, responses=_RESPUESTAS)

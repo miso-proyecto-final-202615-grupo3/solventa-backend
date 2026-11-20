@@ -11,12 +11,18 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.application.ports.almacen_evidencias import AlmacenEvidenciasPort, AlmacenNoDisponible, CargaPrefirmada
+from src.application.ports.almacen_evidencias import (
+    AlmacenEvidenciasPort,
+    AlmacenNoDisponible,
+    CargaPrefirmada,
+    DescargaPrefirmada,
+)
 from src.domain.siniestros.catalogo import CatalogoTiposSiniestro
 from src.domain.siniestros.entities import Siniestro
 from src.domain.siniestros.errores import (
     CargaExpirada,
     CargaNoEncontrada,
+    EvidenciaNoDisponible,
     EvidenciaNoEncontrada,
     EvidenciaRechazada,
     FechaInvalida,
@@ -283,3 +289,48 @@ class ConsultarDetalleSiniestroUseCase:
             if e.estado != EstadoEvidencia.EXPIRADA.value and not e.vencida(ahora)
         ]
         return SiniestroDetalle(siniestro, evidencias)
+
+
+@dataclass(frozen=True)
+class DescargaEvidencia:
+    evidencia: EvidenciaSiniestro
+    descarga: DescargaPrefirmada
+
+
+class ObtenerDescargaEvidenciaUseCase:
+    """URL de lectura temporal de una evidencia `CARGADA` del cliente (HU4.2.1, decisiones C4–C7).
+
+    Un siniestro o una evidencia ajenos responden igual que inexistentes (404). Nunca registra la URL.
+    """
+
+    def __init__(
+        self,
+        siniestros: SiniestroRepository,
+        evidencias: EvidenciaRepository,
+        almacen: AlmacenEvidenciasPort,
+        ttl: timedelta,
+    ) -> None:
+        self.siniestros = siniestros
+        self.evidencias = evidencias
+        self.almacen = almacen
+        self.ttl = ttl
+
+    async def ejecutar(
+        self, siniestro_id: uuid.UUID, evidencia_id: uuid.UUID, cliente_id: uuid.UUID, correlation_id: str
+    ) -> DescargaEvidencia:
+        if await self.siniestros.obtener_de_cliente(siniestro_id, cliente_id) is None:
+            raise SiniestroNoEncontrado()
+        evidencia = await self.evidencias.obtener_de_siniestro(evidencia_id, siniestro_id)
+        if evidencia is None:
+            raise EvidenciaNoEncontrada()
+        if evidencia.estado != EstadoEvidencia.CARGADA.value:
+            raise EvidenciaNoDisponible()
+        try:
+            descarga = await self.almacen.generar_descarga(evidencia.objeto_clave, evidencia.content_type, self.ttl)
+        except AlmacenNoDisponible as exc:
+            raise ServicioNoDisponible() from exc
+        logger.info(
+            "evidencia_descarga siniestro_id=%s evidencia_id=%s correlation_id=%s",
+            siniestro_id, evidencia_id, correlation_id,
+        )
+        return DescargaEvidencia(evidencia, descarga)

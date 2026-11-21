@@ -31,6 +31,16 @@ class Settings(BaseSettings):
     VIDEO_MAX_MB: int = 50
     # HU4.2.1: vigencia de la URL de lectura de una evidencia.
     EVIDENCIAS_DESCARGA_TTL_SECONDS: int = 300
+    # HU4.2.2: endpoint interno de demostración para cambiar el estado.
+    OPERADOR_TOKEN: str = ""
+    NOTIFICADOR_PUSH: str = "registro"
+    SNS_PLATFORM_APPLICATION_ARN: str = ""
+    # Solo local: perfil de ~/.aws para SNS. En AWS las credenciales llegan por EKS Pod Identity.
+    SNS_AWS_PROFILE: str = ""
+    IDENTITY_SERVICE_URL: str = "http://localhost:8002"
+    NOTIFICACIONES_HABILITADAS: bool = False
+    OUTBOX_INTERVALO_SEGUNDOS: float = 2
+    OUTBOX_MAX_INTENTOS: int = 5
 
     model_config = SettingsConfigDict(
         env_file=".env",

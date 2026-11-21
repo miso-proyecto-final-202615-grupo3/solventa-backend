@@ -72,12 +72,19 @@ class IdentitySociosGateway:
             raise IdentitySociosGatewayError(response.status_code, detail)
         return response.json()
 
-    async def api_keys(self, method: str, socio_id: str, key_id: str | None = None) -> Any:
+    async def api_keys(
+        self,
+        method: str,
+        socio_id: str,
+        key_id: str | None = None,
+        actor_id: str | None = None,
+    ) -> Any:
         path = f"{_SOCIOS}/{socio_id}/api-keys"
         if key_id:
             path += f"/{key_id}"
+        headers = {"X-Actor-Id": actor_id} if actor_id else None
         try:
-            response = await self._client.request(method, path)
+            response = await self._client.request(method, path, headers=headers)
         except httpx.HTTPError as exc:
             raise IdentitySociosGatewayError(503, "El servicio de socios no está disponible.") from exc
         if response.status_code == 204:

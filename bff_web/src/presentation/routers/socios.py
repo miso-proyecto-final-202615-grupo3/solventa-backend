@@ -51,9 +51,17 @@ async def listar_socios(
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
 
 
-async def _api_keys(gateway: IdentitySociosGateway, method: str, socio_id: UUID, key_id: UUID | None = None):
+async def _api_keys(
+    gateway: IdentitySociosGateway,
+    method: str,
+    socio_id: UUID,
+    key_id: UUID | None = None,
+    actor_id: str | None = None,
+):
     try:
-        return await gateway.api_keys(method, str(socio_id), str(key_id) if key_id else None)
+        return await gateway.api_keys(
+            method, str(socio_id), str(key_id) if key_id else None, actor_id
+        )
     except IdentitySociosGatewayError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
 
@@ -61,7 +69,7 @@ async def _api_keys(gateway: IdentitySociosGateway, method: str, socio_id: UUID,
 @router.post("/{socio_id}/api-keys", status_code=201)
 async def crear_api_key(socio_id: UUID, response: Response, actor_id: str = Depends(require_socios_admin), gateway: IdentitySociosGateway = Depends(get_identity_socios_gateway)):
     response.headers["Cache-Control"] = "no-store"
-    return await _api_keys(gateway, "POST", socio_id)
+    return await _api_keys(gateway, "POST", socio_id, actor_id=actor_id)
 
 
 @router.get("/{socio_id}/api-keys")

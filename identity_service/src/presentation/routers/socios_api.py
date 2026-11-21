@@ -1,10 +1,10 @@
 import hashlib
 import secrets
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
 from cryptography.fernet import Fernet, InvalidToken
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
 from pydantic import BaseModel, ConfigDict, SecretStr
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -15,7 +15,13 @@ from src.application.use_cases.registrar_cliente_use_case import DuplicateClient
 from src.core.config import settings
 from src.domain.clientes.entities import ClienteId
 from src.infrastructure.persistence.cliente_repository_impl import SqlAlchemyClienteRepository
-from src.infrastructure.persistence.models import ClienteModel, ClienteSocioModel, SocioApiKeyModel, SocioModel
+from src.infrastructure.persistence.models import (
+    ClienteModel,
+    ClienteSocioModel,
+    EventoSocioModel,
+    SocioApiKeyModel,
+    SocioModel,
+)
 from src.presentation.dependencies import get_db, get_registrar_cliente_use_case
 from src.presentation.routers.clientes import _cliente_response
 from src.presentation.schemas.cliente_schemas import ClienteCreate, ClienteResponse, ProspectoCreate
@@ -56,7 +62,12 @@ def _respuesta(key: SocioApiKeyModel) -> ApiKeyResponse:
 
 
 @router.post("/{socio_id}/api-keys", response_model=ApiKeyCreadaResponse, status_code=201)
-async def crear_api_key(socio_id: UUID, response: Response, db: AsyncSession = Depends(get_db)) -> ApiKeyCreadaResponse:
+async def crear_api_key(
+    socio_id: UUID,
+    response: Response,
+    actor_id: str = Header(alias="X-Actor-Id", min_length=1, max_length=100),
+    db: AsyncSession = Depends(get_db),
+) -> ApiKeyCreadaResponse:
     socio = await _socio(db, socio_id)
     if socio.estado != "ACTIVO":
         raise HTTPException(403, "El socio no está activo.")
@@ -68,6 +79,14 @@ async def crear_api_key(socio_id: UUID, response: Response, db: AsyncSession = D
         huella=hashlib.sha256(valor.encode()).hexdigest(),
     )
     db.add(key)
+    db.add(
+        EventoSocioModel(
+            socio_id=socio_id,
+            accion="CREDENCIAL_GENERADA",
+            actor_id=actor_id,
+            ocurrido_en=datetime.now(UTC),
+        )
+    )
     await db.commit()
     await db.refresh(key)
     response.headers["Cache-Control"] = "no-store"

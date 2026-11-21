@@ -24,8 +24,9 @@ class GatewaySocios:
             "creado_en": "2026-11-16T15:00:00Z",
         }
 
-    async def api_keys(self, method, socio_id, key_id=None):
+    async def api_keys(self, method, socio_id, key_id=None, actor_id=None):
         self.key_call = (method, socio_id, key_id)
+        self.actor_id = actor_id
         if method == "POST":
             return {"api_key_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "fecha_generacion": "2026-11-18T00:00:00Z", "api_key": "secreta"}
         return None if method == "DELETE" else []
@@ -91,6 +92,7 @@ async def test_admin_gestiona_api_keys(socios_client):
     assert created.headers["cache-control"] == "no-store"
     assert created.json()["api_key"] == "secreta"
     assert gateway.key_call == ("POST", socio, None)
+    assert gateway.actor_id == "operator-sub"
     assert (await client.delete(f"{BASE}/{socio}/api-keys/{key}")).status_code == 204
     assert gateway.key_call == ("DELETE", socio, key)
 

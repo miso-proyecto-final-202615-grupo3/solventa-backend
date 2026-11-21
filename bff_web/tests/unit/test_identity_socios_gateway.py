@@ -42,3 +42,22 @@ async def test_no_expone_detalles_del_servicio_en_error():
 
     assert error.value.status_code == 500
     assert error.value.detail == "fallo interno"
+
+
+async def test_reenvia_actor_al_generar_api_key():
+    async def handle(request: httpx.Request) -> httpx.Response:
+        assert request.url.path.endswith("/api-keys")
+        assert request.headers["X-Actor-Id"] == "operator-123"
+        return httpx.Response(201, json={"api_key": "secreta"})
+
+    gateway = IdentitySociosGateway(
+        base_url="http://identity.test", transport=httpx.MockTransport(handle)
+    )
+    try:
+        response = await gateway.api_keys(
+            "POST", "socio-1", actor_id="operator-123"
+        )
+    finally:
+        await gateway.aclose()
+
+    assert response == {"api_key": "secreta"}

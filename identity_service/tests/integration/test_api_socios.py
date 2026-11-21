@@ -3,7 +3,7 @@ import pytest
 from sqlalchemy import select
 
 from src.core.config import settings
-from src.infrastructure.persistence.models import ClienteSocioModel, SocioApiKeyModel
+from src.infrastructure.persistence.models import ClienteSocioModel, EventoSocioModel, SocioApiKeyModel
 from src.main import app
 from src.presentation.dependencies import get_consentimiento_cache, get_db, get_identity_provider
 
@@ -45,7 +45,9 @@ async def _crear_socio(client, email):
 async def test_ciclo_de_api_keys(cliente_socios):
     client, db, _ = cliente_socios
     socio = await _crear_socio(client, "socio@example.com")
-    response = await client.post(f"{BASE}/{socio}/api-keys")
+    response = await client.post(
+        f"{BASE}/{socio}/api-keys", headers={"X-Actor-Id": "operator-123"}
+    )
     assert response.status_code == 201
     creada = response.json()
     assert set(creada) == {"api_key_id", "fecha_generacion", "api_key"}
@@ -53,6 +55,9 @@ async def test_ciclo_de_api_keys(cliente_socios):
     row = (await db.scalars(select(SocioApiKeyModel))).one()
     assert key not in row.valor_cifrado
     assert Fernet(settings.SOCIOS_API_KEY_ENCRYPTION_KEY.encode()).decrypt(row.valor_cifrado.encode()).decode() == key
+    evento = (await db.scalars(select(EventoSocioModel))).all()[-1]
+    assert evento.accion == "CREDENCIAL_GENERADA"
+    assert evento.actor_id == "operator-123"
     assert (await client.post(f"{BASE}/validar-api-key", json={"api_key": key})).json() == {"socio_id": socio}
     listado = (await client.get(f"{BASE}/{socio}/api-keys")).json()
     assert listado == [{"api_key_id": creada["api_key_id"], "fecha_generacion": creada["fecha_generacion"]}]
@@ -85,7 +90,11 @@ async def test_api_key_sin_clave_de_cifrado_falla(cliente_socios, monkeypatch):
     client, _, _ = cliente_socios
     socio = await _crear_socio(client, "socio@example.com")
     monkeypatch.setattr(settings, "SOCIOS_API_KEY_ENCRYPTION_KEY", "")
-    assert (await client.post(f"{BASE}/{socio}/api-keys")).status_code == 503
+    assert (
+        await client.post(
+            f"{BASE}/{socio}/api-keys", headers={"X-Actor-Id": "operator-123"}
+        )
+    ).status_code == 503
 
 
 async def test_asocia_cliente_registrado_en_web_sin_cambiar_su_identidad(cliente_socios):

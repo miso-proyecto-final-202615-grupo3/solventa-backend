@@ -235,3 +235,12 @@ class DescargaEvidenciaResponse(BaseModel):
     tamano_bytes: int | None = None
     url: str
     expira_en: datetime
+
+
+# --- HU4.2.2 · Notificaciones push ---------------------------------------------------------------
+
+class RegistrarPushRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    installation_id: uuid.UUID
+    token: str = Field(min_length=1, max_length=1024)
+    plataforma: Literal["ANDROID"]

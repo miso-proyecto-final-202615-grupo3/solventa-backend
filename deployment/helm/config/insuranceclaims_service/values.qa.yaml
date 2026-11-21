@@ -12,3 +12,6 @@ kmsKey:
 
 config:
   ENVIRONMENT: qa
+
+extraSecrets:
+  existingSecret: solventa-qa-app-secrets

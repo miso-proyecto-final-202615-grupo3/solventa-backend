@@ -127,4 +127,4 @@ class EvidenciaRechazada(ErrorSiniestro):
 class TransicionInvalida(ErrorSiniestro):
     status_code = 409
     codigo = "TRANSICION_INVALIDA"
-    mensaje = "La evidencia ya no admite este cambio."
+    mensaje = "El siniestro no admite este cambio de estado."

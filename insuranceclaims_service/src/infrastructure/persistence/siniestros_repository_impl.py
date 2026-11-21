@@ -2,7 +2,8 @@ import uuid
 from dataclasses import asdict, fields
 from typing import Generic, TypeVar
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
+from datetime import UTC, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import Base
@@ -10,6 +11,7 @@ from src.domain.siniestros.entities import (
     ActivacionParametrica,
     ActivacionPoliza,
     EventoExterno,
+    EventoOutbox,
     Indemnizacion,
     Siniestro,
 )
@@ -18,6 +20,7 @@ from src.domain.siniestros.repositories import (
     ActivacionParametricaRepository,
     ActivacionPolizaRepository,
     EventoExternoRepository,
+    EventoOutboxRepository,
     EvidenciaRepository,
     IndemnizacionRepository,
     SiniestroRepository,
@@ -26,13 +29,14 @@ from src.infrastructure.persistence.models import (
     ActivacionParametricaModel,
     ActivacionPolizaModel,
     EventoExternoModel,
+    EventoOutboxModel,
     EvidenciaSiniestroModel,
     IndemnizacionModel,
     SiniestroModel,
 )
 
 Entity = TypeVar(
-    "Entity", EventoExterno, ActivacionParametrica, ActivacionPoliza, Siniestro, Indemnizacion, EvidenciaSiniestro
+    "Entity", EventoExterno, EventoOutbox, ActivacionParametrica, ActivacionPoliza, Siniestro, Indemnizacion, EvidenciaSiniestro
 )
 Model = TypeVar("Model", bound=Base)
 
@@ -72,6 +76,31 @@ class SqlAlchemyEventoExternoRepository(
     model_type = EventoExternoModel
 
 
+class SqlAlchemyEventoOutboxRepository(_SqlAlchemyEntityRepository[EventoOutbox, EventoOutboxModel], EventoOutboxRepository):
+    entity_type = EventoOutbox
+    model_type = EventoOutboxModel
+
+    async def guardar(self, entity: EventoOutbox) -> EventoOutbox:
+        if entity.creado_en is None:
+            entity.creado_en = datetime.now(UTC)
+        return await super().guardar(entity)
+
+    async def obtener_pendientes(self, limite: int) -> list[EventoOutbox]:
+        rows = await self.session.scalars(select(EventoOutboxModel).where(EventoOutboxModel.estado == "PENDIENTE").order_by(EventoOutboxModel.creado_en).limit(limite))
+        return [self._a_entidad(row) for row in rows.all()]
+
+    async def marcar_publicado(self, evento_id: uuid.UUID, publicado_en: datetime) -> None:
+        await self.session.execute(update(EventoOutboxModel).where(EventoOutboxModel.evento_id == evento_id).values(estado="PUBLICADO", publicado_en=publicado_en, ultimo_error=None))
+
+    async def registrar_fallo(self, evento_id: uuid.UUID, error: str, max_intentos: int) -> None:
+        row = await self.session.get(EventoOutboxModel, evento_id)
+        if row is not None:
+            row.intentos += 1
+            row.ultimo_error = error[:500]
+            if row.intentos >= max_intentos:
+                row.estado = "FALLIDO"
+
+
 class SqlAlchemyActivacionParametricaRepository(
     _SqlAlchemyEntityRepository[ActivacionParametrica, ActivacionParametricaModel],
     ActivacionParametricaRepository,
@@ -92,6 +121,12 @@ class SqlAlchemySiniestroRepository(
 ):
     entity_type = Siniestro
     model_type = SiniestroModel
+
+    async def obtener_por_id_para_actualizar(self, siniestro_id: uuid.UUID) -> Siniestro | None:
+        model = await self.session.scalar(
+            select(SiniestroModel).where(SiniestroModel.siniestro_id == siniestro_id).with_for_update()
+        )
+        return self._a_entidad(model)
 
     async def obtener_por_clave_idempotencia(self, clave: str) -> Siniestro | None:
         model = await self.session.scalar(select(SiniestroModel).where(SiniestroModel.clave_idempotencia == clave))

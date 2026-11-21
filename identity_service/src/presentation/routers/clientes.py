@@ -4,6 +4,7 @@ import json
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, Response, UploadFile, status
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.application.ports.identity_provider import (
     IdentityProviderError,
@@ -62,6 +63,15 @@ from src.presentation.dependencies import (
     get_iniciar_activacion_movil_use_case,
     get_verificar_activacion_movil_use_case,
     get_identity_provider,
+    get_eliminar_token_push_use_case,
+    get_listar_destinos_push_use_case,
+    get_registrar_token_push_use_case,
+)
+from src.application.use_cases.tokens_push_use_cases import (
+    DispositivoNoVinculadoError,
+    EliminarTokenPushUseCase,
+    ListarDestinosPushUseCase,
+    RegistrarTokenPushUseCase,
 )
 from src.application.ports.identity_provider import IdentityProvider
 from src.presentation.schemas import (
@@ -85,6 +95,67 @@ from src.presentation.schemas import (
 )
 
 router = APIRouter(prefix="/clientes", tags=["Clientes"])
+
+
+# --- HU4.2.2 · Tokens push (internos: los consumen el BFF Móvil y MS Siniestros) -------------------------
+# El token nunca va en la URL: quedaría completo en los logs de acceso.
+
+class TokenPushRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    token: str = Field(min_length=1, max_length=1024)
+    plataforma: str = Field(pattern="^ANDROID$")
+
+
+class TokenPushInvalidoRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    token: str = Field(min_length=1, max_length=1024)
+
+
+@router.put("/{cliente_id}/dispositivos/{installation_id}/push", status_code=204)
+async def registrar_token_push(
+    cliente_id: uuid.UUID,
+    installation_id: uuid.UUID,
+    payload: TokenPushRequest,
+    use_case: RegistrarTokenPushUseCase = Depends(get_registrar_token_push_use_case),
+) -> Response:
+    try:
+        await use_case.ejecutar(cliente_id, installation_id, payload.token, payload.plataforma)
+    except DispositivoNoVinculadoError as exc:
+        raise _error(404, "DISPOSITIVO_NO_VINCULADO", "El dispositivo no está vinculado.") from exc
+    return Response(status_code=204)
+
+
+@router.delete("/{cliente_id}/dispositivos/{installation_id}/push", status_code=204)
+async def eliminar_token_push(
+    cliente_id: uuid.UUID,
+    installation_id: uuid.UUID,
+    use_case: EliminarTokenPushUseCase = Depends(get_eliminar_token_push_use_case),
+) -> Response:
+    await use_case.de_dispositivo(cliente_id, installation_id)
+    return Response(status_code=204)
+
+
+@router.get("/{cliente_id}/destinos-push")
+async def destinos_push(
+    cliente_id: uuid.UUID,
+    use_case: ListarDestinosPushUseCase = Depends(get_listar_destinos_push_use_case),
+) -> dict:
+    destinos = await use_case.ejecutar(cliente_id)
+    return {
+        "destinos": [
+            {"installation_id": str(d.installation_id), "token": d.token, "plataforma": d.plataforma} for d in destinos
+        ]
+    }
+
+
+@router.post("/destinos-push/eliminacion", status_code=204)
+async def eliminar_destino_push(
+    payload: TokenPushInvalidoRequest,
+    use_case: EliminarTokenPushUseCase = Depends(get_eliminar_token_push_use_case),
+) -> Response:
+    """MS Siniestros informa un token que el proveedor push ya no acepta (N8)."""
+    await use_case.invalido(payload.token)
+    return Response(status_code=204)
 
 
 MAX_FRAME_BYTES = 524_288

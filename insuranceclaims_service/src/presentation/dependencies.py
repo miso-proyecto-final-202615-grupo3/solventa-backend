@@ -17,6 +17,7 @@ from src.application.use_cases.evidencias_use_cases import (
 from src.application.use_cases.listar_polizas_elegibles_use_case import ListarPolizasElegiblesUseCase
 from src.application.use_cases.listar_siniestros_use_case import ListarSiniestrosUseCase
 from src.application.use_cases.reportar_siniestro_use_case import ReportarSiniestroUseCase
+from src.application.use_cases.cambiar_estado_siniestro_use_case import CambiarEstadoSiniestroUseCase
 from src.core.config import settings
 from src.core.database import SessionLocal
 from src.domain.siniestros.catalogo import CatalogoTiposSiniestro
@@ -29,6 +30,7 @@ from src.domain.siniestros.repositories import (
     ActivacionParametricaRepository,
     ActivacionPolizaRepository,
     EventoExternoRepository,
+    EventoOutboxRepository,
     EvidenciaRepository,
     IndemnizacionRepository,
     SiniestroRepository,
@@ -37,6 +39,7 @@ from src.infrastructure.persistence.siniestros_repository_impl import (
     SqlAlchemyActivacionParametricaRepository,
     SqlAlchemyActivacionPolizaRepository,
     SqlAlchemyEventoExternoRepository,
+    SqlAlchemyEventoOutboxRepository,
     SqlAlchemyEvidenciaRepository,
     SqlAlchemyIndemnizacionRepository,
     SqlAlchemySiniestroRepository,
@@ -50,6 +53,10 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 def get_evento_externo_repository(db: AsyncSession = Depends(get_db)) -> EventoExternoRepository:
     return SqlAlchemyEventoExternoRepository(db)
+
+
+def get_evento_outbox_repository(db: AsyncSession = Depends(get_db)) -> EventoOutboxRepository:
+    return SqlAlchemyEventoOutboxRepository(db)
 
 
 def get_activacion_parametrica_repository(
@@ -116,6 +123,15 @@ def get_consultar_siniestro_use_case(
     repo: SiniestroRepository = Depends(get_siniestro_repository),
 ) -> ConsultarSiniestroUseCase:
     return ConsultarSiniestroUseCase(repo)
+
+
+def get_cambiar_estado_siniestro_use_case(
+    db: AsyncSession = Depends(get_db),
+    repo: SiniestroRepository = Depends(get_siniestro_repository),
+    outbox: EventoOutboxRepository = Depends(get_evento_outbox_repository),
+    reloj: Callable[[], datetime] = Depends(get_reloj),
+) -> CambiarEstadoSiniestroUseCase:
+    return CambiarEstadoSiniestroUseCase(db, repo, outbox, reloj)
 
 
 # --- HU4.1.2 · Evidencias y ubicación ---------------------------------------------------------

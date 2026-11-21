@@ -6,6 +6,7 @@ from src.domain.siniestros.entities import (
     ActivacionParametrica,
     ActivacionPoliza,
     EventoExterno,
+    EventoOutbox,
     Indemnizacion,
     Siniestro,
 )
@@ -28,6 +29,20 @@ class EventoExternoRepository(Repository[EventoExterno]):
     pass
 
 
+class EventoOutboxRepository(Repository[EventoOutbox]):
+    @abstractmethod
+    async def obtener_pendientes(self, limite: int) -> list[EventoOutbox]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def marcar_publicado(self, evento_id: uuid.UUID, publicado_en) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def registrar_fallo(self, evento_id: uuid.UUID, error: str, max_intentos: int) -> None:
+        raise NotImplementedError
+
+
 class ActivacionParametricaRepository(Repository[ActivacionParametrica]):
     pass
 
@@ -37,6 +52,9 @@ class ActivacionPolizaRepository(Repository[ActivacionPoliza]):
 
 
 class SiniestroRepository(Repository[Siniestro]):
+    @abstractmethod
+    async def obtener_por_id_para_actualizar(self, siniestro_id: uuid.UUID) -> Siniestro | None:
+        raise NotImplementedError
     @abstractmethod
     async def obtener_por_clave_idempotencia(self, clave: str) -> Siniestro | None:
         raise NotImplementedError

@@ -10,6 +10,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     Numeric,
     SmallInteger,
     String,
@@ -39,6 +40,20 @@ class EventoExternoModel(Base):
     payload_referencia: Mapped[str] = mapped_column(String(2048), nullable=False)
 
     activaciones: Mapped[list["ActivacionParametricaModel"]] = relationship(back_populates="evento_externo")
+
+
+class EventoOutboxModel(Base):
+    __tablename__ = "evento_outbox"
+    __table_args__ = (Index("ix_evento_outbox_estado_creado", "estado", "creado_en"),)
+    evento_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    tipo: Mapped[str] = mapped_column(String(100), nullable=False)
+    agregado_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False, index=True)
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
+    estado: Mapped[str] = mapped_column(String(20), nullable=False, default="PENDIENTE")
+    intentos: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    ultimo_error: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    publicado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class ActivacionParametricaModel(Base):
@@ -103,6 +118,7 @@ class SiniestroModel(Base):
     ubicacion_fuente: Mapped[str | None] = mapped_column(String(20), nullable=True)
     ubicacion_capturada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     ubicacion_actualizada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    estado_actualizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (Index("ix_siniestro_cliente_reportado", "cliente_id", "reportado_en"),)
 

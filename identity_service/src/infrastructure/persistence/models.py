@@ -189,6 +189,14 @@ class DispositivoVinculadoModel(Base):
             postgresql_where=text("estado = 'ACTIVO'"),
             sqlite_where=text("estado = 'ACTIVO'"),
         ),
+        # HU4.2.2: un token push solo puede pertenecer a un dispositivo (CA3).
+        Index(
+            "uq_dispositivo_push_token",
+            "push_token",
+            unique=True,
+            postgresql_where=text("push_token IS NOT NULL"),
+            sqlite_where=text("push_token IS NOT NULL"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -206,6 +214,9 @@ class DispositivoVinculadoModel(Base):
     )
     revocado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     ultimo_acceso_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    push_token: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    push_plataforma: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    push_actualizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class SesionActivacionModel(Base):

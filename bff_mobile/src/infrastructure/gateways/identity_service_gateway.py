@@ -131,6 +131,12 @@ class IdentityServiceGateway:
             headers={"X-Correlation-Id": correlation_id},
         )
 
+    async def registrar_token_push(self, cliente_id: str, installation_id: str, token: str, plataforma: str, correlation_id: str) -> None:
+        await self._request_sin_contenido("PUT", f"/api/v1/identity-service/clientes/{cliente_id}/dispositivos/{installation_id}/push", {"token": token, "plataforma": plataforma}, correlation_id)
+
+    async def eliminar_token_push(self, cliente_id: str, installation_id: str, correlation_id: str) -> None:
+        await self._request_sin_contenido("DELETE", f"/api/v1/identity-service/clientes/{cliente_id}/dispositivos/{installation_id}/push", None, correlation_id)
+
     async def aclose(self) -> None:
         await self._client.aclose()
 
@@ -165,3 +171,15 @@ class IdentityServiceGateway:
             )
 
         return body
+
+    async def _request_sin_contenido(self, metodo: str, path: str, payload: dict | None, correlation_id: str) -> None:
+        try:
+            response = await self._client.request(metodo, path, json=payload, headers={"X-Correlation-Id": correlation_id})
+        except httpx.HTTPError as exc:
+            raise IdentityGatewayError(503, "El servicio de identidad no está disponible.") from exc
+        if not response.is_success:
+            try:
+                body = response.json()
+            except ValueError:
+                body = {}
+            raise IdentityGatewayError(response.status_code, body.get("detail", "El servicio de identidad devolvió un error."))

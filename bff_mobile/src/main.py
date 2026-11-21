@@ -4,7 +4,7 @@ from src.core.config import settings
 from src.core.correlation import CorrelationIdMiddleware
 from src.core.telemetry import setup_telemetry
 from src.presentation.errors import ApiError, api_error_handler
-from src.presentation.routers import activacion, auth, consentimientos, evidencias, health, quotingengine, siniestros
+from src.presentation.routers import activacion, auth, consentimientos, dispositivos, evidencias, health, quotingengine, siniestros
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -24,6 +24,7 @@ app.include_router(consentimientos.router, prefix=settings.API_PREFIX)
 app.include_router(quotingengine.router, prefix=settings.API_PREFIX)
 app.include_router(siniestros.router, prefix=settings.API_PREFIX)
 app.include_router(evidencias.router, prefix=settings.API_PREFIX)
+app.include_router(dispositivos.router, prefix=settings.API_PREFIX)
 
 
 @app.get("/")

@@ -73,6 +73,24 @@ config:
   EVIDENCIAS_PREFIX: siniestros/
   FOTO_MAX_MB: "5"
   VIDEO_MAX_MB: "50"
+  # HU4.2.2: notificaciones push por SNS Mobile Push (FCM v1). Credenciales por EKS Pod Identity.
+  NOTIFICACIONES_HABILITADAS: "true"
+  NOTIFICADOR_PUSH: sns
+  IDENTITY_SERVICE_URL: http://identity-service:80
+  OUTBOX_INTERVALO_SEGUNDOS: "2"
+  OUTBOX_MAX_INTENTOS: "5"
+
+# HU4.2.2: secretos opcionales (si faltan, el servicio arranca y el operador responde 403).
+extraSecrets:
+  enabled: true
+  existingSecret: secret-name
+  secretKeys:
+    - name: SNS_PLATFORM_APPLICATION_ARN
+      secretKey: SNS_PLATFORM_APPLICATION_ARN
+      optional: true
+    - name: OPERADOR_TOKEN
+      secretKey: INSURANCECLAIMS_OPERADOR_TOKEN
+      optional: true
 
 resources:
   requests:

@@ -9,3 +9,6 @@ bucket:
 
 kmsKey:
   existingSecret: solventa-dev-app-secrets
+
+extraSecrets:
+  existingSecret: solventa-dev-app-secrets

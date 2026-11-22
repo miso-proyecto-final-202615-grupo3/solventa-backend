@@ -79,6 +79,11 @@ config:
   IDENTITY_SERVICE_URL: http://identity-service:80
   OUTBOX_INTERVALO_SEGUNDOS: "2"
   OUTBOX_MAX_INTENTOS: "5"
+  EVENTOS_PARAMETRICOS_HABILITADOS: "true"
+  EVENTOS_INTERVALO_SEGUNDOS: "2"
+  EVENTOS_MAX_INTENTOS: "5"
+  SOLICITUDES_PAGO: registro
+  EVENTOS_BUS: sqs
 
 # HU4.2.2: secretos opcionales (si faltan, el servicio arranca y el operador responde 403).
 extraSecrets:
@@ -90,6 +95,15 @@ extraSecrets:
       optional: true
     - name: OPERADOR_TOKEN
       secretKey: INSURANCECLAIMS_OPERADOR_TOKEN
+      optional: true
+    - name: EVENTOS_FUENTE_TOKEN
+      secretKey: INSURANCECLAIMS_EVENTOS_FUENTE_TOKEN
+      optional: true
+    - name: EVENTOS_PARAMETRICOS_QUEUE_URL
+      secretKey: EVENTOS_PARAMETRICOS_QUEUE_URL
+      optional: true
+    - name: EVENTOS_PARAMETRICOS_DLQ_URL
+      secretKey: EVENTOS_PARAMETRICOS_DLQ_URL
       optional: true
 
 resources:

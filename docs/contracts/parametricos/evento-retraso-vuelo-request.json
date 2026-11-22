@@ -1,0 +1,10 @@
+{
+  "event_id": "AEROCIVIL-AV9450-2026-11-21",
+  "fuente": "AEROCIVIL",
+  "tipo": "RETRASO_VUELO",
+  "ocurrido_en": "2026-11-21T08:10:00-05:00",
+  "datos": {
+    "vuelo": "AV9450",
+    "retraso_minutos": 185
+  }
+}

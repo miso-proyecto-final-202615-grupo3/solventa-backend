@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_serializer
 
-from src.domain.siniestros.entities import Siniestro
+from src.domain.siniestros.entities import Indemnizacion, Siniestro
 from src.domain.siniestros.evidencias import EvidenciaSiniestro, OrigenEvidencia, TipoEvidencia
 from src.domain.siniestros.ubicacion import FuenteUbicacion
 from src.presentation.schemas.siniestros import SiniestroResponse, _utc
@@ -108,18 +108,36 @@ class RegistrarUbicacionResponse(BaseModel):
         return _iso(valor)
 
 
+class IndemnizacionResponse(BaseModel):
+    """HU4.2.3: compensación del siniestro (`PAGO_SOLICITADO` → `PAGADA`). El monto va como texto decimal."""
+
+    monto: str
+    moneda: str
+    estado: str
+
+    @classmethod
+    def desde(cls, indemnizacion: Indemnizacion | None) -> "IndemnizacionResponse | None":
+        if indemnizacion is None:
+            return None
+        return cls(monto=format(indemnizacion.monto_aprobado, "f"), moneda=indemnizacion.moneda, estado=indemnizacion.estado)
+
+
 class SiniestroDetalleResponse(SiniestroResponse):
     """`GET /siniestros/{id}`: el siniestro de HU4.1.1 con su ubicación y evidencias (HU4.1.2)."""
 
     ubicacion: UbicacionResponse | None = None
     evidencias: list[EvidenciaResponse] = []
+    indemnizacion: IndemnizacionResponse | None = None
 
     @classmethod
-    def desde_detalle(cls, siniestro: Siniestro, evidencias: list[EvidenciaSiniestro]) -> "SiniestroDetalleResponse":
+    def desde_detalle(
+        cls, siniestro: Siniestro, evidencias: list[EvidenciaSiniestro], indemnizacion: Indemnizacion | None = None
+    ) -> "SiniestroDetalleResponse":
         return cls(
             **SiniestroResponse.desde(siniestro).model_dump(),
             ubicacion=UbicacionResponse.desde(siniestro),
             evidencias=[EvidenciaResponse.desde(e) for e in evidencias],
+            indemnizacion=IndemnizacionResponse.desde(indemnizacion),
         )
 
 

@@ -6,5 +6,6 @@
   "poliza_numero": "SLV-2026-08341",
   "tipo": "GASTO_MEDICO",
   "ocurrido_en": "2026-11-10T19:30:00Z",
-  "reportado_en": "2026-11-10T20:02:11Z"
+  "reportado_en": "2026-11-10T20:02:11Z",
+  "canal": "MOVIL"
 }

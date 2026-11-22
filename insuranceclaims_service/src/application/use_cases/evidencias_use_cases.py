@@ -18,7 +18,7 @@ from src.application.ports.almacen_evidencias import (
     DescargaPrefirmada,
 )
 from src.domain.siniestros.catalogo import CatalogoTiposSiniestro
-from src.domain.siniestros.entities import Siniestro
+from src.domain.siniestros.entities import Indemnizacion, Siniestro
 from src.domain.siniestros.errores import (
     CargaExpirada,
     CargaNoEncontrada,
@@ -39,7 +39,7 @@ from src.domain.siniestros.evidencias import (
     clave_objeto,
 )
 from src.domain.siniestros.politica_evidencias import PoliticaEvidencias
-from src.domain.siniestros.repositories import EvidenciaRepository, SiniestroRepository
+from src.domain.siniestros.repositories import EvidenciaRepository, IndemnizacionRepository, SiniestroRepository
 from src.domain.siniestros.ubicacion import UbicacionSiniestro
 
 logger = logging.getLogger(__name__)
@@ -73,6 +73,7 @@ class SolicitudCargaResultado:
 class SiniestroDetalle:
     siniestro: Siniestro
     evidencias: list[EvidenciaSiniestro]
+    indemnizacion: Indemnizacion | None = None
 
 
 class SolicitarCargaEvidenciaUseCase:
@@ -274,10 +275,17 @@ class RegistrarUbicacionUseCase:
 class ConsultarDetalleSiniestroUseCase:
     """Siniestro del cliente con su ubicación y sus evidencias vigentes (sin las vencidas)."""
 
-    def __init__(self, siniestros: SiniestroRepository, evidencias: EvidenciaRepository, reloj: Callable[[], datetime]) -> None:
+    def __init__(
+        self,
+        siniestros: SiniestroRepository,
+        evidencias: EvidenciaRepository,
+        reloj: Callable[[], datetime],
+        indemnizaciones: IndemnizacionRepository | None = None,
+    ) -> None:
         self.siniestros = siniestros
         self.evidencias = evidencias
         self.reloj = reloj
+        self.indemnizaciones = indemnizaciones
 
     async def ejecutar(self, siniestro_id: uuid.UUID, cliente_id: uuid.UUID) -> SiniestroDetalle:
         siniestro = await self.siniestros.obtener_de_cliente(siniestro_id, cliente_id)
@@ -288,7 +296,11 @@ class ConsultarDetalleSiniestroUseCase:
             e for e in await self.evidencias.listar_de_siniestro(siniestro_id)
             if e.estado != EstadoEvidencia.EXPIRADA.value and not e.vencida(ahora)
         ]
-        return SiniestroDetalle(siniestro, evidencias)
+        # HU4.2.3: la compensación del siniestro paramétrico (o de uno ya liquidado).
+        indemnizacion = (
+            await self.indemnizaciones.obtener_de_siniestro(siniestro_id) if self.indemnizaciones is not None else None
+        )
+        return SiniestroDetalle(siniestro, evidencias, indemnizacion)
 
 
 @dataclass(frozen=True)

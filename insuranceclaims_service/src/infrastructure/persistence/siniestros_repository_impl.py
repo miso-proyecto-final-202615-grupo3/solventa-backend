@@ -75,6 +75,22 @@ class SqlAlchemyEventoExternoRepository(
     entity_type = EventoExterno
     model_type = EventoExternoModel
 
+    async def obtener_por_event_id(self, event_id: str) -> EventoExterno | None:
+        modelo = await self.session.scalar(select(EventoExternoModel).where(EventoExternoModel.event_id == event_id))
+        return self._a_entidad(modelo)
+
+    async def tomar_siguiente_recibido(self) -> EventoExterno | None:
+        consulta = (
+            select(EventoExternoModel)
+            .where(EventoExternoModel.estado == "RECIBIDO")
+            .order_by(EventoExternoModel.recibido_en)
+            .limit(1)
+        )
+        if self.session.bind.dialect.name == "postgresql":
+            # Competing consumers: cada réplica toma un evento distinto y lo retiene hasta el commit.
+            consulta = consulta.with_for_update(skip_locked=True)
+        return self._a_entidad(await self.session.scalar(consulta))
+
 
 class SqlAlchemyEventoOutboxRepository(_SqlAlchemyEntityRepository[EventoOutbox, EventoOutboxModel], EventoOutboxRepository):
     entity_type = EventoOutbox
@@ -85,8 +101,11 @@ class SqlAlchemyEventoOutboxRepository(_SqlAlchemyEntityRepository[EventoOutbox,
             entity.creado_en = datetime.now(UTC)
         return await super().guardar(entity)
 
-    async def obtener_pendientes(self, limite: int) -> list[EventoOutbox]:
-        rows = await self.session.scalars(select(EventoOutboxModel).where(EventoOutboxModel.estado == "PENDIENTE").order_by(EventoOutboxModel.creado_en).limit(limite))
+    async def obtener_pendientes(self, limite: int, tipos: list[str] | None = None) -> list[EventoOutbox]:
+        consulta = select(EventoOutboxModel).where(EventoOutboxModel.estado == "PENDIENTE")
+        if tipos is not None:
+            consulta = consulta.where(EventoOutboxModel.tipo.in_(tipos))
+        rows = await self.session.scalars(consulta.order_by(EventoOutboxModel.creado_en).limit(limite))
         return [self._a_entidad(row) for row in rows.all()]
 
     async def marcar_publicado(self, evento_id: uuid.UUID, publicado_en: datetime) -> None:
@@ -108,12 +127,24 @@ class SqlAlchemyActivacionParametricaRepository(
     entity_type = ActivacionParametrica
     model_type = ActivacionParametricaModel
 
+    async def obtener_por_clave(self, clave: str) -> ActivacionParametrica | None:
+        modelo = await self.session.scalar(
+            select(ActivacionParametricaModel).where(ActivacionParametricaModel.clave_idempotencia == clave)
+        )
+        return self._a_entidad(modelo)
+
 
 class SqlAlchemyActivacionPolizaRepository(
     _SqlAlchemyEntityRepository[ActivacionPoliza, ActivacionPolizaModel], ActivacionPolizaRepository
 ):
     entity_type = ActivacionPoliza
     model_type = ActivacionPolizaModel
+
+    async def obtener_por_clave(self, clave: str) -> ActivacionPoliza | None:
+        modelo = await self.session.scalar(
+            select(ActivacionPolizaModel).where(ActivacionPolizaModel.clave_idempotencia == clave)
+        )
+        return self._a_entidad(modelo)
 
 
 class SqlAlchemySiniestroRepository(
@@ -207,3 +238,7 @@ class SqlAlchemyIndemnizacionRepository(
 ):
     entity_type = Indemnizacion
     model_type = IndemnizacionModel
+
+    async def obtener_de_siniestro(self, siniestro_id: uuid.UUID) -> Indemnizacion | None:
+        modelo = await self.session.scalar(select(IndemnizacionModel).where(IndemnizacionModel.siniestro_id == siniestro_id))
+        return self._a_entidad(modelo)

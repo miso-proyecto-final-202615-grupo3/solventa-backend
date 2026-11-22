@@ -17,6 +17,12 @@ class EventoExterno:
     ocurrido_en: datetime
     recibido_en: datetime
     payload_referencia: str
+    estado: str = "RECIBIDO"
+    intentos: int = 0
+    ultimo_error: str | None = None
+    datos: dict | None = None
+    resultado: list | None = None
+    procesado_en: datetime | None = None
     evento_externo_id: uuid.UUID = field(default_factory=uuid.uuid4)
 
 

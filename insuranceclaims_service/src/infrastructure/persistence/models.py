@@ -29,6 +29,7 @@ def _fk(target: str) -> str:
 
 class EventoExternoModel(Base):
     __tablename__ = "evento_externo"
+    __table_args__ = (Index("ix_evento_externo_estado_recibido", "estado", "recibido_en"),)
 
     evento_externo_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     event_id: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
@@ -38,6 +39,13 @@ class EventoExternoModel(Base):
     ocurrido_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     recibido_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     payload_referencia: Mapped[str] = mapped_column(String(2048), nullable=False)
+    # HU4.2.3: el evento se procesa de forma asíncrona (bus durable en Postgres, supuesto P2).
+    estado: Mapped[str] = mapped_column(String(20), nullable=False, default="RECIBIDO")
+    intentos: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    ultimo_error: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    datos: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    resultado: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    procesado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     activaciones: Mapped[list["ActivacionParametricaModel"]] = relationship(back_populates="evento_externo")
 
@@ -72,6 +80,28 @@ class ActivacionParametricaModel(Base):
     evento_externo: Mapped["EventoExternoModel"] = relationship(back_populates="activaciones")
     polizas: Mapped[list["ActivacionPolizaModel"]] = relationship(back_populates="activacion")
     siniestros: Mapped[list["SiniestroModel"]] = relationship(back_populates="activacion")
+
+
+class PolizaParametricaModel(Base):
+    """Suscripción de una póliza paramétrica a un índice (zona o vuelo) con su umbral y compensación (HU4.2.3, P3)."""
+
+    __tablename__ = "poliza_parametrica"
+    __table_args__ = (
+        UniqueConstraint("poliza_id", "cobertura", name="uq_poliza_parametrica_poliza_cobertura"),
+        Index("ix_poliza_parametrica_cobertura_indice", "cobertura", "indice"),
+    )
+
+    poliza_parametrica_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    poliza_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    cliente_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False, index=True)
+    poliza_numero: Mapped[str] = mapped_column(String(50), nullable=False)
+    cobertura: Mapped[str] = mapped_column(String(50), nullable=False)
+    indice: Mapped[str] = mapped_column(String(50), nullable=False)
+    umbral: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    monto_compensacion: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    moneda: Mapped[str] = mapped_column(String(10), nullable=False)
+    activa: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    actualizada_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class ActivacionPolizaModel(Base):

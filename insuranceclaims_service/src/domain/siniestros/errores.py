@@ -128,3 +128,23 @@ class TransicionInvalida(ErrorSiniestro):
     status_code = 409
     codigo = "TRANSICION_INVALIDA"
     mensaje = "El siniestro no admite este cambio de estado."
+
+
+# --- HU4.2.3 · Siniestros paramétricos ---
+
+class EventoEnConflicto(ErrorSiniestro):
+    status_code = 409
+    codigo = "EVENTO_EN_CONFLICTO"
+    mensaje = "Ya se recibió un evento con ese event_id y otro contenido."
+
+
+class EventoNoEncontrado(ErrorSiniestro):
+    status_code = 404
+    codigo = "EVENTO_NO_ENCONTRADO"
+    mensaje = "No encontramos el evento."
+
+
+class PolizaNoParametrica(ErrorSiniestro):
+    status_code = 422
+    codigo = "POLIZA_NO_PARAMETRICA"
+    mensaje = "La póliza no es de un producto paramétrico."

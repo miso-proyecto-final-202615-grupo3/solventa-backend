@@ -19,6 +19,16 @@ from src.infrastructure.messaging.outbox_relay import OutboxRelay
 from src.infrastructure.gateways.identity_destinos_client import IdentityDestinosClient
 from src.infrastructure.notifications.factory import crear_notificador_push
 from src.application.use_cases.notificar_cambio_estado_use_case import NotificarCambioEstadoUseCase
+from src.infrastructure.gateways.polizas_factory import crear_polizas_port
+from src.infrastructure.messaging.procesador_eventos_parametricos import ProcesadorEventosParametricos
+from src.infrastructure.messaging.sqs_eventos_parametricos import (
+    ConsumidorSqsEventosParametricos,
+    bus_activo,
+    crear_cliente_sqs,
+)
+from src.infrastructure.pagos.solicitudes_pago import crear_solicitudes_pago
+from src.presentation.routers import parametricos
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -55,35 +65,68 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if settings.SEED_ON_STARTUP:
         await _sembrar_catalogo()
     # HU4.2.2: relay del outbox → notificaciones push. Apagado por defecto (NOTIFICACIONES_HABILITADAS=false).
-    tarea_relay = None
-    cliente_destinos = None
+    # HU4.2.3: el mismo relay entrega las solicitudes de pago de indemnizaciones a Pagos.
+    tareas: list[asyncio.Task] = []
+    cierres = []
+    notificar = None
     if settings.NOTIFICACIONES_HABILITADAS:
         try:
             notificador = crear_notificador_push(settings)
         except ValueError as exc:
             # Sin configuración (p. ej. falta el ARN de SNS) el servicio sigue funcionando; los eventos
             # quedan PENDIENTE en el outbox y se envían cuando se corrija y se reinicie.
-            logging.getLogger(__name__).error("notificaciones_push_sin_configurar error=%s", exc)
+            logger.error("notificaciones_push_sin_configurar error=%s", exc)
         else:
             cliente_destinos = IdentityDestinosClient(settings.IDENTITY_SERVICE_URL)
-            relay = OutboxRelay(
-                SessionLocal,
-                NotificarCambioEstadoUseCase(cliente_destinos, notificador),
-                settings.OUTBOX_INTERVALO_SEGUNDOS,
-                settings.OUTBOX_MAX_INTENTOS,
-            )
-            tarea_relay = asyncio.create_task(relay.ejecutar())
+            cierres.append(cliente_destinos)
+            notificar = NotificarCambioEstadoUseCase(cliente_destinos, notificador)
+    try:
+        pagos = crear_solicitudes_pago(settings)
+    except ValueError as exc:
+        logger.error("solicitudes_pago_sin_configurar error=%s", exc)
+        pagos = None
+    if pagos is not None:
+        cierres.append(pagos)
+    if notificar is not None or pagos is not None:
+        relay = OutboxRelay(
+            SessionLocal, notificar, settings.OUTBOX_INTERVALO_SEGUNDOS, settings.OUTBOX_MAX_INTENTOS, pagos=pagos
+        )
+        tareas.append(asyncio.create_task(relay.ejecutar()))
+    if settings.EVENTOS_PARAMETRICOS_HABILITADOS:
+        polizas = crear_polizas_port(settings)
+        cierres.append(polizas)
+        argumentos = (
+            SessionLocal, polizas, lambda: datetime.now(UTC), settings.ESTADOS_POLIZA_ELEGIBLES.split(","),
+            settings.EVENTOS_INTERVALO_SEGUNDOS, settings.EVENTOS_MAX_INTENTOS,
+        )
+        try:
+            if bus_activo(settings) == "sqs":
+                if not settings.EVENTOS_PARAMETRICOS_QUEUE_URL:
+                    raise ValueError("Falta EVENTOS_PARAMETRICOS_QUEUE_URL para EVENTOS_BUS=sqs.")
+                procesador = ConsumidorSqsEventosParametricos(
+                    *argumentos,
+                    client=crear_cliente_sqs(settings.AWS_REGION, settings.SQS_AWS_PROFILE, settings.SQS_ENDPOINT_URL),
+                    queue_url=settings.EVENTOS_PARAMETRICOS_QUEUE_URL,
+                    dlq_url=settings.EVENTOS_PARAMETRICOS_DLQ_URL,
+                    espera_segundos=settings.EVENTOS_SQS_ESPERA_SEGUNDOS,
+                )
+            else:
+                procesador = ProcesadorEventosParametricos(*argumentos)
+        except ValueError as exc:
+            logger.error("eventos_parametricos_sin_configurar error=%s", exc)
+        else:
+            tareas.append(asyncio.create_task(procesador.ejecutar()))
     try:
         yield
     finally:
-        if tarea_relay is not None:
-            tarea_relay.cancel()
+        for tarea in tareas:
+            tarea.cancel()
             try:
-                await tarea_relay
+                await tarea
             except asyncio.CancelledError:
                 pass
-        if cliente_destinos is not None:
-            await cliente_destinos.aclose()
+        for recurso in cierres:
+            await recurso.aclose()
         await engine.dispose()
 
 
@@ -118,6 +161,7 @@ app.include_router(siniestros.router, prefix=settings.API_PREFIX)
 app.include_router(siniestros.router_tipos, prefix=settings.API_PREFIX)
 app.include_router(operador.router, prefix=settings.API_PREFIX)
 app.include_router(evidencias.router, prefix=settings.API_PREFIX)
+app.include_router(parametricos.router, prefix=settings.API_PREFIX)
 
 
 @app.get("/")

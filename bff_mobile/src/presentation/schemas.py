@@ -153,6 +153,8 @@ class SiniestroResponse(BaseModel):
     tipo: str
     ocurrido_en: datetime
     reportado_en: datetime
+    # HU4.2.3: MOVIL (reportado por el cliente) o PARAMETRICO (creado automáticamente por un evento).
+    canal: str = "MOVIL"
 
 
 # --- HU4.1.2 · Evidencias y ubicación (contrato canónico: docs/planning/HU4.1.2-plan-tecnico.md §3) ---
@@ -212,9 +214,18 @@ class RegistrarUbicacionResponse(BaseModel):
     actualizada_en: datetime
 
 
+class IndemnizacionResponse(BaseModel):
+    """HU4.2.3: compensación del siniestro. `monto` es texto decimal para no perder precisión."""
+
+    monto: str
+    moneda: str
+    estado: str
+
+
 class SiniestroDetalleResponse(SiniestroResponse):
     ubicacion: UbicacionResponse | None = None
     evidencias: list[EvidenciaResponse] = []
+    indemnizacion: IndemnizacionResponse | None = None
 
 
 # --- HU4.2.1 · Consultar siniestros y ver evidencias (contrato canónico: docs/planning/HU4.2.1-plan-tecnico.md §3) ---

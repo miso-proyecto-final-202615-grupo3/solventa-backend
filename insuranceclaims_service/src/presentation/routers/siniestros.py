@@ -118,7 +118,7 @@ async def consultar_siniestro(
 ) -> SiniestroDetalleResponse:
     """El siniestro con su ubicación y sus evidencias vigentes (HU4.1.2)."""
     detalle = await use_case.ejecutar(siniestro_id, cliente_id)
-    return SiniestroDetalleResponse.desde_detalle(detalle.siniestro, detalle.evidencias)
+    return SiniestroDetalleResponse.desde_detalle(detalle.siniestro, detalle.evidencias, detalle.indemnizacion)
 
 
 @router_tipos.get("", response_model=TiposSiniestroResponse)

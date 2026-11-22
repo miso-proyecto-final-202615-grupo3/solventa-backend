@@ -11,6 +11,7 @@ from src.domain.siniestros.entities import (
     Siniestro,
 )
 from src.domain.siniestros.evidencias import EvidenciaSiniestro
+from src.domain.siniestros.parametricos import PolizaParametrica
 
 Entity = TypeVar("Entity")
 
@@ -26,12 +27,24 @@ class Repository(ABC, Generic[Entity]):
 
 
 class EventoExternoRepository(Repository[EventoExterno]):
-    pass
+    @abstractmethod
+    async def obtener_por_event_id(self, event_id: str) -> EventoExterno | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def tomar_siguiente_recibido(self) -> EventoExterno | None:
+        """El evento `RECIBIDO` más antiguo, bloqueado (`FOR UPDATE SKIP LOCKED`) hasta el commit."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def actualizar(self, evento: EventoExterno) -> EventoExterno:
+        raise NotImplementedError
 
 
 class EventoOutboxRepository(Repository[EventoOutbox]):
     @abstractmethod
-    async def obtener_pendientes(self, limite: int) -> list[EventoOutbox]:
+    async def obtener_pendientes(self, limite: int, tipos: list[str] | None = None) -> list[EventoOutbox]:
+        """Pendientes en orden de creación; con `tipos`, solo los que alguien sabe entregar."""
         raise NotImplementedError
 
     @abstractmethod
@@ -44,11 +57,15 @@ class EventoOutboxRepository(Repository[EventoOutbox]):
 
 
 class ActivacionParametricaRepository(Repository[ActivacionParametrica]):
-    pass
+    @abstractmethod
+    async def obtener_por_clave(self, clave: str) -> ActivacionParametrica | None:
+        raise NotImplementedError
 
 
 class ActivacionPolizaRepository(Repository[ActivacionPoliza]):
-    pass
+    @abstractmethod
+    async def obtener_por_clave(self, clave: str) -> ActivacionPoliza | None:
+        raise NotImplementedError
 
 
 class SiniestroRepository(Repository[Siniestro]):
@@ -101,4 +118,21 @@ class EvidenciaRepository(Repository[EvidenciaSiniestro]):
 
 
 class IndemnizacionRepository(Repository[Indemnizacion]):
-    pass
+    @abstractmethod
+    async def obtener_de_siniestro(self, siniestro_id: uuid.UUID) -> Indemnizacion | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def actualizar(self, indemnizacion: Indemnizacion) -> Indemnizacion:
+        raise NotImplementedError
+
+
+class PolizaParametricaRepository(ABC):
+    @abstractmethod
+    async def guardar_o_actualizar(self, poliza: PolizaParametrica) -> PolizaParametrica:
+        """Una suscripción por (póliza, cobertura): si ya existe se reemplazan sus datos."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def suscritas(self, cobertura: str, indice: str) -> list[PolizaParametrica]:
+        raise NotImplementedError

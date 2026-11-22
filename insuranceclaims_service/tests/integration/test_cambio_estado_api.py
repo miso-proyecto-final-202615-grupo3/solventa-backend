@@ -60,7 +60,7 @@ async def test_cambio_valido_escribe_un_evento_en_el_outbox(api):
     assert (evento.tipo, evento.estado, str(evento.agregado_id)) == ("SINIESTRO_ESTADO", "PENDIENTE", siniestro_id)
     assert evento.payload == {
         "tipo": "SINIESTRO_ESTADO", "siniestro_id": siniestro_id,
-        "numero": response.json()["numero"], "estado": "EN_EVALUACION",
+        "numero": response.json()["numero"], "estado": "EN_EVALUACION", "canal": "MOVIL",
     }
     guardado = await db.get(SiniestroModel, uuid.UUID(siniestro_id))
     assert guardado.estado_actualizado_en is not None

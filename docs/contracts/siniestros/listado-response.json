@@ -8,7 +8,8 @@
       "poliza_numero": "SLV-2026-11207",
       "tipo": "DANO_DISPOSITIVO",
       "ocurrido_en": "2026-11-14T15:10:00Z",
-      "reportado_en": "2026-11-14T15:42:37Z"
+      "reportado_en": "2026-11-14T15:42:37Z",
+      "canal": "MOVIL"
     },
     {
       "siniestro_id": "c41f0e2a-9b7d-4e55-8a0c-2f6d1b3e9a77",
@@ -18,7 +19,8 @@
       "poliza_numero": "SLV-2026-08341",
       "tipo": "GASTO_MEDICO",
       "ocurrido_en": "2026-11-10T19:30:00Z",
-      "reportado_en": "2026-11-10T20:02:11Z"
+      "reportado_en": "2026-11-10T20:02:11Z",
+      "canal": "MOVIL"
     }
   ],
   "pagina": 1,

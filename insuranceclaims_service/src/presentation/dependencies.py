@@ -18,6 +18,14 @@ from src.application.use_cases.listar_polizas_elegibles_use_case import ListarPo
 from src.application.use_cases.listar_siniestros_use_case import ListarSiniestrosUseCase
 from src.application.use_cases.reportar_siniestro_use_case import ReportarSiniestroUseCase
 from src.application.use_cases.cambiar_estado_siniestro_use_case import CambiarEstadoSiniestroUseCase
+from src.application.use_cases.eventos_parametricos_use_cases import (
+    ConsultarEventoParametricoUseCase,
+    RecibirEventoParametricoUseCase,
+    SuscribirPolizaParametricaUseCase,
+)
+from src.infrastructure.persistence.polizas_parametricas_repository_impl import SqlAlchemyPolizaParametricaRepository
+from src.application.ports.bus_eventos import BusEventosParametricos
+from src.infrastructure.messaging.sqs_eventos_parametricos import crear_bus_eventos
 from src.core.config import settings
 from src.core.database import SessionLocal
 from src.domain.siniestros.catalogo import CatalogoTiposSiniestro
@@ -33,6 +41,7 @@ from src.domain.siniestros.repositories import (
     EventoOutboxRepository,
     EvidenciaRepository,
     IndemnizacionRepository,
+    PolizaParametricaRepository,
     SiniestroRepository,
 )
 from src.infrastructure.persistence.siniestros_repository_impl import (
@@ -130,8 +139,9 @@ def get_cambiar_estado_siniestro_use_case(
     repo: SiniestroRepository = Depends(get_siniestro_repository),
     outbox: EventoOutboxRepository = Depends(get_evento_outbox_repository),
     reloj: Callable[[], datetime] = Depends(get_reloj),
+    indemnizaciones: IndemnizacionRepository = Depends(get_indemnizacion_repository),
 ) -> CambiarEstadoSiniestroUseCase:
-    return CambiarEstadoSiniestroUseCase(db, repo, outbox, reloj)
+    return CambiarEstadoSiniestroUseCase(db, repo, outbox, reloj, indemnizaciones)
 
 
 # --- HU4.1.2 · Evidencias y ubicación ---------------------------------------------------------
@@ -191,8 +201,9 @@ def get_consultar_detalle_siniestro_use_case(
     siniestros: SiniestroRepository = Depends(get_siniestro_repository),
     evidencias: EvidenciaRepository = Depends(get_evidencia_repository),
     reloj: Callable[[], datetime] = Depends(get_reloj),
+    indemnizaciones: IndemnizacionRepository = Depends(get_indemnizacion_repository),
 ) -> ConsultarDetalleSiniestroUseCase:
-    return ConsultarDetalleSiniestroUseCase(siniestros, evidencias, reloj)
+    return ConsultarDetalleSiniestroUseCase(siniestros, evidencias, reloj, indemnizaciones)
 
 
 # --- HU4.2.1 · Consultar siniestros y ver evidencias ----------------------------------------
@@ -211,3 +222,46 @@ def get_obtener_descarga_evidencia_use_case(
     return ObtenerDescargaEvidenciaUseCase(
         siniestros, evidencias, almacen, timedelta(seconds=settings.EVIDENCIAS_DESCARGA_TTL_SECONDS)
     )
+
+
+# --- HU4.2.3 · Siniestros paramétricos ------------------------------------------------------
+
+def get_poliza_parametrica_repository(db: AsyncSession = Depends(get_db)) -> PolizaParametricaRepository:
+    return SqlAlchemyPolizaParametricaRepository(db)
+
+
+_bus_eventos: list = []
+
+
+def get_bus_eventos() -> BusEventosParametricos | None:
+    """Un solo cliente SQS por proceso (o `None` con el bus de Postgres)."""
+    if not _bus_eventos:
+        try:
+            _bus_eventos.append(crear_bus_eventos(settings))
+        except ValueError as exc:
+            raise ServicioNoDisponible() from exc
+    return _bus_eventos[0]
+
+
+def get_recibir_evento_parametrico_use_case(
+    db: AsyncSession = Depends(get_db),
+    eventos: EventoExternoRepository = Depends(get_evento_externo_repository),
+    reloj: Callable[[], datetime] = Depends(get_reloj),
+    bus: BusEventosParametricos | None = Depends(get_bus_eventos),
+) -> RecibirEventoParametricoUseCase:
+    return RecibirEventoParametricoUseCase(db, eventos, reloj, bus)
+
+
+def get_consultar_evento_parametrico_use_case(
+    eventos: EventoExternoRepository = Depends(get_evento_externo_repository),
+) -> ConsultarEventoParametricoUseCase:
+    return ConsultarEventoParametricoUseCase(eventos)
+
+
+def get_suscribir_poliza_parametrica_use_case(
+    db: AsyncSession = Depends(get_db),
+    repo: PolizaParametricaRepository = Depends(get_poliza_parametrica_repository),
+    polizas: PolizasPort = Depends(get_polizas_port),
+    reloj: Callable[[], datetime] = Depends(get_reloj),
+) -> SuscribirPolizaParametricaUseCase:
+    return SuscribirPolizaParametricaUseCase(db, repo, polizas, reloj)

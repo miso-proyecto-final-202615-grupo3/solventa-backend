@@ -36,6 +36,9 @@ async def test_docs_y_openapi(async_client: AsyncClient):
         f"{base}/siniestros/{{siniestro_id}}/ubicacion",
         f"{base}/siniestros/{{siniestro_id}}/evidencias/{{evidencia_id}}/descarga",
             f"{base}/siniestros/{{siniestro_id}}/estado",
+        f"{base}/eventos-parametricos",
+        f"{base}/eventos-parametricos/{{event_id}}",
+        f"{base}/polizas-parametricas/{{poliza_id}}",
     }
 
 

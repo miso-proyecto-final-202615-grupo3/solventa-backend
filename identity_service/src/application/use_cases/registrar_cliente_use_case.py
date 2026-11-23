@@ -1,5 +1,6 @@
 import logging
 from datetime import UTC, datetime
+from uuid import UUID
 
 from src.application.ports.identity_provider import (
     IdentityProvider,
@@ -37,7 +38,7 @@ class RegistrarClienteUseCase:
         self.identity_provider = identity_provider
         self.cache = cache
 
-    async def ejecutar(self, command: ClienteCreate) -> Cliente:
+    async def ejecutar(self, command: ClienteCreate, *, socio_id: UUID | None = None) -> Cliente:
         if await self.repository.existe_por_correo(command.correo):
             raise DuplicateClienteError("Ya existe un cliente con ese correo.")
 
@@ -62,9 +63,10 @@ class RegistrarClienteUseCase:
         )
 
         try:
-            await self.identity_provider.registrar_usuario(
-                str(command.correo), command.password
-            )
+            if socio_id is None:
+                await self.identity_provider.registrar_usuario(str(command.correo), command.password)
+            else:
+                await self.identity_provider.registrar_prospecto(str(command.correo), command.password)
         except IdentityProviderError:
             raise
         except Exception as exc:
@@ -80,20 +82,21 @@ class RegistrarClienteUseCase:
                 if aceptado
                 else EstadoConsentimiento.REVOCADO
             )
-            await self.repository.guardar(
-                cliente,
-                ConsentimientoInicial(
-                    estado=estado_consentimiento,
-                    tipo_accion=(
-                        TipoAccionConsentimiento.ACEPTACION
-                        if aceptado
-                        else TipoAccionConsentimiento.DENEGACION
-                    ),
-                    fecha=datetime.now(UTC),
-                    version_terminos=settings.CONSENT_TERMS_VERSION,
-                    canal="web",
+            consentimiento = ConsentimientoInicial(
+                estado=estado_consentimiento,
+                tipo_accion=(
+                    TipoAccionConsentimiento.ACEPTACION
+                    if aceptado
+                    else TipoAccionConsentimiento.DENEGACION
                 ),
+                fecha=datetime.now(UTC),
+                version_terminos=settings.CONSENT_TERMS_VERSION,
+                canal="socios" if socio_id else "web",
             )
+            if socio_id is None:
+                await self.repository.guardar(cliente, consentimiento)
+            else:
+                await self.repository.guardar(cliente, consentimiento, socio_id=socio_id)
         except Exception:
             logger.exception(
                 "Persistencia falló; revirtiendo la identidad creada."

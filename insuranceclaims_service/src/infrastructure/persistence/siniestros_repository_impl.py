@@ -2,7 +2,8 @@ import uuid
 from dataclasses import asdict, fields
 from typing import Generic, TypeVar
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
+from datetime import UTC, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import Base
@@ -10,6 +11,7 @@ from src.domain.siniestros.entities import (
     ActivacionParametrica,
     ActivacionPoliza,
     EventoExterno,
+    EventoOutbox,
     Indemnizacion,
     Siniestro,
 )
@@ -18,6 +20,7 @@ from src.domain.siniestros.repositories import (
     ActivacionParametricaRepository,
     ActivacionPolizaRepository,
     EventoExternoRepository,
+    EventoOutboxRepository,
     EvidenciaRepository,
     IndemnizacionRepository,
     SiniestroRepository,
@@ -26,13 +29,14 @@ from src.infrastructure.persistence.models import (
     ActivacionParametricaModel,
     ActivacionPolizaModel,
     EventoExternoModel,
+    EventoOutboxModel,
     EvidenciaSiniestroModel,
     IndemnizacionModel,
     SiniestroModel,
 )
 
 Entity = TypeVar(
-    "Entity", EventoExterno, ActivacionParametrica, ActivacionPoliza, Siniestro, Indemnizacion, EvidenciaSiniestro
+    "Entity", EventoExterno, EventoOutbox, ActivacionParametrica, ActivacionPoliza, Siniestro, Indemnizacion, EvidenciaSiniestro
 )
 Model = TypeVar("Model", bound=Base)
 
@@ -71,6 +75,50 @@ class SqlAlchemyEventoExternoRepository(
     entity_type = EventoExterno
     model_type = EventoExternoModel
 
+    async def obtener_por_event_id(self, event_id: str) -> EventoExterno | None:
+        modelo = await self.session.scalar(select(EventoExternoModel).where(EventoExternoModel.event_id == event_id))
+        return self._a_entidad(modelo)
+
+    async def tomar_siguiente_recibido(self) -> EventoExterno | None:
+        consulta = (
+            select(EventoExternoModel)
+            .where(EventoExternoModel.estado == "RECIBIDO")
+            .order_by(EventoExternoModel.recibido_en)
+            .limit(1)
+        )
+        if self.session.bind.dialect.name == "postgresql":
+            # Competing consumers: cada réplica toma un evento distinto y lo retiene hasta el commit.
+            consulta = consulta.with_for_update(skip_locked=True)
+        return self._a_entidad(await self.session.scalar(consulta))
+
+
+class SqlAlchemyEventoOutboxRepository(_SqlAlchemyEntityRepository[EventoOutbox, EventoOutboxModel], EventoOutboxRepository):
+    entity_type = EventoOutbox
+    model_type = EventoOutboxModel
+
+    async def guardar(self, entity: EventoOutbox) -> EventoOutbox:
+        if entity.creado_en is None:
+            entity.creado_en = datetime.now(UTC)
+        return await super().guardar(entity)
+
+    async def obtener_pendientes(self, limite: int, tipos: list[str] | None = None) -> list[EventoOutbox]:
+        consulta = select(EventoOutboxModel).where(EventoOutboxModel.estado == "PENDIENTE")
+        if tipos is not None:
+            consulta = consulta.where(EventoOutboxModel.tipo.in_(tipos))
+        rows = await self.session.scalars(consulta.order_by(EventoOutboxModel.creado_en).limit(limite))
+        return [self._a_entidad(row) for row in rows.all()]
+
+    async def marcar_publicado(self, evento_id: uuid.UUID, publicado_en: datetime) -> None:
+        await self.session.execute(update(EventoOutboxModel).where(EventoOutboxModel.evento_id == evento_id).values(estado="PUBLICADO", publicado_en=publicado_en, ultimo_error=None))
+
+    async def registrar_fallo(self, evento_id: uuid.UUID, error: str, max_intentos: int) -> None:
+        row = await self.session.get(EventoOutboxModel, evento_id)
+        if row is not None:
+            row.intentos += 1
+            row.ultimo_error = error[:500]
+            if row.intentos >= max_intentos:
+                row.estado = "FALLIDO"
+
 
 class SqlAlchemyActivacionParametricaRepository(
     _SqlAlchemyEntityRepository[ActivacionParametrica, ActivacionParametricaModel],
@@ -79,6 +127,12 @@ class SqlAlchemyActivacionParametricaRepository(
     entity_type = ActivacionParametrica
     model_type = ActivacionParametricaModel
 
+    async def obtener_por_clave(self, clave: str) -> ActivacionParametrica | None:
+        modelo = await self.session.scalar(
+            select(ActivacionParametricaModel).where(ActivacionParametricaModel.clave_idempotencia == clave)
+        )
+        return self._a_entidad(modelo)
+
 
 class SqlAlchemyActivacionPolizaRepository(
     _SqlAlchemyEntityRepository[ActivacionPoliza, ActivacionPolizaModel], ActivacionPolizaRepository
@@ -86,12 +140,24 @@ class SqlAlchemyActivacionPolizaRepository(
     entity_type = ActivacionPoliza
     model_type = ActivacionPolizaModel
 
+    async def obtener_por_clave(self, clave: str) -> ActivacionPoliza | None:
+        modelo = await self.session.scalar(
+            select(ActivacionPolizaModel).where(ActivacionPolizaModel.clave_idempotencia == clave)
+        )
+        return self._a_entidad(modelo)
+
 
 class SqlAlchemySiniestroRepository(
     _SqlAlchemyEntityRepository[Siniestro, SiniestroModel], SiniestroRepository
 ):
     entity_type = Siniestro
     model_type = SiniestroModel
+
+    async def obtener_por_id_para_actualizar(self, siniestro_id: uuid.UUID) -> Siniestro | None:
+        model = await self.session.scalar(
+            select(SiniestroModel).where(SiniestroModel.siniestro_id == siniestro_id).with_for_update()
+        )
+        return self._a_entidad(model)
 
     async def obtener_por_clave_idempotencia(self, clave: str) -> Siniestro | None:
         model = await self.session.scalar(select(SiniestroModel).where(SiniestroModel.clave_idempotencia == clave))
@@ -116,6 +182,22 @@ class SqlAlchemySiniestroRepository(
             .with_for_update()
         )
         return self._a_entidad(model)
+
+    async def listar_de_cliente(
+        self, cliente_id: uuid.UUID, poliza_id: uuid.UUID | None, limite: int, desplazamiento: int
+    ) -> tuple[list[Siniestro], int]:
+        filtro = [SiniestroModel.cliente_id == cliente_id]
+        if poliza_id is not None:
+            filtro.append(SiniestroModel.poliza_id == poliza_id)
+        total = await self.session.scalar(select(func.count()).select_from(SiniestroModel).where(*filtro))
+        modelos = await self.session.scalars(
+            select(SiniestroModel)
+            .where(*filtro)
+            .order_by(SiniestroModel.reportado_en.desc(), SiniestroModel.siniestro_id)
+            .limit(limite)
+            .offset(desplazamiento)
+        )
+        return [self._a_entidad(m) for m in modelos.all()], int(total or 0)
 
 
 class SqlAlchemyEvidenciaRepository(
@@ -156,3 +238,7 @@ class SqlAlchemyIndemnizacionRepository(
 ):
     entity_type = Indemnizacion
     model_type = IndemnizacionModel
+
+    async def obtener_de_siniestro(self, siniestro_id: uuid.UUID) -> Indemnizacion | None:
+        modelo = await self.session.scalar(select(IndemnizacionModel).where(IndemnizacionModel.siniestro_id == siniestro_id))
+        return self._a_entidad(modelo)

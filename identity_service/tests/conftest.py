@@ -49,6 +49,9 @@ class FakeIdentityProvider:
             raise RuntimeError("Cognito no disponible")
         self.registrados.append((correo, password))
 
+    async def registrar_prospecto(self, correo: str, password: str) -> None:
+        await self.registrar_usuario(correo, password)
+
     async def autenticar_usuario(self, correo: str, password: str) -> AutenticarResult:
         if self.fallar_autenticacion:
             raise IdentityProviderError("Cognito no disponible")

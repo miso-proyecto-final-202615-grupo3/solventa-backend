@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from src.infrastructure.gateways.identity_socios_gateway import (
@@ -47,3 +49,40 @@ async def listar_socios(
         return await gateway.listar_socios(actor_id, correlation_id)
     except IdentitySociosGatewayError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+
+
+async def _api_keys(
+    gateway: IdentitySociosGateway,
+    method: str,
+    socio_id: UUID,
+    key_id: UUID | None = None,
+    actor_id: str | None = None,
+):
+    try:
+        return await gateway.api_keys(
+            method, str(socio_id), str(key_id) if key_id else None, actor_id
+        )
+    except IdentitySociosGatewayError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+
+
+@router.post("/{socio_id}/api-keys", status_code=201)
+async def crear_api_key(socio_id: UUID, response: Response, actor_id: str = Depends(require_socios_admin), gateway: IdentitySociosGateway = Depends(get_identity_socios_gateway)):
+    response.headers["Cache-Control"] = "no-store"
+    return await _api_keys(gateway, "POST", socio_id, actor_id=actor_id)
+
+
+@router.get("/{socio_id}/api-keys")
+async def listar_api_keys(socio_id: UUID, actor_id: str = Depends(require_socios_admin), gateway: IdentitySociosGateway = Depends(get_identity_socios_gateway)):
+    return await _api_keys(gateway, "GET", socio_id)
+
+
+@router.get("/{socio_id}/api-keys/{key_id}")
+async def consultar_api_key(socio_id: UUID, key_id: UUID, actor_id: str = Depends(require_socios_admin), gateway: IdentitySociosGateway = Depends(get_identity_socios_gateway)):
+    return await _api_keys(gateway, "GET", socio_id, key_id)
+
+
+@router.delete("/{socio_id}/api-keys/{key_id}", status_code=204)
+async def borrar_api_key(socio_id: UUID, key_id: UUID, actor_id: str = Depends(require_socios_admin), gateway: IdentitySociosGateway = Depends(get_identity_socios_gateway)):
+    await _api_keys(gateway, "DELETE", socio_id, key_id)
+    return Response(status_code=204)

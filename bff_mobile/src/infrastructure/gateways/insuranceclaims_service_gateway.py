@@ -73,6 +73,29 @@ class InsuranceClaimsServiceGateway:
         )
         return body
 
+    # --- HU4.2.1 · Consultar siniestros y ver evidencias ---
+
+    async def listar_siniestros(
+        self, cliente_id: str, correlation_id: str, poliza_id: str | None, pagina: int, tamano: int
+    ) -> dict:
+        params: dict[str, str | int] = {"pagina": pagina, "tamano": tamano}
+        if poliza_id:
+            params["poliza_id"] = poliza_id
+        _, body = await self._request(
+            "GET", f"{PREFIJO}/siniestros", self._headers(cliente_id, correlation_id), params=params
+        )
+        return body
+
+    async def obtener_descarga_evidencia(
+        self, cliente_id: str, siniestro_id: str, evidencia_id: str, correlation_id: str
+    ) -> dict:
+        _, body = await self._request(
+            "GET",
+            f"{PREFIJO}/siniestros/{siniestro_id}/evidencias/{evidencia_id}/descarga",
+            self._headers(cliente_id, correlation_id),
+        )
+        return body
+
     async def aclose(self) -> None:
         await self._client.aclose()
 
@@ -83,9 +106,11 @@ class InsuranceClaimsServiceGateway:
             headers["Accept-Language"] = accept_language
         return headers
 
-    async def _request(self, method: str, path: str, headers: dict, json: dict | None = None) -> tuple[int, dict]:
+    async def _request(
+        self, method: str, path: str, headers: dict, json: dict | None = None, params: dict | None = None
+    ) -> tuple[int, dict]:
         try:
-            response = await self._client.request(method, path, headers=headers, json=json)
+            response = await self._client.request(method, path, headers=headers, json=json, params=params)
         except httpx.HTTPError as exc:
             raise ClaimsGatewayError(503, "El servicio de siniestros no está disponible.") from exc
         try:

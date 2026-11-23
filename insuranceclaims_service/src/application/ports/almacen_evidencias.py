@@ -13,6 +13,14 @@ class CargaPrefirmada:
 
 
 @dataclass(frozen=True)
+class DescargaPrefirmada:
+    """URL de lectura de un solo objeto, válida hasta `expira_en` (HU4.2.1)."""
+
+    url: str
+    expira_en: datetime
+
+
+@dataclass(frozen=True)
 class MetadatosObjeto:
     tamano: int
     content_type: str
@@ -31,3 +39,5 @@ class AlmacenEvidenciasPort(Protocol):
     async def leer_inicio(self, clave: str, n_bytes: int) -> bytes: ...
 
     async def eliminar(self, clave: str) -> None: ...
+
+    async def generar_descarga(self, clave: str, content_type: str, ttl: timedelta) -> DescargaPrefirmada: ...

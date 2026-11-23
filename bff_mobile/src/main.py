@@ -8,6 +8,7 @@ from src.presentation.routers import (
     activacion,
     auth,
     consentimientos,
+    dispositivos,
     evidencias,
     health,
     polizas,
@@ -33,6 +34,7 @@ app.include_router(consentimientos.router, prefix=settings.API_PREFIX)
 app.include_router(quotingengine.router, prefix=settings.API_PREFIX)
 app.include_router(siniestros.router, prefix=settings.API_PREFIX)
 app.include_router(evidencias.router, prefix=settings.API_PREFIX)
+app.include_router(dispositivos.router, prefix=settings.API_PREFIX)
 app.include_router(polizas.router, prefix=settings.API_PREFIX)
 
 

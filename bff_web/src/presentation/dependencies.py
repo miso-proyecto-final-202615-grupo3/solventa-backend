@@ -1,6 +1,11 @@
 from collections.abc import AsyncGenerator
 
 from fastapi import Header, HTTPException
+from src.presentation.cliente_jwt_validator import (
+    ClienteTokenConfiguracionError,
+    ClienteTokenError,
+    get_cognito_cliente_jwt_validator,
+)
 
 from src.infrastructure.gateways.identity_socios_gateway import (
     IdentitySociosGateway,
@@ -51,6 +56,17 @@ async def get_payments_service_gateway() -> AsyncGenerator[PaymentsServiceGatewa
         yield gateway
     finally:
         await gateway.aclose()
+
+
+def require_cliente(authorization: str | None = Header(default=None)) -> str:
+    if not authorization or not authorization.startswith("Bearer ") or not authorization[7:].strip():
+        raise HTTPException(status_code=401, detail="Autenticación requerida.")
+    try:
+        return get_cognito_cliente_jwt_validator().validar(authorization[7:])
+    except ClienteTokenConfiguracionError as exc:
+        raise HTTPException(status_code=503, detail="Autenticación no configurada.") from exc
+    except ClienteTokenError as exc:
+        raise HTTPException(status_code=401, detail="Token inválido o vencido.") from exc
 
 
 def require_auditor(authorization: str | None = Header(default=None)) -> str:

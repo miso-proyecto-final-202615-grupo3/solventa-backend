@@ -14,7 +14,12 @@ from botocore.client import BaseClient
 from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 
-from src.application.ports.almacen_evidencias import AlmacenNoDisponible, CargaPrefirmada, MetadatosObjeto
+from src.application.ports.almacen_evidencias import (
+    AlmacenNoDisponible,
+    CargaPrefirmada,
+    DescargaPrefirmada,
+    MetadatosObjeto,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +107,22 @@ class S3AlmacenEvidencias:
 
     async def eliminar(self, clave: str) -> None:
         await self._llamar(self._interno.delete_object, Bucket=self.bucket, Key=clave)
+
+    async def generar_descarga(self, clave: str, content_type: str, ttl: timedelta) -> DescargaPrefirmada:
+        """`GET` prefirmado de un solo objeto (HU4.2.1). S3 descifra con KMS usando los permisos del firmante."""
+        expira_en = self._reloj() + ttl
+        url = await self._llamar(
+            self._firma.generate_presigned_url,
+            ClientMethod="get_object",
+            Params={
+                "Bucket": self.bucket,
+                "Key": clave,
+                "ResponseContentType": content_type,
+                "ResponseContentDisposition": "inline",
+            },
+            ExpiresIn=int(ttl.total_seconds()),
+        )
+        return DescargaPrefirmada(url=url, expira_en=expira_en)
 
     async def _llamar(self, metodo, sin_404: bool = False, **kwargs):
         try:

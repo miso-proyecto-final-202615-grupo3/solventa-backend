@@ -14,6 +14,7 @@ from src.infrastructure.gateways.insuranceclaims_service_gateway import (
 from src.presentation.dependencies import get_cliente_id, get_insuranceclaims_service_gateway
 from src.presentation.errors import ApiError
 from src.presentation.schemas import (
+    DescargaEvidenciaResponse,
     EvidenciaResponse,
     RegistrarUbicacionResponse,
     SolicitudCargaRequest,
@@ -111,3 +112,25 @@ async def registrar_ubicacion(
     except ClaimsGatewayError as exc:
         raise ApiError.desde_servicio(exc.status_code, exc.detail) from exc
     return RegistrarUbicacionResponse.model_validate(body)
+
+
+@router.get(
+    "/{siniestro_id}/evidencias/{evidencia_id}/descarga",
+    response_model=DescargaEvidenciaResponse,
+    responses={**_RESPUESTAS, 409: {"description": "EVIDENCIA_NO_DISPONIBLE (la evidencia no está CARGADA)."}},
+)
+async def obtener_descarga(
+    siniestro_id: uuid.UUID,
+    evidencia_id: uuid.UUID,
+    correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
+    cliente_id: str = Depends(get_cliente_id),
+    gateway: InsuranceClaimsServiceGateway = Depends(get_insuranceclaims_service_gateway),
+) -> DescargaEvidenciaResponse:
+    """URL de lectura temporal (5 min) de una evidencia ya cargada (HU4.2.1). No se registra."""
+    try:
+        body = await gateway.obtener_descarga_evidencia(
+            cliente_id, str(siniestro_id), str(evidencia_id), _correlation(correlation_id)
+        )
+    except ClaimsGatewayError as exc:
+        raise ApiError.desde_servicio(exc.status_code, exc.detail) from exc
+    return DescargaEvidenciaResponse.model_validate(body)

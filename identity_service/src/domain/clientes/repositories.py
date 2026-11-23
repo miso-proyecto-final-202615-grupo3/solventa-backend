@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Optional
+from uuid import UUID
 
 from src.domain.clientes.entities import Cliente, ClienteId
 from src.domain.clientes.value_objects import EstadoKYC
@@ -19,7 +20,7 @@ class ClienteRepository(ABC):
 
     @abstractmethod
     async def guardar(
-        self, cliente: Cliente, consentimiento: ConsentimientoInicial
+        self, cliente: Cliente, consentimiento: ConsentimientoInicial, socio_id: UUID | None = None
     ) -> None:
         raise NotImplementedError
 

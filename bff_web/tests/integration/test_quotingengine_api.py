@@ -7,6 +7,8 @@ from src.infrastructure.gateways.quotingengine_service_gateway import (
     QuotingEngineServiceGateway,
 )
 from src.main import app
+
+pytestmark = pytest.mark.usefixtures("cliente_autenticado")
 from src.presentation.dependencies import get_quotingengine_service_gateway
 
 BASE_PATH = "/api/v1/bff-web"

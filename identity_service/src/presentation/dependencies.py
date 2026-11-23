@@ -38,6 +38,12 @@ from src.application.use_cases.iniciar_verificacion_kyc_aml_use_case import (
     IniciarVerificacionKycAmlUseCase,
 )
 from src.core.config import settings
+from src.application.use_cases.tokens_push_use_cases import (
+    EliminarTokenPushUseCase,
+    ListarDestinosPushUseCase,
+    RegistrarTokenPushUseCase,
+)
+from src.infrastructure.persistence.tokens_push_repository_impl import SqlAlchemyTokensPushRepository
 from src.core.database import SessionLocal
 from src.domain.clientes.repositories import ClienteRepository
 from src.domain.socios.repositories import SocioRepository
@@ -315,3 +321,27 @@ async def abrir_gestionar_consentimiento_use_case() -> AsyncGenerator[
             _consentimiento_cache,
             settings.CONSENT_TERMS_VERSION,
         )
+
+
+# --- HU4.2.2 · Tokens push ----------------------------------------------------------------------------
+
+def get_tokens_push_repository(db: AsyncSession = Depends(get_db)) -> SqlAlchemyTokensPushRepository:
+    return SqlAlchemyTokensPushRepository(db)
+
+
+def get_registrar_token_push_use_case(
+    repo: SqlAlchemyTokensPushRepository = Depends(get_tokens_push_repository),
+) -> RegistrarTokenPushUseCase:
+    return RegistrarTokenPushUseCase(repo)
+
+
+def get_eliminar_token_push_use_case(
+    repo: SqlAlchemyTokensPushRepository = Depends(get_tokens_push_repository),
+) -> EliminarTokenPushUseCase:
+    return EliminarTokenPushUseCase(repo)
+
+
+def get_listar_destinos_push_use_case(
+    repo: SqlAlchemyTokensPushRepository = Depends(get_tokens_push_repository),
+) -> ListarDestinosPushUseCase:
+    return ListarDestinosPushUseCase(repo)

@@ -12,3 +12,6 @@ kmsKey:
 
 config:
   ENVIRONMENT: prod
+
+extraSecrets:
+  existingSecret: solventa-prod-app-secrets

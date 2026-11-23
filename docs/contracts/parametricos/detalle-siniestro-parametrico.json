@@ -1,0 +1,18 @@
+{
+  "siniestro_id": "5e8a1c2d-3f4b-4a6c-9d7e-8f9a0b1c2d3e",
+  "numero": "SIN-2026-5E8A1C2D",
+  "estado": "APROBADO",
+  "poliza_id": "8d2b6c1e-4a7f-4f0e-9a51-0c6b1d9e2f10",
+  "poliza_numero": "SLV-2026-PARAM1",
+  "tipo": "LLUVIA_EXTREMA",
+  "ocurrido_en": "2026-11-21T20:00:00Z",
+  "reportado_en": "2026-11-21T20:00:03Z",
+  "canal": "PARAMETRICO",
+  "ubicacion": null,
+  "evidencias": [],
+  "indemnizacion": {
+    "monto": "300000.00",
+    "moneda": "COP",
+    "estado": "PAGO_SOLICITADO"
+  }
+}

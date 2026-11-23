@@ -12,6 +12,7 @@ BASE = "/api/v1/bff-web/socios"
 class GatewaySocios:
     actor_id = None
     payload = None
+    key_call = None
 
     async def registrar_socio(self, payload, actor_id, correlation_id=None):
         self.payload = payload
@@ -22,6 +23,13 @@ class GatewaySocios:
             "estado": "PENDIENTE",
             "creado_en": "2026-11-16T15:00:00Z",
         }
+
+    async def api_keys(self, method, socio_id, key_id=None, actor_id=None):
+        self.key_call = (method, socio_id, key_id)
+        self.actor_id = actor_id
+        if method == "POST":
+            return {"api_key_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "fecha_generacion": "2026-11-18T00:00:00Z", "api_key": "secreta"}
+        return None if method == "DELETE" else []
 
 
 @pytest.fixture
@@ -73,3 +81,22 @@ async def test_rechaza_payload_invalido(socios_client):
     )
 
     assert response.status_code == 422
+
+
+async def test_admin_gestiona_api_keys(socios_client):
+    client, gateway = socios_client
+    socio = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    key = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+    created = await client.post(f"{BASE}/{socio}/api-keys")
+    assert created.status_code == 201
+    assert created.headers["cache-control"] == "no-store"
+    assert created.json()["api_key"] == "secreta"
+    assert gateway.key_call == ("POST", socio, None)
+    assert gateway.actor_id == "operator-sub"
+    assert (await client.delete(f"{BASE}/{socio}/api-keys/{key}")).status_code == 204
+    assert gateway.key_call == ("DELETE", socio, key)
+
+
+async def test_claves_requieren_admin(async_client):
+    response = await async_client.post(f"{BASE}/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/api-keys")
+    assert response.status_code == 401

@@ -74,6 +74,13 @@ def test_rechaza_token_sin_permisos_para_administrar_socios(validator, claims):
         validator.validar(token(**claims))
 
 
+def test_rechaza_token_sin_vencimiento(validator):
+    claims = jwt.decode(token(), options={"verify_signature": False})
+    del claims["exp"]
+    with pytest.raises(SociosAdminTokenError):
+        validator.validar(jwt.encode(claims, PRIVATE_KEY, algorithm="RS256"))
+
+
 def test_falla_cerrado_si_falta_configuracion(monkeypatch):
     monkeypatch.setattr(settings, "COGNITO_USER_POOL_ID", "")
     with pytest.raises(SociosAdminTokenConfiguracionError):

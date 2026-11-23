@@ -5,6 +5,7 @@ from decimal import Decimal
 
 from src.domain.siniestros.enums import CanalReporte
 from src.domain.siniestros.ubicacion import FuenteUbicacion, UbicacionSiniestro
+from src.domain.siniestros.errores import TransicionInvalida
 
 
 @dataclass
@@ -16,7 +17,26 @@ class EventoExterno:
     ocurrido_en: datetime
     recibido_en: datetime
     payload_referencia: str
+    estado: str = "RECIBIDO"
+    intentos: int = 0
+    ultimo_error: str | None = None
+    datos: dict | None = None
+    resultado: list | None = None
+    procesado_en: datetime | None = None
     evento_externo_id: uuid.UUID = field(default_factory=uuid.uuid4)
+
+
+@dataclass
+class EventoOutbox:
+    tipo: str
+    agregado_id: uuid.UUID
+    payload: dict
+    estado: str = "PENDIENTE"
+    intentos: int = 0
+    ultimo_error: str | None = None
+    creado_en: datetime | None = None
+    publicado_en: datetime | None = None
+    evento_id: uuid.UUID = field(default_factory=uuid.uuid4)
 
 
 @dataclass
@@ -65,6 +85,7 @@ class Siniestro:
     ubicacion_fuente: str | None = None
     ubicacion_capturada_en: datetime | None = None
     ubicacion_actualizada_en: datetime | None = None
+    estado_actualizado_en: datetime | None = None
     siniestro_id: uuid.UUID = field(default_factory=uuid.uuid4)
 
     @property
@@ -87,6 +108,21 @@ class Siniestro:
         self.ubicacion_fuente = ubicacion.fuente.value
         self.ubicacion_capturada_en = ubicacion.capturada_en
         self.ubicacion_actualizada_en = ahora
+
+    def cambiar_estado(self, nuevo: str, ahora: datetime) -> bool:
+        """Aplica la máquina de estados del siniestro. Repetir el estado es idempotente."""
+        if nuevo == self.estado:
+            return False
+        transiciones = {
+            "REPORTADO": {"EN_EVALUACION"},
+            "EN_EVALUACION": {"APROBADO", "RECHAZADO"},
+            "APROBADO": {"PAGADO"},
+        }
+        if nuevo not in transiciones.get(self.estado, set()):
+            raise TransicionInvalida("El siniestro no admite este cambio de estado.")
+        self.estado = nuevo
+        self.estado_actualizado_en = ahora
+        return True
 
 
 @dataclass

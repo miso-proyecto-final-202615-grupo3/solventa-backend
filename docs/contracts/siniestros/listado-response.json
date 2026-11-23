@@ -1,0 +1,29 @@
+{
+  "siniestros": [
+    {
+      "siniestro_id": "d7a1f3c9-2e4b-4c6d-8f10-3a5b7c9d1e22",
+      "numero": "SIN-2026-D7A1F3C9",
+      "estado": "REPORTADO",
+      "poliza_id": "4b9e2d71-6c3a-4f85-9d02-7e1a3c5b8f44",
+      "poliza_numero": "SLV-2026-11207",
+      "tipo": "DANO_DISPOSITIVO",
+      "ocurrido_en": "2026-11-14T15:10:00Z",
+      "reportado_en": "2026-11-14T15:42:37Z",
+      "canal": "MOVIL"
+    },
+    {
+      "siniestro_id": "c41f0e2a-9b7d-4e55-8a0c-2f6d1b3e9a77",
+      "numero": "SIN-2026-C41F0E2A",
+      "estado": "REPORTADO",
+      "poliza_id": "8d2b6c1e-4a7f-4f0e-9a51-0c6b1d9e2f10",
+      "poliza_numero": "SLV-2026-08341",
+      "tipo": "GASTO_MEDICO",
+      "ocurrido_en": "2026-11-10T19:30:00Z",
+      "reportado_en": "2026-11-10T20:02:11Z",
+      "canal": "MOVIL"
+    }
+  ],
+  "pagina": 1,
+  "tamano": 20,
+  "total": 2
+}

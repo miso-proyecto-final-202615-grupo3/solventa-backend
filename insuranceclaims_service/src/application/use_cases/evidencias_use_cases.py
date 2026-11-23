@@ -11,12 +11,18 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.application.ports.almacen_evidencias import AlmacenEvidenciasPort, AlmacenNoDisponible, CargaPrefirmada
+from src.application.ports.almacen_evidencias import (
+    AlmacenEvidenciasPort,
+    AlmacenNoDisponible,
+    CargaPrefirmada,
+    DescargaPrefirmada,
+)
 from src.domain.siniestros.catalogo import CatalogoTiposSiniestro
-from src.domain.siniestros.entities import Siniestro
+from src.domain.siniestros.entities import Indemnizacion, Siniestro
 from src.domain.siniestros.errores import (
     CargaExpirada,
     CargaNoEncontrada,
+    EvidenciaNoDisponible,
     EvidenciaNoEncontrada,
     EvidenciaRechazada,
     FechaInvalida,
@@ -33,7 +39,7 @@ from src.domain.siniestros.evidencias import (
     clave_objeto,
 )
 from src.domain.siniestros.politica_evidencias import PoliticaEvidencias
-from src.domain.siniestros.repositories import EvidenciaRepository, SiniestroRepository
+from src.domain.siniestros.repositories import EvidenciaRepository, IndemnizacionRepository, SiniestroRepository
 from src.domain.siniestros.ubicacion import UbicacionSiniestro
 
 logger = logging.getLogger(__name__)
@@ -67,6 +73,7 @@ class SolicitudCargaResultado:
 class SiniestroDetalle:
     siniestro: Siniestro
     evidencias: list[EvidenciaSiniestro]
+    indemnizacion: Indemnizacion | None = None
 
 
 class SolicitarCargaEvidenciaUseCase:
@@ -268,10 +275,17 @@ class RegistrarUbicacionUseCase:
 class ConsultarDetalleSiniestroUseCase:
     """Siniestro del cliente con su ubicación y sus evidencias vigentes (sin las vencidas)."""
 
-    def __init__(self, siniestros: SiniestroRepository, evidencias: EvidenciaRepository, reloj: Callable[[], datetime]) -> None:
+    def __init__(
+        self,
+        siniestros: SiniestroRepository,
+        evidencias: EvidenciaRepository,
+        reloj: Callable[[], datetime],
+        indemnizaciones: IndemnizacionRepository | None = None,
+    ) -> None:
         self.siniestros = siniestros
         self.evidencias = evidencias
         self.reloj = reloj
+        self.indemnizaciones = indemnizaciones
 
     async def ejecutar(self, siniestro_id: uuid.UUID, cliente_id: uuid.UUID) -> SiniestroDetalle:
         siniestro = await self.siniestros.obtener_de_cliente(siniestro_id, cliente_id)
@@ -282,4 +296,53 @@ class ConsultarDetalleSiniestroUseCase:
             e for e in await self.evidencias.listar_de_siniestro(siniestro_id)
             if e.estado != EstadoEvidencia.EXPIRADA.value and not e.vencida(ahora)
         ]
-        return SiniestroDetalle(siniestro, evidencias)
+        # HU4.2.3: la compensación del siniestro paramétrico (o de uno ya liquidado).
+        indemnizacion = (
+            await self.indemnizaciones.obtener_de_siniestro(siniestro_id) if self.indemnizaciones is not None else None
+        )
+        return SiniestroDetalle(siniestro, evidencias, indemnizacion)
+
+
+@dataclass(frozen=True)
+class DescargaEvidencia:
+    evidencia: EvidenciaSiniestro
+    descarga: DescargaPrefirmada
+
+
+class ObtenerDescargaEvidenciaUseCase:
+    """URL de lectura temporal de una evidencia `CARGADA` del cliente (HU4.2.1, decisiones C4–C7).
+
+    Un siniestro o una evidencia ajenos responden igual que inexistentes (404). Nunca registra la URL.
+    """
+
+    def __init__(
+        self,
+        siniestros: SiniestroRepository,
+        evidencias: EvidenciaRepository,
+        almacen: AlmacenEvidenciasPort,
+        ttl: timedelta,
+    ) -> None:
+        self.siniestros = siniestros
+        self.evidencias = evidencias
+        self.almacen = almacen
+        self.ttl = ttl
+
+    async def ejecutar(
+        self, siniestro_id: uuid.UUID, evidencia_id: uuid.UUID, cliente_id: uuid.UUID, correlation_id: str
+    ) -> DescargaEvidencia:
+        if await self.siniestros.obtener_de_cliente(siniestro_id, cliente_id) is None:
+            raise SiniestroNoEncontrado()
+        evidencia = await self.evidencias.obtener_de_siniestro(evidencia_id, siniestro_id)
+        if evidencia is None:
+            raise EvidenciaNoEncontrada()
+        if evidencia.estado != EstadoEvidencia.CARGADA.value:
+            raise EvidenciaNoDisponible()
+        try:
+            descarga = await self.almacen.generar_descarga(evidencia.objeto_clave, evidencia.content_type, self.ttl)
+        except AlmacenNoDisponible as exc:
+            raise ServicioNoDisponible() from exc
+        logger.info(
+            "evidencia_descarga siniestro_id=%s evidencia_id=%s correlation_id=%s",
+            siniestro_id, evidencia_id, correlation_id,
+        )
+        return DescargaEvidencia(evidencia, descarga)

@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, Header, Response, status
 
 from src.application.use_cases.evidencias_use_cases import (
     ConfirmarCargaEvidenciaUseCase,
+    ObtenerDescargaEvidenciaUseCase,
     RegistrarUbicacionUseCase,
     SolicitarCargaEvidenciaUseCase,
     SolicitudCargaCmd,
@@ -15,11 +16,13 @@ from src.application.use_cases.evidencias_use_cases import (
 from src.domain.siniestros.ubicacion import UbicacionSiniestro
 from src.presentation.dependencies import (
     get_confirmar_carga_use_case,
+    get_obtener_descarga_evidencia_use_case,
     get_registrar_ubicacion_use_case,
     get_solicitar_carga_use_case,
 )
 from src.presentation.schemas.evidencias import (
     CargaResponse,
+    DescargaEvidenciaResponse,
     EvidenciaResponse,
     RegistrarUbicacionResponse,
     SolicitudCargaRequest,
@@ -118,4 +121,25 @@ async def registrar_ubicacion(
     return RegistrarUbicacionResponse(
         ubicacion=UbicacionResponse.desde(siniestro),
         actualizada_en=siniestro.ubicacion_actualizada_en,
+    )
+
+
+@router.get("/{siniestro_id}/evidencias/{evidencia_id}/descarga", response_model=DescargaEvidenciaResponse)
+async def obtener_descarga(
+    siniestro_id: uuid.UUID,
+    evidencia_id: uuid.UUID,
+    cliente_id: uuid.UUID = Header(alias="X-Cliente-Id"),
+    correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
+    use_case: ObtenerDescargaEvidenciaUseCase = Depends(get_obtener_descarga_evidencia_use_case),
+) -> DescargaEvidenciaResponse:
+    """URL de lectura temporal de una evidencia `CARGADA` del cliente (HU4.2.1)."""
+    resultado = await use_case.ejecutar(siniestro_id, evidencia_id, cliente_id, _correlation(correlation_id))
+    evidencia = resultado.evidencia
+    return DescargaEvidenciaResponse(
+        evidencia_id=evidencia.evidencia_id,
+        tipo=evidencia.tipo,
+        content_type=evidencia.content_type,
+        tamano_bytes=evidencia.tamano_bytes,
+        url=resultado.descarga.url,
+        expira_en=resultado.descarga.expira_en,
     )

@@ -78,6 +78,24 @@ class SocioModel(Base):
     registrado_por: Mapped[str] = mapped_column(String(100), nullable=False)
 
 
+class SocioApiKeyModel(Base):
+    __tablename__ = "socios_api_keys"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    socio_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("socios.id"), nullable=False, index=True)
+    valor_cifrado: Mapped[str] = mapped_column(Text, nullable=False)
+    huella: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    generado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class ClienteSocioModel(Base):
+    __tablename__ = "clientes_socios"
+
+    cliente_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("clientes.id"), primary_key=True)
+    socio_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("socios.id"), primary_key=True)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
 class EventoSocioModel(Base):
     __tablename__ = "eventos_socio"
 
@@ -171,6 +189,14 @@ class DispositivoVinculadoModel(Base):
             postgresql_where=text("estado = 'ACTIVO'"),
             sqlite_where=text("estado = 'ACTIVO'"),
         ),
+        # HU4.2.2: un token push solo puede pertenecer a un dispositivo (CA3).
+        Index(
+            "uq_dispositivo_push_token",
+            "push_token",
+            unique=True,
+            postgresql_where=text("push_token IS NOT NULL"),
+            sqlite_where=text("push_token IS NOT NULL"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -188,6 +214,9 @@ class DispositivoVinculadoModel(Base):
     )
     revocado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     ultimo_acceso_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    push_token: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    push_plataforma: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    push_actualizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class SesionActivacionModel(Base):

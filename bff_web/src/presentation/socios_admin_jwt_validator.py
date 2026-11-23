@@ -42,7 +42,7 @@ class CognitoSociosAdminJwtValidator:
                 key.key,
                 algorithms=["RS256"],
                 issuer=self.issuer,
-                options={"verify_aud": False},
+                options={"verify_aud": False, "require": ["exp", "iss", "sub"]},
             )
         except jwt.PyJWTError as exc:
             raise SociosAdminTokenError("Token inválido o vencido.") from exc

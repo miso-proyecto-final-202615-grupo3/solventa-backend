@@ -33,7 +33,7 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "backend-service.fullname" . }}
-{{ if or .Values.database.enabled .Values.sqs.enabled .Values.bucket.enabled .Values.cognito.enabled .Values.redis.enabled .Values.kmsKey.enabled (and (hasKey .Values "livenessAdapter") .Values.livenessAdapter.enabled) (and (hasKey .Values "audit") .Values.audit.enabled) }}
+{{ if or .Values.database.enabled .Values.sqs.enabled .Values.bucket.enabled .Values.cognito.enabled .Values.redis.enabled .Values.kmsKey.enabled (and (hasKey .Values "livenessAdapter") .Values.livenessAdapter.enabled) (and (hasKey .Values "audit") .Values.audit.enabled) (and (hasKey .Values "partners") .Values.partners.enabled) (and (hasKey .Values "extraSecrets") .Values.extraSecrets.enabled) }}
           env:
 {{ if .Values.database.enabled }}
             - name: {{ .Values.database.secretKey }}
@@ -75,6 +75,13 @@ spec:
                   key: {{ .Values.audit.secretKey }}
                   optional: true
 {{ end }}
+{{ if and (hasKey .Values "partners") .Values.partners.enabled }}
+            - name: {{ .Values.partners.secretKey }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.partners.existingSecret }}
+                  key: {{ .Values.partners.secretKey }}
+{{ end }}
 {{ if .Values.redis.enabled }}
 {{- range .Values.redis.secretKeys }}
             - name: {{ . }}
@@ -98,6 +105,18 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: {{ $.Values.livenessAdapter.existingSecret }}
+                  key: {{ .secretKey }}
+                  optional: {{ .optional | default false }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if hasKey .Values "extraSecrets" }}
+{{- if .Values.extraSecrets.enabled }}
+{{- range .Values.extraSecrets.secretKeys }}
+            - name: {{ .name }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.extraSecrets.existingSecret }}
                   key: {{ .secretKey }}
                   optional: {{ .optional | default false }}
 {{- end }}

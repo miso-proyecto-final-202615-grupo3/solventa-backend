@@ -162,7 +162,7 @@ def _datos_cliente():
         "apellidos": "Prueba Sistema",
         "tipo_documento": "CC",
         "numero_identificacion": str(uuid.uuid4().int)[:10],
-        "correo": f"system-{identificador}@example.com",
+        "correo": f"cliente-prueba-{identificador}@example.com",
         "password": "SystemTest123!",
         "consentimiento_datos": True,
         "fecha_nacimiento": "1990-05-15",
@@ -203,8 +203,8 @@ def _registrar_y_autenticar_cliente():
 
 
 def _cabeceras_autorizacion():
-    _verificar(bool(TOKEN_ACCESO),
-               "existe un token de acceso para la solicitud")
+    if not TOKEN_ACCESO:
+        raise ValueError("No hay token de acceso para autorizar la solicitud.")
     return {"Authorization": f"Bearer {TOKEN_ACCESO}"}
 
 

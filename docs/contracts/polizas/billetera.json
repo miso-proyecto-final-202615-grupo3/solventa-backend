@@ -1,0 +1,30 @@
+{
+  "polizas": [
+    {
+      "poliza_id": "8d2b6c1e-4a7f-4f0e-9a51-0c6b1d9e2f10",
+      "numero": "SLV-2026-08341",
+      "estado": "EMITIDA",
+      "ramo": "VIDA",
+      "producto": {"codigo": "SEGURO_VIDA_HIPOTECARIO", "nombre": "Seguro de vida hipotecario"},
+      "vigencia_desde": "2026-03-12T00:00:00Z",
+      "vigencia_hasta": "2027-03-12T00:00:00Z",
+      "emitida_en": "2026-03-12T15:20:00Z",
+      "prima_total": "120000.00",
+      "coberturas": [
+        {
+          "cobertura_id": "5f0c1a6e-2b3d-4c8e-9a10-7d6e5f4a3b21",
+          "nombre": "Muerte por cualquier causa",
+          "limite_asegurado": "200000000.00",
+          "deducible": "0.00"
+        },
+        {
+          "cobertura_id": "6a1d2b7f-3c4e-4d9f-8b21-8e7f6a5b4c32",
+          "nombre": null,
+          "limite_asegurado": "50000000.00",
+          "deducible": "0.00"
+        }
+      ]
+    }
+  ],
+  "sincronizado_en": "2026-11-18T14:05:00Z"
+}

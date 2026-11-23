@@ -20,6 +20,7 @@ SINIESTRO = {
     "tipo": "GASTO_MEDICO",
     "ocurrido_en": "2026-11-10T19:30:00Z",
     "reportado_en": "2026-11-10T20:02:11Z",
+    "canal": "MOVIL",
 }
 DESCRIPCION = "Me atendieron en urgencias durante el viaje."
 

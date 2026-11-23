@@ -73,10 +73,42 @@ config:
   EVIDENCIAS_PREFIX: siniestros/
   FOTO_MAX_MB: "5"
   VIDEO_MAX_MB: "50"
+  # HU4.2.2: notificaciones push por SNS Mobile Push (FCM v1). Credenciales por EKS Pod Identity.
+  NOTIFICACIONES_HABILITADAS: "true"
+  NOTIFICADOR_PUSH: sns
+  IDENTITY_SERVICE_URL: http://identity-service:80
+  OUTBOX_INTERVALO_SEGUNDOS: "2"
+  OUTBOX_MAX_INTENTOS: "5"
+  EVENTOS_PARAMETRICOS_HABILITADOS: "true"
+  EVENTOS_INTERVALO_SEGUNDOS: "2"
+  EVENTOS_MAX_INTENTOS: "5"
+  SOLICITUDES_PAGO: registro
+  EVENTOS_BUS: sqs
+
+# HU4.2.2: secretos opcionales (si faltan, el servicio arranca y el operador responde 403).
+extraSecrets:
+  enabled: true
+  existingSecret: secret-name
+  secretKeys:
+    - name: SNS_PLATFORM_APPLICATION_ARN
+      secretKey: SNS_PLATFORM_APPLICATION_ARN
+      optional: true
+    - name: OPERADOR_TOKEN
+      secretKey: INSURANCECLAIMS_OPERADOR_TOKEN
+      optional: true
+    - name: EVENTOS_FUENTE_TOKEN
+      secretKey: INSURANCECLAIMS_EVENTOS_FUENTE_TOKEN
+      optional: true
+    - name: EVENTOS_PARAMETRICOS_QUEUE_URL
+      secretKey: EVENTOS_PARAMETRICOS_QUEUE_URL
+      optional: true
+    - name: EVENTOS_PARAMETRICOS_DLQ_URL
+      secretKey: EVENTOS_PARAMETRICOS_DLQ_URL
+      optional: true
 
 resources:
   requests:
-    cpu: 100m
+    cpu: 200m
     memory: 128Mi
   limits:
     cpu: 500m

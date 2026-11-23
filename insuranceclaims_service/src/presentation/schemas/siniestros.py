@@ -34,6 +34,8 @@ class SiniestroResponse(BaseModel):
     tipo: str
     ocurrido_en: datetime
     reportado_en: datetime
+    # HU4.2.3: MOVIL (reportado por el cliente) o PARAMETRICO (creado automáticamente por un evento).
+    canal: str = "MOVIL"
 
     @field_serializer("ocurrido_en", "reportado_en")
     def _serializar_utc(self, valor: datetime) -> str:
@@ -50,6 +52,7 @@ class SiniestroResponse(BaseModel):
             tipo=siniestro.tipo,
             ocurrido_en=siniestro.ocurrido_en,
             reportado_en=siniestro.reportado_en,
+            canal=siniestro.canal,
         )
 
 
@@ -100,3 +103,12 @@ class PolizaElegibleResponse(BaseModel):
 
 class PolizasElegiblesResponse(BaseModel):
     polizas: list[PolizaElegibleResponse]
+
+
+class SiniestrosResponse(BaseModel):
+    """`GET /siniestros` (HU4.2.1): página de siniestros del cliente, más reciente primero."""
+
+    siniestros: list[SiniestroResponse]
+    pagina: int
+    tamano: int
+    total: int

@@ -8,9 +8,10 @@ from src.infrastructure.gateways.identity_service_gateway import (
 )
 from src.presentation.dependencies import get_identity_service_gateway
 router = APIRouter(prefix="/clientes", tags=["Clientes"])
+public_router = APIRouter(prefix="/clientes", tags=["Clientes"])
 
 
-@router.post(
+@public_router.post(
     "/registro",
     status_code=status.HTTP_201_CREATED,
 )
@@ -29,7 +30,7 @@ async def registrar_cliente(
         ) from exc
 
 
-@router.post(
+@public_router.post(
     "/autenticar",
     status_code=status.HTTP_200_OK,
 )
@@ -39,6 +40,41 @@ async def autenticar_cliente(
 ) -> dict:
     try:
         return await gateway.autenticar_cliente(
+            await request.body(),
+            request.headers.get("content-type", "application/json"),
+        )
+    except IdentityGatewayError as exc:
+        raise HTTPException(
+            status_code=exc.status_code, detail=exc.detail
+        ) from exc
+
+
+@public_router.post("/recuperar-clave", status_code=status.HTTP_202_ACCEPTED)
+async def solicitar_recuperacion_clave(
+    request: Request,
+    gateway: IdentityServiceGateway = Depends(get_identity_service_gateway),
+) -> dict:
+    try:
+        return await gateway.solicitar_recuperacion_clave(
+            await request.body(),
+            request.headers.get("content-type", "application/json"),
+        )
+    except IdentityGatewayError as exc:
+        raise HTTPException(
+            status_code=exc.status_code, detail=exc.detail
+        ) from exc
+
+
+@public_router.post(
+    "/recuperar-clave/confirmar",
+    status_code=status.HTTP_200_OK,
+)
+async def confirmar_recuperacion_clave(
+    request: Request,
+    gateway: IdentityServiceGateway = Depends(get_identity_service_gateway),
+) -> dict:
+    try:
+        return await gateway.confirmar_recuperacion_clave(
             await request.body(),
             request.headers.get("content-type", "application/json"),
         )

@@ -41,6 +41,42 @@ class IdentityServiceGateway:
             "/api/v1/identity-service/clientes/autenticar", payload, content_type
         )
 
+    async def solicitar_recuperacion_clave(
+        self, payload: bytes, content_type: str = "application/json"
+    ) -> dict:
+        return await self._post(
+            "/api/v1/identity-service/clientes/recuperar-clave",
+            payload,
+            content_type,
+        )
+
+    async def confirmar_recuperacion_clave(
+        self, payload: bytes, content_type: str = "application/json"
+    ) -> dict:
+        return await self._post(
+            "/api/v1/identity-service/clientes/recuperar-clave/confirmar",
+            payload,
+            content_type,
+        )
+
+    async def solicitar_recuperacion_clave(
+        self, payload: bytes, content_type: str = "application/json"
+    ) -> dict:
+        return await self._post(
+            "/api/v1/identity-service/clientes/recuperar-clave",
+            payload,
+            content_type,
+        )
+
+    async def confirmar_recuperacion_clave(
+        self, payload: bytes, content_type: str = "application/json"
+    ) -> dict:
+        return await self._post(
+            "/api/v1/identity-service/clientes/recuperar-clave/confirmar",
+            payload,
+            content_type,
+        )
+
     async def actualizar_consentimiento(
         self,
         cliente_id: str,

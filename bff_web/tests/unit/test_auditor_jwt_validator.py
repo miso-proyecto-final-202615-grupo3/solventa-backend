@@ -78,6 +78,13 @@ def test_rechaza_firma_de_otra_llave(validator):
         validator.validar(token(key=OTHER_KEY))
 
 
+def test_rechaza_token_sin_vencimiento(validator):
+    claims = jwt.decode(token(), options={"verify_signature": False})
+    del claims["exp"]
+    with pytest.raises(AuditorTokenError):
+        validator.validar(jwt.encode(claims, PRIVATE_KEY, algorithm="RS256"))
+
+
 def test_falla_cerrado_si_falta_configuracion(monkeypatch):
     monkeypatch.setattr(settings, "COGNITO_USER_POOL_ID", "")
     with pytest.raises(AuditorTokenConfiguracionError):

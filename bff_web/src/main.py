@@ -1,9 +1,10 @@
 import logging
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 
 from src.core.config import settings
 from src.core.telemetry import setup_telemetry
+from src.presentation.dependencies import require_cliente
 from src.presentation.routers import (
     auditoria_emision,
     clientes,
@@ -13,6 +14,7 @@ from src.presentation.routers import (
     pagos,
     polizas,
     quotingengine,
+    socios,
 )
 
 logger = logging.getLogger(__name__)
@@ -40,13 +42,16 @@ async def log_internal_errors(request, call_next):
         raise
 
 app.include_router(health.router)
-app.include_router(clientes.router, prefix=settings.API_PREFIX)
-app.include_router(consentimientos.router, prefix=settings.API_PREFIX)
-app.include_router(quotingengine.router, prefix=settings.API_PREFIX)
-app.include_router(polizas.router, prefix=settings.API_PREFIX)
-app.include_router(insurancepolicies.router, prefix=settings.API_PREFIX)
-app.include_router(pagos.router, prefix=settings.API_PREFIX)
+app.include_router(clientes.public_router, prefix=settings.API_PREFIX)
+app.include_router(clientes.router, prefix=settings.API_PREFIX, dependencies=[Depends(require_cliente)])
+app.include_router(consentimientos.router, prefix=settings.API_PREFIX, dependencies=[Depends(require_cliente)])
+app.include_router(quotingengine.public_router, prefix=settings.API_PREFIX)
+app.include_router(quotingengine.router, prefix=settings.API_PREFIX, dependencies=[Depends(require_cliente)])
+app.include_router(polizas.router, prefix=settings.API_PREFIX, dependencies=[Depends(require_cliente)])
+app.include_router(insurancepolicies.router, prefix=settings.API_PREFIX, dependencies=[Depends(require_cliente)])
+app.include_router(pagos.router, prefix=settings.API_PREFIX, dependencies=[Depends(require_cliente)])
 app.include_router(auditoria_emision.router, prefix=settings.API_PREFIX)
+app.include_router(socios.router, prefix=settings.API_PREFIX)
 
 
 @app.get("/")

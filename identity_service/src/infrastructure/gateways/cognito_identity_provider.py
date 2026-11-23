@@ -9,6 +9,9 @@ from src.application.ports.identity_provider import (
     IdentityProvider,
     IdentityProviderError,
     InvalidCredentialsError,
+    PasswordRecoveryCodeError,
+    PasswordRecoveryPasswordError,
+    PasswordRecoveryRateLimitError,
 )
 from src.core.config import settings
 
@@ -35,6 +38,13 @@ class CognitoIdentityProvider(IdentityProvider):
         self._client = boto3.client("cognito-idp", region_name=self.region_name)
 
     async def registrar_usuario(self, correo: str, password: str) -> None:
+        await self._registrar(correo, password, verificar_correo=True)
+
+    async def registrar_prospecto(self, correo: str, password: str) -> None:
+        await self._registrar(correo, password, verificar_correo=False)
+
+    async def _registrar(self, correo: str, password: str, verificar_correo: bool) -> None:
+        creado = False
         try:
             await run_in_threadpool(
                 self._client.admin_create_user,
@@ -42,10 +52,11 @@ class CognitoIdentityProvider(IdentityProvider):
                 Username=correo,
                 UserAttributes=[
                     {"Name": "email", "Value": correo},
-                    {"Name": "email_verified", "Value": "true"},
+                    {"Name": "email_verified", "Value": str(verificar_correo).lower()},
                 ],
                 MessageAction="SUPPRESS",
             )
+            creado = True
             await run_in_threadpool(
                 self._client.admin_set_user_password,
                 UserPoolId=self.user_pool_id,
@@ -55,6 +66,8 @@ class CognitoIdentityProvider(IdentityProvider):
             )
         except (ClientError, BotoCoreError) as exc:
             logger.exception("No se pudo registrar el usuario en Cognito.")
+            if creado:
+                await self.eliminar_usuario(correo)
             raise IdentityProviderError(str(exc)) from exc
 
     async def autenticar_usuario(
@@ -156,3 +169,72 @@ class CognitoIdentityProvider(IdentityProvider):
         except (ClientError, BotoCoreError):
             logger.exception("No se pudo eliminar el usuario de Cognito.")
             pass
+
+    async def solicitar_recuperacion_clave(self, correo: str) -> None:
+        try:
+            await run_in_threadpool(
+                self._client.forgot_password,
+                ClientId=self.client_id,
+                Username=correo,
+            )
+        except ClientError as exc:
+            codigo = exc.response.get("Error", {}).get("Code", "")
+            if codigo in (
+                "UserNotFoundException",
+                "InvalidParameterException",
+                "CodeDeliveryFailureException",
+            ):
+                return
+            if codigo in ("LimitExceededException", "TooManyRequestsException"):
+                raise PasswordRecoveryRateLimitError(
+                    "Demasiados intentos de recuperación. Intenta más tarde."
+                ) from exc
+            logger.warning("Cognito rechazó recuperación de clave (%s).", codigo)
+            raise IdentityProviderError(
+                "No se pudo procesar la recuperación de contraseña."
+            ) from exc
+        except BotoCoreError as exc:
+            logger.warning("Error de AWS al solicitar recuperación de clave.")
+            raise IdentityProviderError(
+                "No se pudo procesar la recuperación de contraseña."
+            ) from exc
+
+    async def confirmar_recuperacion_clave(
+        self, correo: str, codigo: str, nueva_clave: str
+    ) -> None:
+        try:
+            await run_in_threadpool(
+                self._client.confirm_forgot_password,
+                ClientId=self.client_id,
+                Username=correo,
+                ConfirmationCode=codigo,
+                Password=nueva_clave,
+            )
+        except ClientError as exc:
+            codigo_error = exc.response.get("Error", {}).get("Code", "")
+            if codigo_error in (
+                "CodeMismatchException",
+                "ExpiredCodeException",
+                "UserNotFoundException",
+                "NotAuthorizedException",
+            ):
+                raise PasswordRecoveryCodeError(
+                    "El código es inválido o venció. Solicita uno nuevo."
+                ) from exc
+            if codigo_error == "InvalidPasswordException":
+                raise PasswordRecoveryPasswordError(
+                    "La contraseña no cumple la política de Cognito."
+                ) from exc
+            if codigo_error in ("LimitExceededException", "TooManyRequestsException"):
+                raise PasswordRecoveryRateLimitError(
+                    "Demasiados intentos. Intenta más tarde."
+                ) from exc
+            logger.warning("Cognito rechazó confirmación de recuperación (%s).", codigo_error)
+            raise IdentityProviderError(
+                "No se pudo actualizar la contraseña."
+            ) from exc
+        except BotoCoreError as exc:
+            logger.warning("Error de AWS al confirmar recuperación de clave.")
+            raise IdentityProviderError(
+                "No se pudo actualizar la contraseña."
+            ) from exc

@@ -149,6 +149,28 @@ services:
       S3_PUBLIC_ENDPOINT_URL: ${S3_PUBLIC_ENDPOINT_URL:-http://10.0.2.2:9000}
       S3_BUCKET_NAME: ${MINIO_BUCKET:-solventa-local-storage}
       EVIDENCIAS_SSE: AES256
+      # HU4.2.2: notificaciones push. Apagadas por defecto; NOTIFICADOR_PUSH=registro solo deja el envío en el log.
+      # Para SNS real en local, ver docs/hu4.2.2-notificaciones.md (perfil de ~/.aws en un override local).
+      OPERADOR_TOKEN: ${OPERADOR_TOKEN:-}
+      NOTIFICACIONES_HABILITADAS: "${NOTIFICACIONES_HABILITADAS:-false}"
+      NOTIFICADOR_PUSH: ${NOTIFICADOR_PUSH:-registro}
+      SNS_PLATFORM_APPLICATION_ARN: ${SNS_PLATFORM_APPLICATION_ARN:-}
+      SNS_AWS_PROFILE: ${SNS_AWS_PROFILE:-}
+      IDENTITY_SERVICE_URL: ${IDENTITY_SERVICE_URL:-http://identity_service:8000}
+      OUTBOX_INTERVALO_SEGUNDOS: ${OUTBOX_INTERVALO_SEGUNDOS:-2}
+      OUTBOX_MAX_INTENTOS: ${OUTBOX_MAX_INTENTOS:-5}
+      # HU4.2.3: siniestros paramétricos. Sin EVENTOS_FUENTE_TOKEN la ingesta responde 403.
+      EVENTOS_FUENTE_TOKEN: ${EVENTOS_FUENTE_TOKEN:-}
+      EVENTOS_PARAMETRICOS_HABILITADOS: "${EVENTOS_PARAMETRICOS_HABILITADOS:-true}"
+      EVENTOS_INTERVALO_SEGUNDOS: ${EVENTOS_INTERVALO_SEGUNDOS:-2}
+      EVENTOS_MAX_INTENTOS: ${EVENTOS_MAX_INTENTOS:-5}
+      SOLICITUDES_PAGO: ${SOLICITUDES_PAGO:-registro}
+      PAGO_INDEMNIZACION_QUEUE_URL: ${PAGO_INDEMNIZACION_QUEUE_URL:-}
+      # Bus de eventos: postgres (por defecto) o sqs (diseño HA8; cola y DLQ en AWS, perfil local SQS_AWS_PROFILE).
+      EVENTOS_BUS: ${EVENTOS_BUS:-postgres}
+      EVENTOS_PARAMETRICOS_QUEUE_URL: ${EVENTOS_PARAMETRICOS_QUEUE_URL:-}
+      EVENTOS_PARAMETRICOS_DLQ_URL: ${EVENTOS_PARAMETRICOS_DLQ_URL:-}
+      SQS_AWS_PROFILE: ${SQS_AWS_PROFILE:-}
       # Credenciales de MinIO, solo locales (sobrescriben las de AWS del .env para este servicio).
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-solventa}
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-solventa-local-minio}
@@ -276,6 +298,34 @@ services:
       QUOTINGENGINE_SERVICE_URL: ${QUOTINGENGINE_SERVICE_URL:-http://quotingengine_service:8000}
       INSURANCEPOLICIES_SERVICE_URL: ${INSURANCEPOLICIES_SERVICE_URL:-http://insurancepolicies_service:8000}
       PAYMENTS_SERVICE_URL: ${PAYMENTS_SERVICE_URL:-http://payments_service:8000}
+      COGNITO_REGION: ${COGNITO_REGION:-${AWS_REGION:-us-east-1}}
+      COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
+      COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+    depends_on:
+      identity_service:
+        condition: service_started
+      quotingengine_service:
+        condition: service_started
+      insurancepolicies_service:
+        condition: service_started
+      payments_service:
+        condition: service_started
+
+  bff_socios:
+    build:
+      context: .
+      dockerfile: docker/services/Dockerfile.bff_socios
+    container_name: solventa-bff-socios
+    ports:
+      - "8007:8000"
+    env_file:
+      - .env
+    environment:
+      IDENTITY_SERVICE_URL: ${IDENTITY_SERVICE_URL:-http://identity_service:8000}
+      QUOTINGENGINE_SERVICE_URL: ${QUOTINGENGINE_SERVICE_URL:-http://quotingengine_service:8000}
+      INSURANCEPOLICIES_SERVICE_URL: ${INSURANCEPOLICIES_SERVICE_URL:-http://insurancepolicies_service:8000}
+      PAYMENTS_SERVICE_URL: ${PAYMENTS_SERVICE_URL:-http://payments_service:8000}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
     depends_on:
       identity_service:
@@ -307,6 +357,7 @@ services:
       COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
       QUOTINGENGINE_SERVICE_URL: ${QUOTINGENGINE_SERVICE_URL:-http://quotingengine_service:8000}
       INSURANCECLAIMS_SERVICE_URL: ${INSURANCECLAIMS_SERVICE_URL:-http://insuranceclaims_service:8000}
+      INSURANCEPOLICIES_SERVICE_URL: ${INSURANCEPOLICIES_SERVICE_URL:-http://insurancepolicies_service:8000}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
     depends_on:
       identity_service:
@@ -314,6 +365,8 @@ services:
       quotingengine_service:
         condition: service_started
       insuranceclaims_service:
+        condition: service_started
+      insurancepolicies_service:
         condition: service_started
 
   db:

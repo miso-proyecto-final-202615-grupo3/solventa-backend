@@ -33,3 +33,14 @@ def test_error_comun():
     error = _muestra("error-poliza-no-vigente.json")
 
     assert set(error) == {"codigo", "mensaje", "correlation_id"}
+
+
+def test_listado_cumple_el_contrato_canonico():
+    """HU4.2.1: página de siniestros del cliente, más reciente primero."""
+    from src.presentation.schemas import SiniestrosResponse
+
+    listado = SiniestrosResponse.model_validate(_muestra("listado-response.json"))
+
+    assert (listado.pagina, listado.tamano, listado.total) == (1, 20, 2)
+    fechas = [s.reportado_en for s in listado.siniestros]
+    assert fechas == sorted(fechas, reverse=True)

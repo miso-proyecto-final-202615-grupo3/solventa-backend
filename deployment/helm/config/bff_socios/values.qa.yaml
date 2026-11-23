@@ -1,0 +1,4 @@
+image:
+  repository: bff-socios
+config:
+  ENVIRONMENT: qa

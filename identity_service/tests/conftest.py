@@ -38,6 +38,8 @@ class FakeIdentityProvider:
     def __init__(self):
         self.registrados: list[tuple[str, str]] = []
         self.eliminados: list[str] = []
+        self.recuperaciones_solicitadas: list[str] = []
+        self.recuperaciones_confirmadas: list[tuple[str, str, str]] = []
         self.fallar_registro: bool = False
         self.fallar_autenticacion: bool = False
         self.credenciales_invalidas: bool = False
@@ -46,6 +48,9 @@ class FakeIdentityProvider:
         if self.fallar_registro:
             raise RuntimeError("Cognito no disponible")
         self.registrados.append((correo, password))
+
+    async def registrar_prospecto(self, correo: str, password: str) -> None:
+        await self.registrar_usuario(correo, password)
 
     async def autenticar_usuario(self, correo: str, password: str) -> AutenticarResult:
         if self.fallar_autenticacion:
@@ -61,6 +66,14 @@ class FakeIdentityProvider:
 
     async def eliminar_usuario(self, correo: str) -> None:
         self.eliminados.append(correo)
+
+    async def solicitar_recuperacion_clave(self, correo: str) -> None:
+        self.recuperaciones_solicitadas.append(correo)
+
+    async def confirmar_recuperacion_clave(
+        self, correo: str, codigo: str, nueva_clave: str
+    ) -> None:
+        self.recuperaciones_confirmadas.append((correo, codigo, nueva_clave))
 
 
 class FakeConsentimientoCache:

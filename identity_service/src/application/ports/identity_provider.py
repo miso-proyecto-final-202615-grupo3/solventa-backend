@@ -10,6 +10,18 @@ class InvalidCredentialsError(Exception):
     pass
 
 
+class PasswordRecoveryCodeError(Exception):
+    pass
+
+
+class PasswordRecoveryPasswordError(Exception):
+    pass
+
+
+class PasswordRecoveryRateLimitError(Exception):
+    pass
+
+
 @dataclass(frozen=True)
 class AutenticarResult:
     access_token: str
@@ -20,6 +32,9 @@ class AutenticarResult:
 
 
 class IdentityProvider(ABC):
+    async def registrar_prospecto(self, correo: str, password: str) -> None:
+        raise NotImplementedError
+
     @abstractmethod
     async def registrar_usuario(self, correo: str, password: str) -> None:
         raise NotImplementedError
@@ -36,4 +51,14 @@ class IdentityProvider(ABC):
 
     @abstractmethod
     async def eliminar_usuario(self, correo: str) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def solicitar_recuperacion_clave(self, correo: str) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def confirmar_recuperacion_clave(
+        self, correo: str, codigo: str, nueva_clave: str
+    ) -> None:
         raise NotImplementedError

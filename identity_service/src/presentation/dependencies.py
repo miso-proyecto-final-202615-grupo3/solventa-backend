@@ -30,6 +30,7 @@ from src.application.use_cases.consultar_auditoria_consentimiento_use_case impor
     ConsultarAuditoriaConsentimientoUseCase,
 )
 from src.application.use_cases.registrar_cliente_use_case import RegistrarClienteUseCase
+from src.application.use_cases.recuperar_clave_use_case import RecuperarClaveUseCase
 from src.application.use_cases.consultar_verificacion_kyc_aml_use_case import (
     ConsultarVerificacionKycAmlUseCase,
 )
@@ -37,8 +38,15 @@ from src.application.use_cases.iniciar_verificacion_kyc_aml_use_case import (
     IniciarVerificacionKycAmlUseCase,
 )
 from src.core.config import settings
+from src.application.use_cases.tokens_push_use_cases import (
+    EliminarTokenPushUseCase,
+    ListarDestinosPushUseCase,
+    RegistrarTokenPushUseCase,
+)
+from src.infrastructure.persistence.tokens_push_repository_impl import SqlAlchemyTokensPushRepository
 from src.core.database import SessionLocal
 from src.domain.clientes.repositories import ClienteRepository
+from src.domain.socios.repositories import SocioRepository
 from src.infrastructure.gateways.cognito_identity_provider import CognitoIdentityProvider
 from src.domain.verificaciones_kyc_aml.repositories import DocumentoVerificacionRepository
 from src.infrastructure.gateways.kyc_aml_http_client import KycAmlHttpClient
@@ -74,6 +82,9 @@ from src.infrastructure.persistence.activacion_movil_repository_impl import (
 from src.infrastructure.persistence.verificacion_kyc_aml_repository_impl import (
     SqlAlchemyVerificacionKycAmlRepository,
 )
+from src.infrastructure.identity.cognito_socio_provider import CognitoSocioProvider
+from src.infrastructure.persistence.socio_repository_impl import SqlAlchemySocioRepository
+from src.application.use_cases.registrar_socio_use_case import RegistrarSocioUseCase
 from src.infrastructure.storage.documento_verificacion_s3_repository import (
     S3DocumentoVerificacionRepository,
 )
@@ -100,6 +111,17 @@ def get_cliente_repository(
     db: AsyncSession = Depends(get_db),
 ) -> ClienteRepository:
     return SqlAlchemyClienteRepository(db)
+
+
+def get_socio_repository(db: AsyncSession = Depends(get_db)) -> SocioRepository:
+    return SqlAlchemySocioRepository(db)
+
+
+def get_registrar_socio_use_case(
+    repository: SocioRepository = Depends(get_socio_repository),
+) -> RegistrarSocioUseCase:
+    provider = CognitoSocioProvider() if settings.COGNITO_ENABLED else None
+    return RegistrarSocioUseCase(repository, provider)
 
 
 def get_consentimiento_repository(
@@ -157,6 +179,12 @@ def get_autenticar_cliente_use_case(
     identity_provider: IdentityProvider = Depends(get_identity_provider),
 ) -> AutenticarClienteUseCase:
     return AutenticarClienteUseCase(identity_provider)
+
+
+def get_recuperar_clave_use_case(
+    identity_provider: IdentityProvider = Depends(get_identity_provider),
+) -> RecuperarClaveUseCase:
+    return RecuperarClaveUseCase(identity_provider)
 
 
 async def get_kyc_aml_provider() -> AsyncGenerator[KycAmlProvider, None]:
@@ -293,3 +321,27 @@ async def abrir_gestionar_consentimiento_use_case() -> AsyncGenerator[
             _consentimiento_cache,
             settings.CONSENT_TERMS_VERSION,
         )
+
+
+# --- HU4.2.2 · Tokens push ----------------------------------------------------------------------------
+
+def get_tokens_push_repository(db: AsyncSession = Depends(get_db)) -> SqlAlchemyTokensPushRepository:
+    return SqlAlchemyTokensPushRepository(db)
+
+
+def get_registrar_token_push_use_case(
+    repo: SqlAlchemyTokensPushRepository = Depends(get_tokens_push_repository),
+) -> RegistrarTokenPushUseCase:
+    return RegistrarTokenPushUseCase(repo)
+
+
+def get_eliminar_token_push_use_case(
+    repo: SqlAlchemyTokensPushRepository = Depends(get_tokens_push_repository),
+) -> EliminarTokenPushUseCase:
+    return EliminarTokenPushUseCase(repo)
+
+
+def get_listar_destinos_push_use_case(
+    repo: SqlAlchemyTokensPushRepository = Depends(get_tokens_push_repository),
+) -> ListarDestinosPushUseCase:
+    return ListarDestinosPushUseCase(repo)

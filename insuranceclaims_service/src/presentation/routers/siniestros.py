@@ -4,16 +4,18 @@ El dueño llega en `X-Cliente-Id` (lo resuelve el BFF desde el token); la app nu
 """
 import uuid
 
-from fastapi import APIRouter, Depends, Header, Response, status
+from fastapi import APIRouter, Depends, Header, Query, Response, status
 
 from src.application.use_cases.evidencias_use_cases import ConsultarDetalleSiniestroUseCase
 from src.application.use_cases.listar_polizas_elegibles_use_case import ListarPolizasElegiblesUseCase
+from src.application.use_cases.listar_siniestros_use_case import TAMANO_MAX, ListarSiniestrosUseCase
 from src.application.use_cases.reportar_siniestro_use_case import ReporteSiniestroCmd, ReportarSiniestroUseCase
 from src.domain.siniestros.catalogo import CatalogoTiposSiniestro, idioma_de
 from src.presentation.dependencies import (
     get_catalogo,
     get_consultar_detalle_siniestro_use_case,
     get_listar_polizas_elegibles_use_case,
+    get_listar_siniestros_use_case,
     get_reportar_siniestro_use_case,
 )
 from src.presentation.schemas.evidencias import SiniestroDetalleResponse
@@ -23,6 +25,7 @@ from src.presentation.schemas.siniestros import (
     ProductoResponse,
     ReportarSiniestroRequest,
     SiniestroResponse,
+    SiniestrosResponse,
     TipoSiniestroCatalogoResponse,
     TipoSiniestroResponse,
     TiposSiniestroResponse,
@@ -89,6 +92,24 @@ async def reportar_siniestro(
     return SiniestroResponse.desde(resultado.siniestro)
 
 
+@router.get("", response_model=SiniestrosResponse)
+async def listar_siniestros(
+    cliente_id: uuid.UUID = Header(alias="X-Cliente-Id"),
+    poliza_id: uuid.UUID | None = Query(default=None),
+    pagina: int = Query(default=1, ge=1),
+    tamano: int = Query(default=20, ge=1, le=TAMANO_MAX),
+    use_case: ListarSiniestrosUseCase = Depends(get_listar_siniestros_use_case),
+) -> SiniestrosResponse:
+    """Siniestros del cliente, más reciente primero; `poliza_id` filtra por póliza (HU4.2.1)."""
+    resultado = await use_case.ejecutar(cliente_id, poliza_id, pagina, tamano)
+    return SiniestrosResponse(
+        siniestros=[SiniestroResponse.desde(s) for s in resultado.siniestros],
+        pagina=resultado.pagina,
+        tamano=resultado.tamano,
+        total=resultado.total,
+    )
+
+
 @router.get("/{siniestro_id}", response_model=SiniestroDetalleResponse)
 async def consultar_siniestro(
     siniestro_id: uuid.UUID,
@@ -97,7 +118,7 @@ async def consultar_siniestro(
 ) -> SiniestroDetalleResponse:
     """El siniestro con su ubicación y sus evidencias vigentes (HU4.1.2)."""
     detalle = await use_case.ejecutar(siniestro_id, cliente_id)
-    return SiniestroDetalleResponse.desde_detalle(detalle.siniestro, detalle.evidencias)
+    return SiniestroDetalleResponse.desde_detalle(detalle.siniestro, detalle.evidencias, detalle.indemnizacion)
 
 
 @router_tipos.get("", response_model=TiposSiniestroResponse)

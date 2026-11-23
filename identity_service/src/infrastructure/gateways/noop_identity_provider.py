@@ -3,6 +3,7 @@ import logging
 from src.application.ports.identity_provider import (
     AutenticarResult,
     IdentityProvider,
+    IdentityProviderError,
     InvalidCredentialsError,
 )
 
@@ -23,6 +24,9 @@ class NoopIdentityProvider(IdentityProvider):
             correo,
         )
 
+    async def registrar_prospecto(self, correo: str, password: str) -> None:
+        await self.registrar_usuario(correo, password)
+
     async def autenticar_usuario(
         self, correo: str, password: str
     ) -> AutenticarResult:
@@ -37,4 +41,16 @@ class NoopIdentityProvider(IdentityProvider):
         logger.warning(
             "NoopIdentityProvider: identidad para %s no existe (modo local).",
             correo,
+        )
+
+    async def solicitar_recuperacion_clave(self, correo: str) -> None:
+        raise IdentityProviderError(
+            "La recuperación de contraseña requiere Cognito habilitado."
+        )
+
+    async def confirmar_recuperacion_clave(
+        self, correo: str, codigo: str, nueva_clave: str
+    ) -> None:
+        raise IdentityProviderError(
+            "La recuperación de contraseña requiere Cognito habilitado."
         )

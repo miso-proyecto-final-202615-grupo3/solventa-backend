@@ -1,5 +1,7 @@
 import uuid
 from collections.abc import AsyncGenerator
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -10,11 +12,11 @@ from pagos_fakes import (
     FirmasFalsas,
     ProveedorFalso,
     ProveedorTarjetaFalso,
-    cotizacion,
 )
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.application.ports.cotizaciones import CotizacionPago
 from src.application.ports.proveedor_pago import (
     ProveedorPagoError,
     ResultadoCobro,
@@ -57,8 +59,8 @@ TARJETA = {
 
 
 class Entorno:
-    def __init__(self) -> None:
-        self.cotizaciones = CotizacionesFalsas()
+    def __init__(self, cotizacion_vigente: CotizacionPago) -> None:
+        self.cotizaciones = CotizacionesFalsas(cotizacion_vigente)
         self.firmas = FirmasFalsas()
         self.paypal = ProveedorFalso(ResultadoCobro(aprobado=True, referencia="PAYPAL_1"))
         self.tarjeta = ProveedorTarjetaFalso(
@@ -69,8 +71,8 @@ class Entorno:
 
 
 @pytest.fixture
-def entorno() -> Entorno:
-    return Entorno()
+def entorno(cotizacion_vigente) -> Entorno:
+    return Entorno(cotizacion_vigente)
 
 
 @pytest.fixture
@@ -95,7 +97,7 @@ def _pagar(client: AsyncClient, cuerpo=PAYPAL, clave="clave-1", **headers):
     return client.post(PAGOS, json=cuerpo, headers={**cabeceras, **headers})
 
 
-async def test_resumen_presenta_la_prima_y_paypal_por_defecto(client):
+async def test_resumen_presenta_la_prima_y_paypal_por_defecto(client, cotizacion_vigente):
     response = await client.get(RESUMEN)
 
     assert response.status_code == 200
@@ -103,7 +105,7 @@ async def test_resumen_presenta_la_prima_y_paypal_por_defecto(client):
         "cotizacion_id": str(COTIZACION_ID),
         "prima_total": "1250000.505",
         "moneda": "COP",
-        "expira_en": cotizacion().expira_en.isoformat().replace("+00:00", "Z"),
+        "expira_en": cotizacion_vigente.expira_en.isoformat().replace("+00:00", "Z"),
         "metodos_pago": [
             {"codigo": "PAYPAL", "por_defecto": True},
             {"codigo": "TARJETA_CREDITO", "por_defecto": False},
@@ -114,8 +116,9 @@ async def test_resumen_presenta_la_prima_y_paypal_por_defecto(client):
 @pytest.mark.parametrize(
     ("preparar", "status_esperado", "codigo"),
     [
-        (lambda e: setattr(e.cotizaciones, "cotizacion", cotizacion(cotizacion_id=uuid.uuid4())), 404, "COTIZACION_NO_ENCONTRADA"),
-        (lambda e: setattr(e.cotizaciones, "cotizacion", cotizacion(estado="EXPIRADA")), 409, "COTIZACION_NO_VIGENTE"),
+        (lambda e: setattr(e.cotizaciones, "cotizacion", replace(e.cotizaciones.cotizacion, cotizacion_id=uuid.uuid4())), 404, "COTIZACION_NO_ENCONTRADA"),
+        (lambda e: setattr(e.cotizaciones, "cotizacion", replace(e.cotizaciones.cotizacion, estado="EXPIRADA")), 409, "COTIZACION_NO_VIGENTE"),
+        (lambda e: setattr(e.cotizaciones, "cotizacion", replace(e.cotizaciones.cotizacion, expira_en=datetime.now(UTC) - timedelta(seconds=1))), 409, "COTIZACION_NO_VIGENTE"),
         (lambda e: setattr(e.cotizaciones, "error", ServicioNoDisponibleError("x")), 503, "SERVICIO_NO_DISPONIBLE"),
     ],
 )
@@ -283,9 +286,10 @@ async def test_no_permite_pagar_dos_veces_la_misma_prima(client):
 @pytest.mark.parametrize(
     ("preparar", "status_esperado", "codigo"),
     [
-        (lambda e: setattr(e.cotizaciones, "cotizacion", cotizacion(cotizacion_id=uuid.uuid4())), 404, "COTIZACION_NO_ENCONTRADA"),
-        (lambda e: setattr(e.cotizaciones, "cotizacion", cotizacion(cliente_id=uuid.uuid4())), 404, "COTIZACION_NO_ENCONTRADA"),
-        (lambda e: setattr(e.cotizaciones, "cotizacion", cotizacion(estado="EXPIRADA")), 409, "COTIZACION_NO_VIGENTE"),
+        (lambda e: setattr(e.cotizaciones, "cotizacion", replace(e.cotizaciones.cotizacion, cotizacion_id=uuid.uuid4())), 404, "COTIZACION_NO_ENCONTRADA"),
+        (lambda e: setattr(e.cotizaciones, "cotizacion", replace(e.cotizaciones.cotizacion, cliente_id=uuid.uuid4())), 404, "COTIZACION_NO_ENCONTRADA"),
+        (lambda e: setattr(e.cotizaciones, "cotizacion", replace(e.cotizaciones.cotizacion, estado="EXPIRADA")), 409, "COTIZACION_NO_VIGENTE"),
+        (lambda e: setattr(e.cotizaciones, "cotizacion", replace(e.cotizaciones.cotizacion, expira_en=datetime.now(UTC) - timedelta(seconds=1))), 409, "COTIZACION_NO_VIGENTE"),
         (lambda e: setattr(e.cotizaciones, "aceptadas", False), 409, "CONDICIONES_NO_ACEPTADAS"),
         (lambda e: setattr(e.firmas, "firma", None), 409, "FIRMA_REQUERIDA"),
         (lambda e: setattr(e.cotizaciones, "error", ServicioNoDisponibleError("x")), 503, "SERVICIO_NO_DISPONIBLE"),

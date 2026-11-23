@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     QUOTINGENGINE_SERVICE_URL: str = "http://localhost:8000"
     INSURANCECLAIMS_SERVICE_URL: str = "http://localhost:8005"
     CLAIMS_TIMEOUT_SECONDS: float = 8.0
+    INSURANCEPOLICIES_SERVICE_URL: str = "http://localhost:8000"
+    POLICIES_TIMEOUT_SECONDS: float = 8.0
     CLIENTE_ID_CACHE_SECONDS: int = 300
     OTEL_EXPORTER_OTLP_ENDPOINT: str = "http://localhost:4317"
 

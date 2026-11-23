@@ -357,6 +357,7 @@ services:
       COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
       QUOTINGENGINE_SERVICE_URL: ${QUOTINGENGINE_SERVICE_URL:-http://quotingengine_service:8000}
       INSURANCECLAIMS_SERVICE_URL: ${INSURANCECLAIMS_SERVICE_URL:-http://insuranceclaims_service:8000}
+      INSURANCEPOLICIES_SERVICE_URL: ${INSURANCEPOLICIES_SERVICE_URL:-http://insurancepolicies_service:8000}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
     depends_on:
       identity_service:
@@ -364,6 +365,8 @@ services:
       quotingengine_service:
         condition: service_started
       insuranceclaims_service:
+        condition: service_started
+      insurancepolicies_service:
         condition: service_started
 
   db:

@@ -10,6 +10,7 @@ from src.infrastructure.gateways.identity_service_gateway import (
     IdentityServiceGateway,
 )
 from src.infrastructure.gateways.insuranceclaims_service_gateway import InsuranceClaimsServiceGateway
+from src.infrastructure.gateways.insurancepolicies_service_gateway import InsurancePoliciesServiceGateway
 from src.infrastructure.gateways.quotingengine_service_gateway import (
     QuotingEngineServiceGateway,
 )
@@ -79,6 +80,14 @@ async def get_quotingengine_service_gateway() -> AsyncGenerator[
 
 async def get_insuranceclaims_service_gateway() -> AsyncGenerator[InsuranceClaimsServiceGateway, None]:
     gateway = InsuranceClaimsServiceGateway()
+    try:
+        yield gateway
+    finally:
+        await gateway.aclose()
+
+
+async def get_insurancepolicies_service_gateway() -> AsyncGenerator[InsurancePoliciesServiceGateway, None]:
+    gateway = InsurancePoliciesServiceGateway()
     try:
         yield gateway
     finally:

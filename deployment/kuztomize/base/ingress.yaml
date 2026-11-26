@@ -51,3 +51,26 @@ spec:
                 name: bff-mobile
                 port:
                   number: 80
+          # HU4.2.2 / HU4.2.3: rutas internas de MS Siniestros (protegidas con X-Operador-Token o X-Fuente-Token).
+          # El resto de MS Siniestros no se publica. Comodines del ALB: pathType ImplementationSpecific.
+          - path: /api/v1/insuranceclaims-service/siniestros/*/estado
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: insuranceclaims-service
+                port:
+                  number: 80
+          - path: /api/v1/insuranceclaims-service/eventos-parametricos*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: insuranceclaims-service
+                port:
+                  number: 80
+          - path: /api/v1/insuranceclaims-service/polizas-parametricas/*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: insuranceclaims-service
+                port:
+                  number: 80
